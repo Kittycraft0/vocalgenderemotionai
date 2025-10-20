@@ -89,20 +89,20 @@ for folder in os.listdir(path):
                     # plot the spectrogram with silences cut out
                     #1. find silences
                     #1.a. get rms
-                    print("original:")
-                    print(S_db)
-                    print("zeroed:")
+                    #print("original:")
+                    #print(S_db)
+                    #print("zeroed:")
                     zeroed=S_db+80
-                    print(zeroed)
+                    #print(zeroed)
                     squared=np.square(zeroed)
-                    print("squared:")
-                    print(squared)
+                    #print("squared:")
+                    #print(squared)
                     means=np.mean(squared,axis=0)
-                    print("means:")
-                    print(means)
+                    #print("means:")
+                    #print(means)
                     rms=np.sqrt(means[:])
-                    print("rms:")
-                    print(rms)
+                    #print("rms:")
+                    #print(rms)
                     #print("ah.")
                     #print(np.square(S_db[:]))
                     #print(np.rms(S_db[:]))
@@ -127,8 +127,8 @@ for folder in os.listdir(path):
                     #print("size:")
                     #print(indices.size)
                     numbers=np.arange(1,deletion_indices.size+1)
-                    print("numbers: ")
-                    print(numbers)
+                    #print("numbers: ")
+                    #print(numbers)
                     # the subtraction makes it such that there are repeated numbers when there are consecutive integers, 
                     # and a different repeated number is repeated after every jump
                     #indices-numbers
@@ -140,10 +140,10 @@ for folder in os.listdir(path):
                     print("indices:")
                     print(deletion_indices)
 
-                    print("Cut:")
+                    #print("Cut:")
                     S_db_filtered_away=np.delete(S_db,deletion_indices,axis=1)
                     S_db_filtered=S_db[:,deletion_indices]
-                    print(S_db_filtered)
+                    #print(S_db_filtered)
                     print(f"Shape of original: {S_db.shape}")
                     print(f"Shape of cut: {S_db_filtered_away.shape}")
                     print(f"Shape of kept: {S_db_filtered.shape}")
@@ -186,6 +186,9 @@ for folder in os.listdir(path):
                     plt.subplot(5, 2, 8)
                     librosa.display.specshow(S_db_filtered_away, sr=sr, x_axis='time', y_axis='hz',cmap="magma")
                     plt.colorbar(format='%+2.0f dB')
+                    #print("deletion indeces:")
+                    #print(np.unique(deletion_indices))
+                    #plt.axvline(x=np.unique(deletion_indices).any(), color='red', linestyle='--', label="Threshold")
                     plt.title('Removed parts from RAVDESS audio file')
                     plt.xlabel("Time (s)") #redundant?
                     plt.ylabel("Frequency (Hz)") #redundant?
