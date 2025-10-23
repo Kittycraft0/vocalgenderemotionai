@@ -150,7 +150,7 @@ for folder in os.listdir(path):
                     plt.axhline(y=threshold2, color='orange', linestyle='--', label="Threshold2 (0.05*95th percentile)")
                     plt.axhline(y=threshold3, color='yellow', linestyle='--', label="Threshold3 (0.05*max value)")
                     plt.title("Energy Graph")
-                    plt.xlabel("Frame Index")
+                    plt.xlabel("Seconds")
                     plt.ylabel("Energy")
                     plt.legend()
                     #plt.show()
