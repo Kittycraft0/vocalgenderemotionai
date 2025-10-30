@@ -122,7 +122,30 @@ for folder in os.listdir(path):
                     # 8. convert to spectrogram
                     # 9. plot spectrogram of cut and kept and uncut audio data
                     
-                    plt.subplot(3, 1, 1)
+                    # 3. Compute the Short-Time Fourier Transform (STFT)
+                    # This converts the audio signal into a spectrogram
+                    # The result is complex, so we take the absolute value to get the magnitude
+                    D = librosa.stft(y)
+                    #print("D:")
+                    #print(D)
+                    print(f"Shape of D:{D.shape}")
+                    S_db = librosa.amplitude_to_db(np.abs(D), ref=np.max)
+                    #print("S_db:")
+                    #print(S_db)
+                    print(f"Shape of S_db:{S_db.shape}")
+                    
+                    plt.subplot(4,1,1)
+                    print("Showing original:")
+                    #plt.figure(figsize=(10, 5))
+                    librosa.display.specshow(S_db, sr=sr, x_axis='time', y_axis='hz',cmap="magma")
+                    plt.colorbar(format='%+2.0f dB')
+                    plt.title('Original RAVDESS audio file')
+                    plt.xlabel("Time (s)") #redundant?
+                    plt.ylabel("Frequency (Hz)") #redundant?
+                    #plt.tight_layout()
+
+                    
+                    plt.subplot(4, 1, 2)
                     #print(rms_waveform)
                     # Create time axis in seconds
                     time = np.arange(len(y)) / sr
@@ -141,7 +164,7 @@ for folder in os.listdir(path):
                     frames = np.arange(len(rms_waveform))
                     t_rms = frames * window_step / sr  # convert frame index → seconds
                     # (3) Short-term energy comparison
-                    plt.subplot(3, 1, 2)
+                    plt.subplot(4, 1, 3)
                     print(f"Shape of rms_waveform: {rms_waveform.shape}")
                     #print(rms_waveform)
                     plt.plot(t_rms, rms_waveform, label="RMS", color='orange')
@@ -155,17 +178,6 @@ for folder in os.listdir(path):
                     plt.legend()
                     #plt.show()
 
-                    # 3. Compute the Short-Time Fourier Transform (STFT)
-                    # This converts the audio signal into a spectrogram
-                    # The result is complex, so we take the absolute value to get the magnitude
-                    D = librosa.stft(y)
-                    #print("D:")
-                    #print(D)
-                    print(f"Shape of D:{D.shape}")
-                    S_db = librosa.amplitude_to_db(np.abs(D), ref=np.max)
-                    #print("S_db:")
-                    #print(S_db)
-                    print(f"Shape of S_db:{S_db.shape}")
                     
                     # cut off data outside of thresholds from data
                     thresholds=[threshold1,threshold2,threshold3]
@@ -200,7 +212,7 @@ for folder in os.listdir(path):
                     plt.title('Removed parts from RAVDESS audio file')
                     plt.xlabel("Time (s)") #redundant?
                     plt.ylabel("Frequency (Hz)") #redundant?
-                    plt.tight_layout()
+                    #plt.tight_layout()
 
 
                     
