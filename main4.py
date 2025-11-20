@@ -18,7 +18,7 @@ import torch
 # from torch import nn
 # from torch.utils.data import DataLoader
 # from torchvision import datasets,transforms
-
+print("done importing libraries")
 
 
 # 11/10/2025
@@ -137,12 +137,13 @@ print(f"And my prediction is... {y_pred}")
 
 
 
-
 # Download latest version
 internet = False #because apparently my code can't run without internet without this
 if internet:
+    print("Downloading dataset")
     path = kagglehub.dataset_download("uwrfkaggler/ravdess-emotional-speech-audio")
 else:
+    print("Dataset already downloaded")
     path="C:\\Users\\iwbmo\\.cache\\kagglehub\\datasets\\uwrfkaggler\\ravdess-emotional-speech-audio\\versions\\1"
 print()
 print()
@@ -181,23 +182,89 @@ window_max_pos=window_width+1
 #bottom_5_percent_energy = 0.05 * np.percentile(rms, 5)
 
 method=2
-# branch off into two methods:
 
-# A: given method
-# 6A1. set threshold to 5th percentile, essentially always cutting out exactly 5% of the data
-threshold1=np.percentile(rms_waveform,5)
-# B: custom method
-# 6B1. set threshold to 0.05*95th percentile
-threshold2=0.05*np.percentile(rms_waveform,95)
-# C: poor thresholding method
-# 6C1. set threshold to 0.05*(max energy)
-threshold3=0.05*np.max(rms_waveform)
-if method==1:
-    threshold=threshold1
-elif method==2:
-    threshold=threshold2
-elif method==3:
-    threshold=threshold3
+
+def getThresholds(rms_waveform):
+    # A: given method
+    # 6A1. set threshold to 5th percentile, essentially always cutting out exactly 5% of the data
+    threshold1=np.percentile(rms_waveform,5)
+    # B: custom method
+    # 6B1. set threshold to 0.05*95th percentile
+    threshold2=0.05*np.percentile(rms_waveform,95)
+    # C: poor thresholding method
+    # 6C1. set threshold to 0.05*(max energy)
+    threshold3=0.05*np.max(rms_waveform)
+    return [threshold1,threshold2,threshold3]
+
+def getThreshold(rms_waveform,method:int):
+    """
+    # branch off into two methods:
+
+    # A: given method
+    # 6A1. set threshold to 5th percentile, essentially always cutting out exactly 5% of the data
+    threshold1=np.percentile(rms_waveform,5)
+    # B: custom method
+    # 6B1. set threshold to 0.05*95th percentile
+    threshold2=0.05*np.percentile(rms_waveform,95)
+    # C: poor thresholding method
+    # 6C1. set threshold to 0.05*(max energy)
+    threshold3=0.05*np.max(rms_waveform)
+    if method==1:
+        threshold=threshold1
+    elif method==2:
+        threshold=threshold2
+    elif method==3:
+        threshold=threshold3"""
+
+    return getThresholds(rms_waveform)[method-1]
+
+                    
+# method to get cut spectrogram data given file path to audio file
+# returns 1 if file does not exist
+# returns 2 if file path does not exist or there is an error with loading the audio file
+def getCutAudio(file_path):
+    # Check if file exists
+    if not os.path.exists(file_path):
+        print(f"Error: The file '{file_path}' was not found.")
+        return 1,1 #failure
+    # Load the file
+    try:
+        y,sr=librosa.load(file_path,sr=None)
+    except Exception as e:
+        # some files don't have opening permissions, don't know why
+        print(f"An error occurred for file path {file_path}: {e}")
+        return 2,2 #failure
+    
+    y, sr = librosa.load(file_path, sr=None) #sr=None keeps the original sampling rate
+    D = librosa.stft(y)
+    rms_waveform = librosa.feature.rms(y=y, frame_length=window_width, hop_length=window_step)[0]
+    # show energy over time graph with different thresholds
+    # Create time axis for RMS (one time value per frame)
+    frames = np.arange(len(rms_waveform))
+    #t_rms = frames * window_step / sr  # convert frame index → seconds
+    # calculate the post-cut width
+    # cut off data outside of thresholds from data
+    thresholds=getThresholds(rms_waveform)
+    #threshold=getThreshold(rms_waveform,method)
+    #thresholds=[threshold1,threshold2,threshold3]
+    cut_datas_indeces_waveform=np.where(rms_waveform<thresholds[method])[0]
+    #cut_datas_indeces_y=0
+    cut_datas_indeces_spectrogram=cut_datas_indeces_waveform
+    # datas removed by filter
+    #cut_out_datas_waveform=rms_waveform[cut_datas_indeces_waveform]
+    
+    # Define the spectrogram as S_db
+    S_db = librosa.amplitude_to_db(np.abs(D), ref=np.max)
+    #cut_out_datas_spectrogram=S_db[:,cut_datas_indeces_spectrogram]
+    # datas kept after filter
+    cut_datas_waveform=np.delete(rms_waveform,cut_datas_indeces_waveform)
+    cut_datas_spectrogram=np.delete(S_db,cut_datas_indeces_spectrogram,axis=1)
+    return cut_datas_waveform, cut_datas_spectrogram
+
+
+
+#rms_waveform = librosa.feature.rms(y=y, frame_length=window_width, hop_length=window_step)[0]
+
 
 
 # 1. Define the path to your RAVDESS audio file.
@@ -217,11 +284,12 @@ for folder in os.listdir(path):
     for filename in os.listdir(f"{path}\\{folder}"):
         file_path=f"{path}\\{folder}\\{filename}"
         num_files_total+=1
-        if not os.path.exists(file_path):
-            print(f"Error: The file '{file_path}' was not found.")
-            continue
+        # Check if file exists
+        #if not os.path.exists(file_path):
+        #    print(f"Error: The file '{file_path}' was not found.")
+        #    continue
         
-        # Load the file
+        """# Load the file
         try:
             y,sr=librosa.load(file_path,sr=None)
         except Exception as e:
@@ -239,23 +307,37 @@ for folder in os.listdir(path):
         t_rms = frames * window_step / sr  # convert frame index → seconds
         # calculate the post-cut width
         # cut off data outside of thresholds from data
-        thresholds=[threshold1,threshold2,threshold3]
+        thresholds=getThresholds(rms_waveform)
+        threshold=getThreshold(rms_waveform,method)
+        #thresholds=[threshold1,threshold2,threshold3]
         cut_datas_indeces_waveform=np.where(rms_waveform<thresholds[method])[0]
         #cut_datas_indeces_y=0
         cut_datas_indeces_spectrogram=cut_datas_indeces_waveform
         # datas removed by filter
         cut_out_datas_waveform=rms_waveform[cut_datas_indeces_waveform]
+        
+        # Define the spectrogram as S_db
+        S_db = librosa.amplitude_to_db(np.abs(D), ref=np.max)
         cut_out_datas_spectrogram=S_db[:,cut_datas_indeces_spectrogram]
         # datas kept after filter
         cut_datas_waveform=np.delete(rms_waveform,cut_datas_indeces_waveform)
-        cut_datas_spectrogram=np.delete(S_db,cut_datas_indeces_spectrogram,axis=1)1
+        cut_datas_spectrogram=np.delete(S_db,cut_datas_indeces_spectrogram,axis=1)"""
+
+        cut_datas_waveform, cut_datas_spectrogram=getCutAudio(file_path)
+        # continue on errors
+        if(type(cut_datas_waveform)==int):
+            continue
+        num_files_success+=1
 
         # Print its shape
+        #print(f"cut_datas_spectrogram shape for {file_path}: {cut_datas_spectrogram.shape}")
         #print(f"shape of {file_path}: {y.shape[0]}")
-        if y.shape[0]<smallestsize:
-            smallestsize=y.shape[0]
+        if cut_datas_spectrogram.shape[1]<smallestsize:
+            smallestsize=cut_datas_spectrogram.shape[1]
+
 print(f"Successfully opened {num_files_success}/{num_files_total} files")
-print(f"smallest size: {smallestsize}")
+print(f"smallest size: {smallestsize} cut spectrogram frames")
+
 
 #Load and plot spectrograms for all .wav files
 for folder in os.listdir(path):
@@ -303,24 +385,25 @@ for folder in os.listdir(path):
                     #top_5_percent_energy = 0.05 * np.percentile(rms, 95)
                     #bottom_5_percent_energy = 0.05 * np.percentile(rms, 5)
                     
-                    method=2
+                    #method=2
                     # branch off into two methods:
-                    
+                    threshold=getThreshold(rms_waveform,method)
                     # A: given method
                     # 6A1. set threshold to 5th percentile, essentially always cutting out exactly 5% of the data
-                    threshold1=np.percentile(rms_waveform,5)
+                    #threshold1=np.percentile(rms_waveform,5)
                     # B: custom method
                     # 6B1. set threshold to 0.05*95th percentile
-                    threshold2=0.05*np.percentile(rms_waveform,95)
+                    #threshold2=0.05*np.percentile(rms_waveform,95)
                     # C: poor thresholding method
                     # 6C1. set threshold to 0.05*(max energy)
-                    threshold3=0.05*np.max(rms_waveform)
-                    if method==1:
-                        threshold=threshold1
-                    elif method==2:
-                        threshold=threshold2
-                    elif method==3:
-                        threshold=threshold3
+                    #threshold3=0.05*np.max(rms_waveform)
+                    #if method==1:
+                    #    threshold=threshold1
+                    #elif method==2:
+                    #    threshold=threshold2
+                    #elif method==3:
+                    #    threshold=threshold3
+                    thresholds=getThresholds(rms_waveform)
                     # 7. cut off data outside of threshold from data
                     cut_data_indices=np.where(rms_waveform<threshold)
                     cut_data=np.delete(rms_waveform,cut_data_indices)
@@ -378,9 +461,9 @@ for folder in os.listdir(path):
                     #print(rms_waveform)
                     plt.plot(t_rms, rms_waveform, label="RMS", color='orange')
                     #plt.plot(np.linspace(0, len(energy), len(new_energy)), new_energy, label="Processed STE", color='blue')
-                    plt.axhline(y=threshold1, color='red', linestyle='--', label="Threshold1 (5th percentile)")
-                    plt.axhline(y=threshold2, color='orange', linestyle='--', label="Threshold2 (0.05*95th percentile)")
-                    plt.axhline(y=threshold3, color='yellow', linestyle='--', label="Threshold3 (0.05*max value)")
+                    plt.axhline(y=thresholds[0], color='red', linestyle='--', label="Threshold1 (5th percentile)")
+                    plt.axhline(y=thresholds[1], color='orange', linestyle='--', label="Threshold2 (0.05*95th percentile)")
+                    plt.axhline(y=thresholds[2], color='yellow', linestyle='--', label="Threshold3 (0.05*max value)")
                     plt.title("Energy Graph")
                     plt.xlabel("Seconds")
                     plt.ylabel("Energy")
@@ -389,7 +472,7 @@ for folder in os.listdir(path):
 
                     
                     # cut off data outside of thresholds from data
-                    thresholds=[threshold1,threshold2,threshold3]
+                    #thresholds=[threshold1,threshold2,threshold3]
                     cut_datas_indeces_waveform=np.where(rms_waveform<thresholds[method])[0]
                     #cut_datas_indeces_y=0
                     cut_datas_indeces_spectrogram=cut_datas_indeces_waveform
@@ -488,8 +571,17 @@ for folder in os.listdir(path):
                     
                     parsed_spectrogram=parse_spectrogram(cut_datas_spectrogram,window_size_frames,window_interval_frames)
 
-                    cut_spectrogram_half_width=smallestsize*sr*spec_frames_per_sample/2
-                    cut_spectrogram=S_db[S_db.shape[0]/2-cut_spectrogram_half_width,S_db.shape[0]/2+cut_spectrogram_half_width]
+                    #cut_spectrogram_half_width=smallestsize*sr*spec_frames_per_sample/2
+                    cut_spectrogram_half_width=smallestsize/2
+                    left_bound=int(S_db.shape[0]/2-cut_spectrogram_half_width)
+                    right_bound=int(S_db.shape[0]/2+cut_spectrogram_half_width)
+                    print(f"window left bound: {left_bound}")
+                    print(f"window right bound: {right_bound}")
+                    #exact center doesn't matter; what matters is the same width
+                    spectrogram_value_data=S_db[left_bound:right_bound]
+                    # now the spectrogram is a bunch of numbers
+
+
 
                     # break down into an RGB bitmap of 3 colors
                     # first get the bitmap
