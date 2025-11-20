@@ -181,9 +181,30 @@ window_max_pos=window_width+1
 #top_5_percent_energy = 0.05 * np.percentile(rms, 95)
 #bottom_5_percent_energy = 0.05 * np.percentile(rms, 5)
 
+cmap_name="magma"
+
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+
+def db_to_rgb(db_value, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
+    # 1. Create the Normalizer
+    # This maps the input range [min_db, max_db] to [0.0, 1.0]
+    norm = mcolors.Normalize(vmin=min_db, vmax=max_db)
+    
+    # 2. Get the Colormap object from matplotlib
+    cmap = plt.get_cmap(cmap_name)
+    
+    # 3. Calculate the color
+    # norm(db_value) converts dB to 0-1 scale
+    # cmap(...) takes that 0-1 value and returns (R, G, B, A) in 0.0-1.0 floats
+    rgba_color = cmap(norm(db_value))
+    
+    # 4. Return only RGB (first 3 values)
+    # If you need 0-255 integers, multiply these by 255 and cast to int
+    return rgba_color #[:3] # removing alpha remover
+
 method=2
-
-
+# get the list of the three threshold types given the rms_waveform
 def getThresholds(rms_waveform):
     # A: given method
     # 6A1. set threshold to 5th percentile, essentially always cutting out exactly 5% of the data
@@ -196,6 +217,7 @@ def getThresholds(rms_waveform):
     threshold3=0.05*np.max(rms_waveform)
     return [threshold1,threshold2,threshold3]
 
+# get the specified threshold given the threshold method selected
 def getThreshold(rms_waveform,method:int):
     """
     # branch off into two methods:
@@ -429,7 +451,7 @@ for folder in os.listdir(path):
                     plt.subplot(4,1,1)
                     print("Showing original:")
                     #plt.figure(figsize=(10, 5))
-                    librosa.display.specshow(S_db, sr=sr, x_axis='time', y_axis='hz',cmap="magma")
+                    librosa.display.specshow(S_db, sr=sr, x_axis='time', y_axis='hz',cmap=cmap_name)
                     plt.colorbar(format='%+2.0f dB')
                     plt.title('Original RAVDESS audio file')
                     plt.xlabel("Time (s)") #redundant?
@@ -486,7 +508,7 @@ for folder in os.listdir(path):
                     print("Showing filtered:")
                     #plt.figure(figsize=(10, 5))
                     plt.subplot(5, 2, 9)
-                    librosa.display.specshow(cut_datas_spectrogram, sr=sr, x_axis='time', y_axis='hz',cmap="magma")
+                    librosa.display.specshow(cut_datas_spectrogram, sr=sr, x_axis='time', y_axis='hz',cmap=cmap_name)
                     plt.colorbar(format='%+2.0f dB')
                     plt.title('Filtered RAVDESS audio file')
                     plt.xlabel("Time (s)") #redundant?
@@ -496,7 +518,7 @@ for folder in os.listdir(path):
                     print("Showing filtered away:")
                     #plt.figure(figsize=(10, 5))
                     plt.subplot(5, 2, 10)
-                    librosa.display.specshow(cut_out_datas_spectrogram, sr=sr, x_axis='time', y_axis='hz',cmap="magma")
+                    librosa.display.specshow(cut_out_datas_spectrogram, sr=sr, x_axis='time', y_axis='hz',cmap=cmap_name)
                     plt.colorbar(format='%+2.0f dB')
                     #print("deletion indices:")
                     #print(np.unique(deletion_indices))
@@ -577,6 +599,7 @@ for folder in os.listdir(path):
                     right_bound=int(S_db.shape[0]/2+cut_spectrogram_half_width)
                     print(f"window left bound: {left_bound}")
                     print(f"window right bound: {right_bound}")
+                    print(f"window right bound-left bound: {right_bound-left_bound}")
                     #exact center doesn't matter; what matters is the same width
                     spectrogram_value_data=S_db[left_bound:right_bound]
                     # now the spectrogram is a bunch of numbers
@@ -584,6 +607,8 @@ for folder in os.listdir(path):
 
 
                     # break down into an RGB bitmap of 3 colors
+                    spectrogram_color_data=db_to_rgb(spectrogram_value_data)
+                    print(f"shape of spectrogram_color_data: {spectrogram_color_data.shape}")
                     # first get the bitmap
 
                     """break
@@ -607,7 +632,7 @@ for folder in os.listdir(path):
                     #changed from 10,4 to 10,5 to match
                    # plt.figure(figsize=(10, 8)) #makes a new window
                    # plt.subplot(3, 1, 1)
-                   # librosa.display.specshow(S_db, sr=sr, x_axis='time', y_axis='hz',cmap="magma")
+                   # librosa.display.specshow(S_db, sr=sr, x_axis='time', y_axis='hz',cmap=cmap_name)
                    # plt.colorbar(format='%+2.0f dB')
                    # plt.title('Spectrogram of a RAVDESS audio file')
                    # plt.xlabel("Time (s)") #redundant?
@@ -704,7 +729,7 @@ for folder in os.listdir(path):
                     print("Showing filtered:")
                     #plt.figure(figsize=(10, 5))
                     plt.subplot(5, 2, 7)
-                    librosa.display.specshow(S_db_filtered, sr=sr, x_axis='time', y_axis='hz',cmap="magma")
+                    librosa.display.specshow(S_db_filtered, sr=sr, x_axis='time', y_axis='hz',cmap=cmap_name)
                     plt.colorbar(format='%+2.0f dB')
                     plt.title('Filtered RAVDESS audio file')
                     plt.xlabel("Time (s)") #redundant?
@@ -714,7 +739,7 @@ for folder in os.listdir(path):
                     print("Showing filtered away:")
                     #plt.figure(figsize=(10, 5))
                     plt.subplot(5, 2, 8)
-                    librosa.display.specshow(S_db_filtered_away, sr=sr, x_axis='time', y_axis='hz',cmap="magma")
+                    librosa.display.specshow(S_db_filtered_away, sr=sr, x_axis='time', y_axis='hz',cmap=cmap_name)
                     plt.colorbar(format='%+2.0f dB')
                     #print("deletion indices:")
                     #print(np.unique(deletion_indices))
