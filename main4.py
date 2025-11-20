@@ -1,7 +1,7 @@
 # 10/20/2025
 # Riley Mohr
 
-
+print("Importing libraries")
 import kagglehub
 import librosa
 import librosa.display
@@ -15,9 +15,9 @@ import soundfile as sf
 
 import torch
 #import os
-from torch import nn
-from torch.utils.data import DataLoader
-from torchvision import datasets,transforms
+# from torch import nn
+# from torch.utils.data import DataLoader
+# from torchvision import datasets,transforms
 
 
 
@@ -44,8 +44,8 @@ def parse_spectrogram(specT,window_width,interval):
     dealt_with_final_window=False
 
     for i in range(total_window_count):
-        window_start_index=i*interval
-        window_end_index=i*interval+window_width
+        window_start_index=int(i*interval) #perform floor operation, it all should work
+        window_end_index=int(i*interval+window_width) #perform floor operation
         if window_end_index>total_spec_size:
             # deal with final window here
             windowed_spec.append(spec[-interval:].T)
@@ -57,10 +57,10 @@ def parse_spectrogram(specT,window_width,interval):
     
     if dealt_with_final_window==False:
         # determine if a final window is even needed
-        last_window_end_index=total_window_count*interval+window_width
+        last_window_end_index=int(total_window_count*interval+window_width)
         if last_window_end_index<total_spec_size:
             # deal with final window here
-            windowed_spec.append(spec[-interval:].T)
+            windowed_spec.append(spec[-int(interval):].T) #really weird that i need to add int() here but not above but ok
             # not needed because the variable isn't checked again
             # dealt_with_final_window=True
 
@@ -72,11 +72,13 @@ def parse_spectrogram(specT,window_width,interval):
     print(f"interval: {interval}")
     print(f"windowed spectrogram list: ")
     print(windowed_spec)
-    print(f"shape of first window: {windowed_spec[0].shape}")
-    print(f"shape of second window: {windowed_spec[1].shape}")
-    print(f"shape of second to last window: {windowed_spec[-2].shape}")
-    print(f"shape of last window: {windowed_spec[-1].shape}")
-
+    if windowed_spec:
+        print(f"shape of first window: {windowed_spec[0].shape}")
+        print(f"shape of second window: {windowed_spec[1].shape}")
+        print(f"shape of second to last window: {windowed_spec[-2].shape}")
+        print(f"shape of last window: {windowed_spec[-1].shape}")
+    else:
+        print("windowed_spec is empty :(")
     return windowed_spec
 
 
@@ -137,7 +139,11 @@ print(f"And my prediction is... {y_pred}")
 
 
 # Download latest version
-path = kagglehub.dataset_download("uwrfkaggler/ravdess-emotional-speech-audio")
+internet = False #because apparently my code can't run without internet without this
+if internet:
+    path = kagglehub.dataset_download("uwrfkaggler/ravdess-emotional-speech-audio")
+else:
+    path="C:\\Users\\iwbmo\\.cache\\kagglehub\\datasets\\uwrfkaggler\\ravdess-emotional-speech-audio\\versions\\1"
 print()
 print()
 print("Path to dataset files:", path)
@@ -164,6 +170,35 @@ print(file)
 #plt.show()
 
 
+# 1. get window
+window_width=1024
+# 2. window step
+window_step=512
+window_max_pos=window_width+1
+
+# 5. find top and bottom 5% energies from the distribution (???)
+#top_5_percent_energy = 0.05 * np.percentile(rms, 95)
+#bottom_5_percent_energy = 0.05 * np.percentile(rms, 5)
+
+method=2
+# branch off into two methods:
+
+# A: given method
+# 6A1. set threshold to 5th percentile, essentially always cutting out exactly 5% of the data
+threshold1=np.percentile(rms_waveform,5)
+# B: custom method
+# 6B1. set threshold to 0.05*95th percentile
+threshold2=0.05*np.percentile(rms_waveform,95)
+# C: poor thresholding method
+# 6C1. set threshold to 0.05*(max energy)
+threshold3=0.05*np.max(rms_waveform)
+if method==1:
+    threshold=threshold1
+elif method==2:
+    threshold=threshold2
+elif method==3:
+    threshold=threshold3
+
 
 # 1. Define the path to your RAVDESS audio file.
 # Replace this with the actual path to a .wav file from your dataset.
@@ -171,6 +206,56 @@ print(file)
 # The file naming convention details the emotion and intensity.
 # Example filename: 03-01-06-01-02-01-12.wav (audio-only, speech, fearful, normal intensity, statement 2, repetition 1, actor 12)
 file_path_working = file#'RAVDESS/Actor_01/03-01-06-01-02-01-12.wav'
+
+
+# find smallest file, use its window length as the default
+print("Finding smallest size")
+smallestsize=float('inf')
+num_files_success=0
+num_files_total=0
+for folder in os.listdir(path):
+    for filename in os.listdir(f"{path}\\{folder}"):
+        file_path=f"{path}\\{folder}\\{filename}"
+        num_files_total+=1
+        if not os.path.exists(file_path):
+            print(f"Error: The file '{file_path}' was not found.")
+            continue
+        
+        # Load the file
+        try:
+            y,sr=librosa.load(file_path,sr=None)
+        except Exception as e:
+            # some files don't have opening permissions, don't know why
+            print(f"An error occurred for file path {file_path}: {e}")
+            continue
+        num_files_success+=1
+        
+        y, sr = librosa.load(file_path, sr=None) #sr=None keeps the original sampling rate
+        D = librosa.stft(y)
+        rms_waveform = librosa.feature.rms(y=y, frame_length=window_width, hop_length=window_step)[0]
+        # show energy over time graph with different thresholds
+        # Create time axis for RMS (one time value per frame)
+        frames = np.arange(len(rms_waveform))
+        t_rms = frames * window_step / sr  # convert frame index → seconds
+        # calculate the post-cut width
+        # cut off data outside of thresholds from data
+        thresholds=[threshold1,threshold2,threshold3]
+        cut_datas_indeces_waveform=np.where(rms_waveform<thresholds[method])[0]
+        #cut_datas_indeces_y=0
+        cut_datas_indeces_spectrogram=cut_datas_indeces_waveform
+        # datas removed by filter
+        cut_out_datas_waveform=rms_waveform[cut_datas_indeces_waveform]
+        cut_out_datas_spectrogram=S_db[:,cut_datas_indeces_spectrogram]
+        # datas kept after filter
+        cut_datas_waveform=np.delete(rms_waveform,cut_datas_indeces_waveform)
+        cut_datas_spectrogram=np.delete(S_db,cut_datas_indeces_spectrogram,axis=1)1
+
+        # Print its shape
+        #print(f"shape of {file_path}: {y.shape[0]}")
+        if y.shape[0]<smallestsize:
+            smallestsize=y.shape[0]
+print(f"Successfully opened {num_files_success}/{num_files_total} files")
+print(f"smallest size: {smallestsize}")
 
 #Load and plot spectrograms for all .wav files
 for folder in os.listdir(path):
@@ -202,11 +287,6 @@ for folder in os.listdir(path):
                     #print(y)
                     #print(f"Shape of y:{y.shape}")
                     
-                    # 1. get window
-                    window_width=1024
-                    # 2. window step
-                    window_step=512
-                    window_max_pos=window_width+1
                     
                     # get rms energy list from data
                     # 3a. get energy and store it in a list
@@ -223,7 +303,7 @@ for folder in os.listdir(path):
                     #top_5_percent_energy = 0.05 * np.percentile(rms, 95)
                     #bottom_5_percent_energy = 0.05 * np.percentile(rms, 5)
                     
-                    method=1
+                    method=2
                     # branch off into two methods:
                     
                     # A: given method
@@ -250,7 +330,10 @@ for folder in os.listdir(path):
                     # 3. Compute the Short-Time Fourier Transform (STFT)
                     # This converts the audio signal into a spectrogram
                     # The result is complex, so we take the absolute value to get the magnitude
+                    # https://librosa.org/doc/latest/generated/librosa.stft.html
+                    # documentation says suggested nfft as 512
                     D = librosa.stft(y)
+                    print(f"")
                     #print("D:")
                     #print(D)
                     print(f"Shape of D:{D.shape}")
@@ -343,7 +426,7 @@ for folder in os.listdir(path):
 
                     
                     plt.tight_layout()
-                    plt.show()
+                    #plt.show()
 
 
 
@@ -390,7 +473,8 @@ for folder in os.listdir(path):
 
 
 
-
+                    # get the conversion constant from spectrogram frames to sample frames to preserve time
+                    spec_frames_per_sample=1/window_step
 
                     # Parse the filtered spectrogram into windows of uniform length
                     # window size in seconds
@@ -398,13 +482,19 @@ for folder in os.listdir(path):
                     # window interval in seconds
                     window_interval_seconds=0.05 # 2400 frames
                     # window size in # of frames
-                    window_size_frames=window_size_seconds*sr
+                    window_size_frames=window_size_seconds*sr*spec_frames_per_sample # < 1 probably
                     # window interval in # of frames
-                    window_interval_frames=window_interval_seconds*sr
+                    window_interval_frames=window_interval_seconds*sr*spec_frames_per_sample
                     
                     parsed_spectrogram=parse_spectrogram(cut_datas_spectrogram,window_size_frames,window_interval_frames)
 
-                    break
+                    cut_spectrogram_half_width=smallestsize*sr*spec_frames_per_sample/2
+                    cut_spectrogram=S_db[S_db.shape[0]/2-cut_spectrogram_half_width,S_db.shape[0]/2+cut_spectrogram_half_width]
+
+                    # break down into an RGB bitmap of 3 colors
+                    # first get the bitmap
+
+                    """break
 
 
 
@@ -545,7 +635,7 @@ for folder in os.listdir(path):
                     # show the window
                     #%matplotlib notebook
                     plt.tight_layout()
-                    plt.show()
+                    plt.show()"""
 
                     if printone: break
 
