@@ -5,3 +5,4 @@ misclassified_errors/
 misclassified_errors_with_labels/
 dock/
 data/
+bitmap_training_data/
