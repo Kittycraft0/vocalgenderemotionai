@@ -2,18 +2,33 @@
 # Riley Mohr
 
 print("Importing libraries")
+print("importing kagglehub")
 import kagglehub
+print("importing librosa")
 import librosa
+print("importing librosa.display")
 import librosa.display
+print("importing matplotlib.pyplot")
 import matplotlib.pyplot as plt
+print("importing numpy")
 import numpy as np
+print("importing os")
 import os
+print("importing IPython.display Audio, display")
 from IPython.display import Audio, display
+print("importing soundfile")
 import soundfile as sf
+# progress bars!!!
+from tqdm import tqdm
+import time
 
 # 10/30/2025
 
+print("importing torch")
 import torch
+print("importing PIL from Image")
+from PIL import Image
+
 #import os
 # from torch import nn
 # from torch.utils.data import DataLoader
@@ -186,7 +201,7 @@ cmap_name="magma"
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 
-def db_to_rgb(db_value, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
+def db_to_rgba(db_value, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     # 1. Create the Normalizer
     # This maps the input range [min_db, max_db] to [0.0, 1.0]
     norm = mcolors.Normalize(vmin=min_db, vmax=max_db)
@@ -361,6 +376,8 @@ print(f"Successfully opened {num_files_success}/{num_files_total} files")
 print(f"smallest size: {smallestsize} cut spectrogram frames")
 
 
+
+
 #Load and plot spectrograms for all .wav files
 for folder in os.listdir(path):
     print(folder)
@@ -531,7 +548,7 @@ for folder in os.listdir(path):
 
                     
                     plt.tight_layout()
-                    #plt.show()
+                    plt.show()
 
 
 
@@ -595,21 +612,63 @@ for folder in os.listdir(path):
 
                     #cut_spectrogram_half_width=smallestsize*sr*spec_frames_per_sample/2
                     cut_spectrogram_half_width=smallestsize/2
-                    left_bound=int(S_db.shape[0]/2-cut_spectrogram_half_width)
-                    right_bound=int(S_db.shape[0]/2+cut_spectrogram_half_width)
+                    left_bound=int(S_db.shape[1]/2-cut_spectrogram_half_width)
+                    right_bound=int(S_db.shape[1]/2+cut_spectrogram_half_width)
                     print(f"window left bound: {left_bound}")
                     print(f"window right bound: {right_bound}")
                     print(f"window right bound-left bound: {right_bound-left_bound}")
+                    print(f"shape of S_db: {S_db.shape}")
                     #exact center doesn't matter; what matters is the same width
-                    spectrogram_value_data=S_db[left_bound:right_bound]
+                    spectrogram_value_data=S_db[:,left_bound:right_bound]
                     # now the spectrogram is a bunch of numbers
+                    print(f"shape of spectrogram_value_data: {spectrogram_value_data.shape}")
 
-
+                    # saves spectrogram as bitmap file
+                    # returns 0 if success
+                    def saveSpectrogramDataAsBitmap(S_db,filename):
+                        # transposed because it needs that for some reason
+                        spectrogram_color_data=db_to_rgba(S_db)
+                        spectrogram_bitmap_array = (spectrogram_color_data[:, :, :3] * 255).astype(np.uint8)
+                        Image.fromarray(spectrogram_bitmap_array).save(filename)
+                        return 0
 
                     # break down into an RGB bitmap of 3 colors
-                    spectrogram_color_data=db_to_rgb(spectrogram_value_data)
+                    spectrogram_color_data=db_to_rgba(spectrogram_value_data)
                     print(f"shape of spectrogram_color_data: {spectrogram_color_data.shape}")
-                    # first get the bitmap
+                    print("spectrogram color data:")
+                    print(spectrogram_color_data)
+                    
+                    # save as a bitmap
+                    # Converts (Height, Width, 4) floats -> (Height, Width, 3) integers
+                    spectrogram_bitmap_array = (spectrogram_color_data[:, :, :3] * 255).astype(np.uint8)
+                    Image.fromarray(spectrogram_bitmap_array).save("cut_data_spectrogram_bitmap.bmp")
+
+                    # Returns a (Height, Width, 3) matrix of integers
+                    loaded_bitmap_data = np.array(Image.open("cut_data_spectrogram_bitmap.bmp"))
+
+                    # for testing
+                    saveSpectrogramDataAsBitmap(S_db,"uncut_data_spectrogram_bitmap.bmp")
+
+                    """plt.subplot(1,1,1)
+                    print("Showing original:")
+                    #plt.figure(figsize=(10, 5))
+                    librosa.display.specshow(S_db, sr=sr, x_axis='time', y_axis='hz',cmap=cmap_name)
+                    plt.colorbar(format='%+2.0f dB')
+                    plt.title('Original RAVDESS audio file')
+                    plt.xlabel("Time (s)") #redundant?
+                    plt.ylabel("Frequency (Hz)") #redundant?
+                    #plt.tight_layout()
+                    plt.show()"""
+
+                    
+                    
+                    # lol one liner
+                    # it's like stoicheometry, but... different!!!!!!!!
+                    # actually honestly kinda similar--you could say these are unit conversions hahahahaha 11/20/2025
+                    # Image.fromarray((db_to_rgba(spectrogram_value_data)[:, :, :3] * 255).astype(np.uint8)).save("my_spectrogram.bmp")
+
+
+
 
                     """break
 
