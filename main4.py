@@ -376,7 +376,20 @@ print(f"Successfully opened {num_files_success}/{num_files_total} files")
 print(f"smallest size: {smallestsize} cut spectrogram frames")
 
 
+# Stored data
+data_names=[]
+data_data=[]
+def addDatumToTotalData(data,name):
+    data_names.append(name)
+    data_data.append(data)
 
+# debug logs
+debug=True
+logs=[]
+def log(string):
+    logs.append(string)
+    if debug==True:
+        print(string)
 
 #Load and plot spectrograms for all .wav files
 for folder in os.listdir(path):
@@ -648,6 +661,9 @@ for folder in os.listdir(path):
 
                     # for testing
                     saveSpectrogramDataAsBitmap(S_db,"uncut_data_spectrogram_bitmap.bmp")
+
+                    print(f"Filename: {filename}")
+                    addDatumToTotalData(loaded_bitmap_data,filename)
 
                     """plt.subplot(1,1,1)
                     print("Showing original:")
