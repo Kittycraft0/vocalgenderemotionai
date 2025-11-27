@@ -797,5 +797,9 @@ def verifyConversionAndImportingYieldsSameData():
     #     print("SUCCESS: Data is identical.")
 
 
+# Uncomment to run test for verifying conversion and importing yields same data
+#verifyConversionAndImportingYieldsSameData()
 
-verifyConversionAndImportingYieldsSameData()
+
+
+data_names, data_data = getData()
