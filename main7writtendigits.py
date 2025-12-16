@@ -9,7 +9,7 @@ print(f"CPU available? {torch.cpu.is_available()}")
 deviceName=""
 # set to false if no gpu, set to true if there is gpu
 if(torch.cuda.is_available()):
-    deviceName="gpu"
+    deviceName="cuda"
 elif(torch.cpu.is_available()):
     deviceName="cpu"
 else:
