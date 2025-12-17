@@ -299,7 +299,16 @@ def getCutAudio(file_path):
         return 2,2 #failure
     
     y, sr = librosa.load(file_path, sr=None) #sr=None keeps the original sampling rate
+    
     D = librosa.stft(y, n_fft=n_fft, hop_length=window_step)
+    # Instead of D = librosa.stft(y)
+    #mel_spec = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=512, hop_length=256, n_mels=128)
+
+    # Define the spectrogram as S_db
+    S_db = librosa.amplitude_to_db(np.abs(D), ref=np.max)
+    # Convert to log scale (decibels) - this is crucial for neural networks
+    #S_db = librosa.power_to_db(mel_spec, ref=np.max)
+    
     rms_waveform = librosa.feature.rms(y=y, frame_length=window_width, hop_length=window_step)[0]
     # show energy over time graph with different thresholds
     # Create time axis for RMS (one time value per frame)
@@ -316,8 +325,6 @@ def getCutAudio(file_path):
     # datas removed by filter
     #cut_out_datas_waveform=rms_waveform[cut_datas_indeces_waveform]
     
-    # Define the spectrogram as S_db
-    S_db = librosa.amplitude_to_db(np.abs(D), ref=np.max)
     #cut_out_datas_spectrogram=S_db[:,cut_datas_indeces_spectrogram]
     # datas kept after filter
     cut_datas_waveform=np.delete(rms_waveform,cut_datas_indeces_waveform)
@@ -372,40 +379,6 @@ def getSmallestSpectrogramSize(path,folders):
             #if not os.path.exists(file_path):
             #    print(f"Error: The file '{file_path}' was not found.")
             #    continue
-
-            """# Load the file
-            try:
-                y,sr=librosa.load(file_path,sr=None)
-            except Exception as e:
-                # some files don't have opening permissions, don't know why
-                print(f"An error occurred for file path {file_path}: {e}")
-                continue
-            num_files_success+=1
-
-            y, sr = librosa.load(file_path, sr=None) #sr=None keeps the original sampling rate
-            D = librosa.stft(y)
-            rms_waveform = librosa.feature.rms(y=y, frame_length=window_width, hop_length=window_step)[0]
-            # show energy over time graph with different thresholds
-            # Create time axis for RMS (one time value per frame)
-            frames = np.arange(len(rms_waveform))
-            t_rms = frames * window_step / sr  # convert frame index → seconds
-            # calculate the post-cut width
-            # cut off data outside of thresholds from data
-            thresholds=getThresholds(rms_waveform)
-            threshold=getThreshold(rms_waveform,method)
-            #thresholds=[threshold1,threshold2,threshold3]
-            cut_datas_indeces_waveform=np.where(rms_waveform<thresholds[method])[0]
-            #cut_datas_indeces_y=0
-            cut_datas_indeces_spectrogram=cut_datas_indeces_waveform
-            # datas removed by filter
-            cut_out_datas_waveform=rms_waveform[cut_datas_indeces_waveform]
-
-            # Define the spectrogram as S_db
-            S_db = librosa.amplitude_to_db(np.abs(D), ref=np.max)
-            cut_out_datas_spectrogram=S_db[:,cut_datas_indeces_spectrogram]
-            # datas kept after filter
-            cut_datas_waveform=np.delete(rms_waveform,cut_datas_indeces_waveform)
-            cut_datas_spectrogram=np.delete(S_db,cut_datas_indeces_spectrogram,axis=1)"""
 
             cut_datas_waveform, cut_datas_spectrogram=getCutAudio(file_path)
             # continue on errors
@@ -494,9 +467,10 @@ def convertAndStoreData(foldername):
                     # 2. Load the audio file
                     # librosa.load returns the audio time series (y) and the sampling rate (sr)
                     #try:
+                        y, sr = librosa.load(file_path, sr=None) #sr=None keeps the original sampling rate
                         log(f"THE file path1: {file_path}")
 
-                        # load the audio file
+                        """# load the audio file
                         log(f"loading audio file {file_path}")
                         y, sr = librosa.load(file_path, sr=None) #sr=None keeps the original sampling rate
                         log(f"loaded audio file {file_path}")
@@ -554,13 +528,19 @@ def convertAndStoreData(foldername):
                         # The result is complex, so we take the absolute value to get the magnitude
                         # https://librosa.org/doc/latest/generated/librosa.stft.html
                         # documentation says suggested nfft as 512
+                        #D = librosa.stft(y, n_fft=n_fft, hop_length=window_step)
                         D = librosa.stft(y, n_fft=n_fft, hop_length=window_step)
+                        # Instead of D = librosa.stft(y)
+                        #mel_spec = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=512, hop_length=256, n_mels=128)
+
+                        # Define the spectrogram as S_db
+                        S_db = librosa.amplitude_to_db(np.abs(D), ref=np.max)
+                        # Convert to log scale (decibels) - this is crucial for neural networks
+                        #S_db = librosa.power_to_db(mel_spec, ref=np.max)
                         log(f"")
                         #log("D:")
                         #log(D)
-                        log(f"Shape of D:{D.shape}")
-                        # Define the spectrogram as S_db
-                        S_db = librosa.amplitude_to_db(np.abs(D), ref=np.max)
+                        #log(f"Shape of D:{D.shape}")
                         #log("S_db:")
                         #log(S_db)
                         log(f"Shape of S_db:{S_db.shape}")
@@ -581,8 +561,12 @@ def convertAndStoreData(foldername):
                         cut_out_datas_spectrogram=S_db[:,cut_datas_indeces_spectrogram]
                         # datas kept after filter
                         cut_datas_waveform=np.delete(rms_waveform,cut_datas_indeces_waveform)
-                        cut_datas_spectrogram=np.delete(S_db,cut_datas_indeces_spectrogram,axis=1)
-
+                        cut_datas_spectrogram=np.delete(S_db,cut_datas_indeces_spectrogram,axis=1)"""
+                        
+                        cut_datas_waveform, cut_datas_spectrogram = getCutAudio(file_path)
+                        if isinstance(cut_datas_waveform, int):
+                            log(f"Skipping {filename} due to load error.")
+                            continue
 
 
 
@@ -606,14 +590,17 @@ def convertAndStoreData(foldername):
 
                         #cut_spectrogram_half_width=smallestsize*sr*spec_frames_per_sample/2
                         cut_spectrogram_half_width=smallestsize/2
-                        left_bound=int(S_db.shape[1]/2-cut_spectrogram_half_width)
-                        right_bound=int(S_db.shape[1]/2+cut_spectrogram_half_width)
+                        #left_bound=int(S_db.shape[1]/2-cut_spectrogram_half_width)
+                        #right_bound=int(S_db.shape[1]/2+cut_spectrogram_half_width)
+                        left_bound = int(cut_datas_spectrogram.shape[1]/2 - cut_spectrogram_half_width)
+                        right_bound = int(cut_datas_spectrogram.shape[1]/2 + cut_spectrogram_half_width)
                         log(f"window left bound: {left_bound}")
                         log(f"window right bound: {right_bound}")
                         log(f"window right bound-left bound: {right_bound-left_bound}")
-                        log(f"shape of S_db: {S_db.shape}")
+                        #log(f"shape of S_db: {S_db.shape}")
                         #exact center doesn't matter; what matters is the same width
-                        spectrogram_value_data=S_db[:,left_bound:right_bound]
+                        spectrogram_value_data = cut_datas_spectrogram[:, left_bound:right_bound]
+                        #spectrogram_value_data=S_db[:,left_bound:right_bound]
                         # now the spectrogram is a bunch of numbers
                         log(f"shape of spectrogram_value_data: {spectrogram_value_data.shape}")
 
@@ -654,6 +641,8 @@ def convertAndStoreData(foldername):
                         
                         # convert to what is imported if it were form the spectrogram
                         spectrogram_color_data=db_to_rgba(spectrogram_value_data)
+                        # vertical flip to fix rendering problem
+                        spectrogram_color_data=np.flipud(spectrogram_color_data)
                         spectrogram_bitmap_array = (spectrogram_color_data[:, :, :3] * 255).astype(np.uint8)
                         data_data.append(spectrogram_bitmap_array)
                         Image.fromarray(spectrogram_bitmap_array).save(bitmap_save_path)
