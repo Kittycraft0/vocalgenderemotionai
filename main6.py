@@ -207,11 +207,12 @@ printone=False
 #plt.xlabel('Time [sec]')
 #plt.show()
 
-
-# 1. get window
-window_width=128
-# 2. window step
-window_step=64
+# 1. get vertical resolution
+n_fft=512
+# 2. get window
+window_width=512
+# 3. window step
+window_step=256
 window_max_pos=window_width+1
 
 # 5. find top and bottom 5% energies from the distribution (???)
@@ -295,7 +296,7 @@ def getCutAudio(file_path):
         return 2,2 #failure
     
     y, sr = librosa.load(file_path, sr=None) #sr=None keeps the original sampling rate
-    D = librosa.stft(y, n_fft=128)
+    D = librosa.stft(y, n_fft=n_fft, hop_length=window_step)
     rms_waveform = librosa.feature.rms(y=y, frame_length=window_width, hop_length=window_step)[0]
     # show energy over time graph with different thresholds
     # Create time axis for RMS (one time value per frame)
@@ -550,7 +551,7 @@ def convertAndStoreData(foldername):
                         # The result is complex, so we take the absolute value to get the magnitude
                         # https://librosa.org/doc/latest/generated/librosa.stft.html
                         # documentation says suggested nfft as 512
-                        D = librosa.stft(y, n_fft=124)
+                        D = librosa.stft(y, n_fft=n_fft, hop_length=window_step)
                         log(f"")
                         #log("D:")
                         #log(D)
@@ -598,7 +599,7 @@ def convertAndStoreData(foldername):
                         # window interval in # of frames
                         window_interval_frames=window_interval_seconds*sr*spec_frames_per_sample
 
-                        parsed_spectrogram=parse_spectrogram(cut_datas_spectrogram,window_size_frames,window_interval_frames)
+                        parsed_spectrogram=parse_spectrogram(cut_datas_spectrogram,int(window_size_frames),int(window_interval_frames))
 
                         #cut_spectrogram_half_width=smallestsize*sr*spec_frames_per_sample/2
                         cut_spectrogram_half_width=smallestsize/2
@@ -852,7 +853,7 @@ def verifyConversionAndImportingYieldsSameData():
 
 
 
-#data_names, data_data = getData()
+data_names, data_data = getData()
 #
 #print(f"data names: {data_names}")
 #print(f"data data shape: {data_data}")
