@@ -228,13 +228,13 @@ class HiMom(nn.Module):
         self.features = nn.Sequential(
             # Layer 1: Sees edges
             nn.Conv2d(3, 32, kernel_size=3, padding=1), 
-            #nn.BatchNorm2d(32), # makes it work better
+            #nn.BatchNorm2d(32), # supposedly makes it work better
             nn.ReLU(),
             nn.MaxPool2d(2), # Shrinks image from 28x28 -> 14x14
 
             # Layer 2: Sees shapes (loops, corners)
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            #nn.BatchNorm2d(64), # makes it work better
+            #nn.BatchNorm2d(64), # supposedly makes it work better
             nn.ReLU(),
             nn.MaxPool2d(2),  # Shrinks image from 14x14 -> 7x7
             
