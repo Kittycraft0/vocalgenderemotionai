@@ -208,7 +208,7 @@ printone=False
 #plt.show()
 
 # 1. get vertical resolution
-n_fft=512
+n_fft=1024
 # 2. get window
 window_width=512
 # 3. window step
@@ -302,12 +302,25 @@ def getCutAudio(file_path):
     
     D = librosa.stft(y, n_fft=n_fft, hop_length=window_step)
     # Instead of D = librosa.stft(y)
-    #mel_spec = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=512, hop_length=256, n_mels=128)
-
+    mel_spec = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=n_fft, hop_length=window_step, n_mels=128)
+    #mel_spectrogram = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=n_fft, hop_length=window_step, n_mels=100)
+    # AI says CQT avoids the black lines by doing something similar to an idea 
+    #cqt_spec = librosa.cqt( # it seems okay after some tweaking to make it run, however it is excruciatingly slow comparatively
+    #    y=y, 
+    #    sr=sr, 
+    #    hop_length=window_step, 
+    #    n_bins=100,           # Number of rows (vertical height of bitmap) # 128 too large
+    #    bins_per_octave=12,   # 12 bins = 1 musical octave (semitone resolution)
+    #    fmin=8#32.7             # Start at Low C (C1), covers deep male voices well
+    #)
+    # I had to like be linear until the logarithmic aspect requests more bins than are available
     # Define the spectrogram as S_db
-    S_db = librosa.amplitude_to_db(np.abs(D), ref=np.max)
+    #S_db = librosa.amplitude_to_db(np.abs(D), ref=np.max)
     # Convert to log scale (decibels) - this is crucial for neural networks
-    #S_db = librosa.power_to_db(mel_spec, ref=np.max)
+    S_db = librosa.power_to_db(mel_spec, ref=np.max)
+    #S_db = librosa.power_to_db(np.abs(cqt_spec), ref=np.max)
+    # remove empty bins
+
     
     rms_waveform = librosa.feature.rms(y=y, frame_length=window_width, hop_length=window_step)[0]
     # show energy over time graph with different thresholds
