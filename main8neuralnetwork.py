@@ -250,9 +250,7 @@ class HiMom(nn.Module):
         self.classifier = nn.Sequential(
             #nn.Flatten(),
             
-            # Dropout: Randomly zeroes out neurons during training. 
-            # This forces the model to learn robust features, not just memorize pixels.
-            # Good to prevent overfitting.
+            # Potentially good to prevent overfitting.
             #nn.Dropout(p=0.5),
 
             # not 64 * 7 * 7
@@ -263,18 +261,6 @@ class HiMom(nn.Module):
             nn.ReLU(),
             nn.Linear(64, 2) # Output 2 classes (Male/Female)
         )
-
-        #self.linear_relu_stack = nn.Sequential(
-        #    nn.Linear(16384,512),
-        #    nn.ReLU(),
-        #    nn.Linear(512,512),
-        #    nn.ReLU(),
-        #    nn.Linear(512,10),
-        #    nn.ReLU(),
-        #    nn.Linear(10,2),
-        #
-        #)
-
     def forward(self, x):
         x = self.features(x) # comment out to turn into linear only and it will work just fine
         x=self.flatten(x)
