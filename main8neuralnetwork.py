@@ -366,6 +366,7 @@ else:
         # Loop over the training data in batches
         train_loss_sum=0
         #for i, (images_batch, labels_batch) in enumerate(train_loader):
+        saved_loss=-1
         for i, (original_images_batch, original_labels_batch) in progress_bar_train:
             # Move the data to the device
             images_batch = original_images_batch.to(deviceName)
@@ -387,10 +388,11 @@ else:
 
             train_loss_sum+=loss.item()
             # Update the progress bar description with the current loss
-            progress_bar_train.set_postfix(loss=loss.item())
+            #progress_bar_train.set_postfix(loss=loss.item())
             # Print a progress update every 200 batches
-            if (i + 1) % 200 == 0:
-                print(f"  Batch {i+1}/{len(train_loader)}, Loss: {loss.item():.4f}")
+            if (i + 1) % 50 == 1:
+                #print(f"  Batch {i+1}/{len(train_loader)}, Loss: {loss.item():.4f}")
+                progress_bar_train.set_postfix(loss=loss.item())
         
         
         
