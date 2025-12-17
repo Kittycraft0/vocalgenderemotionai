@@ -373,7 +373,8 @@ print("Testing model...")
 with torch.no_grad():
     for test_case in test_data:
         # test_case is a tuple (image_tensor, label)
-        image = test_case[0].to(deviceName) # Get the image and send to device
+        #image = test_case[0].to(deviceName) # Get the image and send to device
+        image = test_case[0].unsqueeze(0).to(deviceName) # Get the image and send to device
         label = test_case[1]               # Get the correct label (just a number)
         
         # 1. Get the model's output (logits) for the single image
