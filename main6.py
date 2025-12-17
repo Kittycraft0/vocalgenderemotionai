@@ -802,4 +802,23 @@ def verifyConversionAndImportingYieldsSameData():
 
 
 
-data_names, data_data = getData()
+#data_names, data_data = getData()
+#
+#print(f"data names: {data_names}")
+#print(f"data data shape: {data_data}")
+
+
+
+
+def get_formatted_data():
+    data_names, data_data = getData()
+
+    print(f"data names: {data_names}")
+    print(f"data data: {data_data}")
+    
+    data_data=np.array(data_data)
+    print(f"data data shape: {data_data.shape}")
+
+
+
+get_formatted_data()
