@@ -103,9 +103,51 @@ print(f"Shape of one batch of labels: {labels.shape}")
 
 
 ## define neural network
+#class HiMom(nn.Module):
+#    def __init__(self):
+#        super().__init__()
+#        self.flatten = nn.Flatten()
+#        self.linear_relu_stack = nn.Sequential(
+#            nn.Linear(28*28,512),
+#            nn.ReLU(),
+#            nn.Linear(512,512),
+#            nn.ReLU(),
+#            nn.Linear(512,10),
+#
+#        )
+#
+#    def forward(self, x):
+#        x=self.flatten(x)
+#        logits=self.linear_relu_stack(x)
+#        return logits
+
+# convolutional neural network
 class HiMom(nn.Module):
     def __init__(self):
         super().__init__()
+        # Convolutional layers "see" 2D shapes (lines, curves) instead of just pixels
+        self.features = nn.Sequential(
+            # Layer 1: Sees edges
+            nn.Conv2d(1, 10, kernel_size=3, padding=1), 
+            nn.ReLU(),
+            nn.MaxPool2d(2), # Shrinks image from 28x28 -> 14x14
+
+            # Layer 2: Sees shapes (loops, corners)
+            nn.Conv2d(10, 16, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2)  # Shrinks image from 14x14 -> 7x7
+        )
+        
+        # Linear layers decide what the shapes mean (e.g., "Loop + Line = 9")
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(16 * 7 * 7, 512), # 64 features * 7 * 7 pixels
+            nn.ReLU(),
+            nn.Linear(512,512),
+            nn.ReLU(),
+            nn.Linear(512, 10) # Output 10 scores (0-9)
+        )
+
         self.flatten = nn.Flatten()
         self.linear_relu_stack = nn.Sequential(
             nn.Linear(28*28,512),
@@ -117,39 +159,12 @@ class HiMom(nn.Module):
         )
 
     def forward(self, x):
+        x = self.features(x) # comment out to turn into linear only and it will work just fine
+        #logits = self.classifier(x) # same as self.linear_relu_stack(self.flatten(x))
+        
         x=self.flatten(x)
         logits=self.linear_relu_stack(x)
         return logits
-
-## --- NEW: CNN ARCHITECTURE (The "Smart Brain") ---
-#class HiMom(nn.Module):
-#    def __init__(self):
-#        super().__init__()
-#        # Convolutional layers "see" 2D shapes (lines, curves) instead of just pixels
-#        self.features = nn.Sequential(
-#            # Layer 1: Sees edges
-#            nn.Conv2d(1, 32, kernel_size=3, padding=1), 
-#            nn.ReLU(),
-#            nn.MaxPool2d(2), # Shrinks image from 28x28 -> 14x14
-#
-#            # Layer 2: Sees shapes (loops, corners)
-#            nn.Conv2d(32, 64, kernel_size=3, padding=1),
-#            nn.ReLU(),
-#            nn.MaxPool2d(2)  # Shrinks image from 14x14 -> 7x7
-#        )
-#        
-#        # Linear layers decide what the shapes mean (e.g., "Loop + Line = 9")
-#        self.classifier = nn.Sequential(
-#            nn.Flatten(),
-#            nn.Linear(64 * 7 * 7, 512), # 64 features * 7 * 7 pixels
-#            nn.ReLU(),
-#            nn.Linear(512, 10) # Output 10 scores (0-9)
-#        )
-#
-#    def forward(self, x):
-#        x = self.features(x)
-#        logits = self.classifier(x)
-#        return logits
 
 #some_data=[[2,3,4],[3,4,5]]
 
@@ -175,7 +190,7 @@ else:
     loss_fn = nn.CrossEntropyLoss()
 
     # Adam is a popular "teacher" that updates the model's weights
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
     # Learning rate scheduler
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
@@ -212,12 +227,14 @@ else:
     # Set the model to "training mode"
     model.train() 
 
-    # Capture CV losses for data checking
+    # Capture training CV losses for data checking and visualization
+    train_losses=[]
     cv_losses=[]
     for epoch in range(num_epochs):
         print(f"Epoch {epoch+1}/{num_epochs}")
 
         # Loop over the training data in batches
+        train_loss_sum=0
         for i, (images_batch, labels_batch) in enumerate(train_loader):
             # Move the data to the device
             images_batch = images_batch.to(deviceName)
@@ -234,6 +251,7 @@ else:
             loss.backward()       # Calculate new gradients based on the loss
             optimizer.step()      # Update the model's weights
 
+            train_loss_sum+=loss.item()
             # Print a progress update every 200 batches
             if (i + 1) % 200 == 0:
                 print(f"  Batch {i+1}/{len(train_loader)}, Loss: {loss.item():.4f}")
@@ -248,10 +266,10 @@ else:
         # Set the model to evaluation mode
         model.eval()
         # Cross validation loss check loop to prevent overfitting
-        for i, (cv_images_batch, cv_labels_batch) in enumerate(cv_loader):
+        for i, (original_cv_images_batch, original_cv_labels_batch) in enumerate(cv_loader):
             # Move the data to the device
-            cv_images_batch=images_batch.to(deviceName)
-            cv_labels_batch=labels_batch.to(deviceName)
+            cv_images_batch=original_cv_images_batch.to(deviceName)
+            cv_labels_batch=original_cv_labels_batch.to(deviceName)
 
             # 1. Forward pass: Get model's predictions (logits)
             cv_logits=model(cv_images_batch)
@@ -267,9 +285,11 @@ else:
         # Add mean CV loss to CV loss list
         #cv_losses.append(mean(cv_losses_iteration))
         #cv_losses.append((cv_loss/len(cv_loader)).cpu().detach())
+        train_losses.append((train_loss_sum/len(train_loader)))
         cv_losses.append((cv_loss_sum/len(cv_loader)))
 
         print(f"CV loss for epoch {epoch+1}: {cv_losses[epoch]}")
+        print(f"train loss for epoch {epoch+1}: {train_losses[epoch]}")
 
         # increments the learning rate scheduler
         scheduler.step()
@@ -321,6 +341,7 @@ else:
     #plt.plot(cv_loss, label=f'{n_hidden} Neurons (Acc: {acc:.3f})')
     #plt.plot((cv_loss.cpu()).detach(), label=f'CV loss')
     plt.plot(cv_losses, label=f'CV loss')
+    plt.plot(train_losses, label=f'train loss')
     print("printed data:")
     print(cv_losses)
     # CV Loss Plot formatting and plotting
