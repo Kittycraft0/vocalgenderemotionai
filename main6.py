@@ -91,7 +91,7 @@ def parse_spectrogram(spec,window_width,interval):
     
     if dealt_with_final_window==False:
         # determine if a final window is even needed
-        last_window_end_index=num_windows*interval+window_width
+        last_window_end_index=(num_windows-1)*interval+window_width
         if last_window_end_index<spec_w:
             # deal with final window here
             windowed_spec.append(spec[:,-window_width:]) #really weird that i need to add int() here but not above but ok
