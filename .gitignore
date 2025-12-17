@@ -6,3 +6,5 @@ misclassified_errors_with_labels/
 dock/
 data/
 bitmap_training_data/
+bitmap_training_data_old/
+reference/

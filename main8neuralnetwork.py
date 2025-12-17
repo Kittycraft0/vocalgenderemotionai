@@ -46,7 +46,7 @@ def get_formatted_train_test_data(target_feature=0):
     # 1. Get raw data from your conversion script
     # Ensure getData() is imported or available in this scope!
     print("Importing raw data...")
-    raw_names, raw_data = getData(0) 
+    raw_names, raw_data = getData(1) 
 
     #print(f"raw data: {raw_data}")
     raw_data_shape=np.array(raw_data).shape
@@ -186,11 +186,13 @@ print(f"Test data length: {len(test_data)}")
 # You can now use this with a DataLoader
 from torch.utils.data import DataLoader
 
+batch_size=32
+
 # batch size=1 is stochastic gradient descent, too small and unpredictable
 # batch size=60000 is batch gradient descent, too large for gpu memory, and can get stick in smaller local minima easier
 # batch size=32, 64, 128, 256 is mini-batch gradient descent, much better
-train_loader = DataLoader(train_subset, batch_size=32, shuffle=True)
-cv_loader = DataLoader(cv_subset, batch_size=32, shuffle=False)
+train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
+cv_loader = DataLoader(cv_subset, batch_size=batch_size, shuffle=False)
 #train_loader = DataLoader(train_data, batch_size=64, shuffle=True)
 
 # Get one batch of images and labels
@@ -251,15 +253,18 @@ class HiMom(nn.Module):
             #nn.Flatten(),
             
             # Potentially good to prevent overfitting.
-            #nn.Dropout(p=0.5),
-
+            
             # not 64 * 7 * 7
             #nn.Linear(16384, 128), # 64 features * 7 * 7 pixels
             nn.Linear(flattened_size, 128), # 64 features * 7 * 7 pixels
             nn.ReLU(),
+            #nn.Dropout(p=0.3),
             nn.Linear(128,64),
             nn.ReLU(),
+            #nn.Dropout(p=0.2),
             nn.Linear(64, 2) # Output 2 classes (Male/Female)
+
+
         )
     def forward(self, x):
         x = self.features(x) # comment out to turn into linear only and it will work just fine
@@ -278,7 +283,7 @@ model = HiMom().to(deviceName)
 from tqdm import tqdm
 
 #skiptraining=True
-skiptrainingifpossible=True
+skiptrainingifpossible=False
 #if skiptraining:
 #    model.load_state_dict(torch.load("model_weights.pth"))
 #    model.eval

@@ -215,6 +215,9 @@ window_width=512
 window_step=256
 window_max_pos=window_width+1
 
+parse_width=64
+parse_interval=32
+
 # 5. find top and bottom 5% energies from the distribution (???)
 #top_5_percent_energy = 0.05 * np.percentile(rms, 95)
 #bottom_5_percent_energy = 0.05 * np.percentile(rms, 5)
@@ -770,7 +773,7 @@ def getData(reimportdata=0):
         #print(f"name shape: {name.shape}")
         
         # 1. Get the list of slices for this specific file
-        slices = parse_spectrogram(datum, 64, 32)
+        slices = parse_spectrogram(datum, parse_width, parse_interval)
         #print(f"slices shape: {np.array(slices).shape}")
         
         # 2. Add ALL slices to the main data list
