@@ -46,7 +46,12 @@ def get_formatted_train_test_data(target_feature=0):
     # 1. Get raw data from your conversion script
     # Ensure getData() is imported or available in this scope!
     print("Importing raw data...")
-    raw_names, raw_data = getData() 
+    raw_names, raw_data = getData(0) 
+
+    #print(f"raw data: {raw_data}")
+    raw_data_shape=np.array(raw_data).shape
+    print(f"raw data shape: {raw_data_shape}")
+    #quit()
     
     # 2. Parse Labels (Gender, Emotion, Intensity)
     parsed_labels = []
@@ -63,11 +68,9 @@ def get_formatted_train_test_data(target_feature=0):
             print(f"Skipping malformed file: {name}")
 
     # 3. Create the Transforms
-    # CRITICAL: We resize to 64x64. 
-    # MNIST is 28x28, but your spectrograms might be rectangular. 
-    # Squishing them to squares (64x64) is standard for simple CNNs.
     train_transform = transforms.Compose([
-        transforms.Resize((64, 64)),
+        # BAD: DO NOT resize to 64x64. 
+        #transforms.Resize((64, 64)),
         transforms.ToTensor()
     ])
 
@@ -93,7 +96,7 @@ def get_formatted_train_test_data(target_feature=0):
         generator=torch.Generator().manual_seed(42)
     )
 
-    return train_data, test_data
+    return train_data, test_data, raw_data_shape
 
 import torch
 
@@ -131,7 +134,7 @@ transform = transforms.ToTensor()
 
 # 2. Download and load the training data
 #    download=True will download it to the 'data' folder if it's not already there.
-train_data, test_data = get_formatted_train_test_data(target_feature=0)
+train_data, test_data, raw_data_shape = get_formatted_train_test_data(target_feature=0)
 #train_data = datasets.MNIST(
 #    root="data",         # Where to store the data
 #    train=True,          # Get the training set
@@ -186,8 +189,8 @@ from torch.utils.data import DataLoader
 # batch size=1 is stochastic gradient descent, too small and unpredictable
 # batch size=60000 is batch gradient descent, too large for gpu memory, and can get stick in smaller local minima easier
 # batch size=32, 64, 128, 256 is mini-batch gradient descent, much better
-train_loader = DataLoader(train_subset, batch_size=256, shuffle=True)
-cv_loader = DataLoader(cv_subset, batch_size=256, shuffle=False)
+train_loader = DataLoader(train_subset, batch_size=32, shuffle=True)
+cv_loader = DataLoader(cv_subset, batch_size=32, shuffle=False)
 #train_loader = DataLoader(train_data, batch_size=64, shuffle=True)
 
 # Get one batch of images and labels
@@ -225,45 +228,52 @@ class HiMom(nn.Module):
         self.features = nn.Sequential(
             # Layer 1: Sees edges
             nn.Conv2d(3, 32, kernel_size=3, padding=1), 
-            nn.BatchNorm2d(32), # makes it work better
+            #nn.BatchNorm2d(32), # makes it work better
             nn.ReLU(),
             nn.MaxPool2d(2), # Shrinks image from 28x28 -> 14x14
 
             # Layer 2: Sees shapes (loops, corners)
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            nn.BatchNorm2d(64), # makes it work better
+            #nn.BatchNorm2d(64), # makes it work better
             nn.ReLU(),
-            nn.MaxPool2d(2)  # Shrinks image from 14x14 -> 7x7
+            nn.MaxPool2d(2),  # Shrinks image from 14x14 -> 7x7
+            
+            ## Layer 3: Shrinks the data for the sake of not making my graphics card crash
+            #nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            ##nn.BatchNorm2d(64), # makes it work better
+            #nn.ReLU(),
+            #nn.MaxPool2d(2)  # Shrinks image from 7x7 -> 3.5x3.5
         )
-        
+        flattened_size=int(64*(raw_data_shape[1]//2//2)*(raw_data_shape[2]//2//2))
         # Linear layers decide what the shapes mean (e.g., "Loop + Line = 9")
+        self.flatten = nn.Flatten()
         self.classifier = nn.Sequential(
             #nn.Flatten(),
             
             # Dropout: Randomly zeroes out neurons during training. 
             # This forces the model to learn robust features, not just memorize pixels.
             # Good to prevent overfitting.
-            nn.Dropout(p=0.5),
+            #nn.Dropout(p=0.5),
 
             # not 64 * 7 * 7
-            nn.Linear(16384, 128), # 64 features * 7 * 7 pixels
+            #nn.Linear(16384, 128), # 64 features * 7 * 7 pixels
+            nn.Linear(flattened_size, 128), # 64 features * 7 * 7 pixels
             nn.ReLU(),
             nn.Linear(128,64),
             nn.ReLU(),
             nn.Linear(64, 2) # Output 2 classes (Male/Female)
         )
 
-        self.flatten = nn.Flatten()
-        self.linear_relu_stack = nn.Sequential(
-            nn.Linear(16384,512),
-            nn.ReLU(),
-            nn.Linear(512,512),
-            nn.ReLU(),
-            nn.Linear(512,10),
-            nn.ReLU(),
-            nn.Linear(10,2),
-
-        )
+        #self.linear_relu_stack = nn.Sequential(
+        #    nn.Linear(16384,512),
+        #    nn.ReLU(),
+        #    nn.Linear(512,512),
+        #    nn.ReLU(),
+        #    nn.Linear(512,10),
+        #    nn.ReLU(),
+        #    nn.Linear(10,2),
+        #
+        #)
 
     def forward(self, x):
         x = self.features(x) # comment out to turn into linear only and it will work just fine
@@ -278,6 +288,8 @@ class HiMom(nn.Module):
 #model = HiMom().to("cuda")
 #model = HiMom().to("cpu")
 model = HiMom().to(deviceName)
+
+from tqdm import tqdm
 
 #skiptraining=True
 skiptrainingifpossible=False
@@ -338,17 +350,29 @@ else:
     train_losses=[]
     cv_losses=[]
 
+    # Threshold to stop training if CV loss is not smaller than this number times its last for so many iterations
+    threshold_multiplier=0.99
+    num_bad_iterations_allowed=3
+    num_bad_iterations=0
+
     # Save best CV loss for comparison to save models with lowest CV loss
     best_cv_loss = float('inf')
     for epoch in range(num_epochs):
         print(f"Epoch {epoch+1}/{num_epochs}")
+        
+        # add a progress bar
+        progress_bar_train = tqdm(enumerate(train_loader), total=len(train_loader), desc="Training", leave=False)
 
         # Loop over the training data in batches
         train_loss_sum=0
-        for i, (images_batch, labels_batch) in enumerate(train_loader):
+        #for i, (images_batch, labels_batch) in enumerate(train_loader):
+        for i, (original_images_batch, original_labels_batch) in progress_bar_train:
             # Move the data to the device
-            images_batch = images_batch.to(deviceName)
-            labels_batch = labels_batch.to(deviceName)
+            images_batch = original_images_batch.to(deviceName)
+            labels_batch = original_labels_batch.to(deviceName)
+
+            #print(f"images batch shape: {images_batch.shape}")
+            #quit()
 
             # 1. Forward pass: Get model's predictions (logits)
             logits = model(images_batch)
@@ -362,6 +386,8 @@ else:
             optimizer.step()      # Update the model's weights
 
             train_loss_sum+=loss.item()
+            # Update the progress bar description with the current loss
+            progress_bar_train.set_postfix(loss=loss.item())
             # Print a progress update every 200 batches
             if (i + 1) % 200 == 0:
                 print(f"  Batch {i+1}/{len(train_loader)}, Loss: {loss.item():.4f}")
@@ -375,8 +401,14 @@ else:
         cv_loss_sum=0
         # Set the model to evaluation mode
         model.eval()
+        
+        # Wrap the CV loader with tqdm
+        progress_bar_cv = tqdm(enumerate(cv_loader), total=len(cv_loader), desc="Validating", leave=False)
+        
         # Cross validation loss check loop to prevent overfitting
-        for i, (original_cv_images_batch, original_cv_labels_batch) in enumerate(cv_loader):
+        #for i, (original_cv_images_batch, original_cv_labels_batch) in enumerate(cv_loader):
+        with torch.no_grad(): # Good practice to disable gradients during validation
+          for i, (original_cv_images_batch, original_cv_labels_batch) in progress_bar_cv:
             # Move the data to the device
             cv_images_batch=original_cv_images_batch.to(deviceName)
             cv_labels_batch=original_cv_labels_batch.to(deviceName)
@@ -391,12 +423,31 @@ else:
             cv_loss_sum+=cv_loss.item()
             #cv_losses_iteration.append(cv_loss.item())
         
+
+        ## Wrap the CV loader with tqdm
+        #progress_bar_cv = tqdm(enumerate(cv_loader), total=len(cv_loader), desc="Validating", leave=False)
+        #
+        #with torch.no_grad(): # Good practice to disable gradients during validation
+        #    for i, (original_cv_images_batch, original_cv_labels_batch) in progress_bar_cv:
+        #        cv_images_batch = original_cv_images_batch.to(deviceName)
+        #        cv_labels_batch = original_cv_labels_batch.to(deviceName)
+        #
+        #        cv_logits = model(cv_images_batch)
+        #        cv_loss = loss_fn(cv_logits, cv_labels_batch)
+        #
+        #        cv_loss_sum += cv_loss.item()
         
-        # Add mean CV loss to CV loss list
+        
         #cv_losses.append(mean(cv_losses_iteration))
         #cv_losses.append((cv_loss/len(cv_loader)).cpu().detach())
-        train_losses.append((train_loss_sum/len(train_loader)))
-        cv_losses.append((cv_loss_sum/len(cv_loader)))
+        
+        # Calculate average train loss and CV loss
+        train_loss_avg=train_loss_sum/len(train_loader)
+        cv_loss_avg=cv_loss_sum/len(cv_loader)
+
+        # Add mean CV loss to CV loss list
+        train_losses.append(train_loss_avg)
+        cv_losses.append(cv_loss_avg)
 
         print(f"CV loss for epoch {epoch+1}: {cv_losses[epoch]}")
         print(f"train loss for epoch {epoch+1}: {train_losses[epoch]}")
@@ -409,6 +460,17 @@ else:
             best_cv_loss = current_cv_loss
             torch.save(model.state_dict(), "best_gender_model.pth")
             print(f"   > New best model saved! (Loss: {best_cv_loss:.4f})")
+        
+        # Using a threshold multiplier because that seems better than a set number. After all, the CV loss for the numbers was several orders of magnitude lower.
+        if epoch>=1:
+            if current_cv_loss<cv_losses[epoch-1]*threshold_multiplier:
+                num_bad_iterations=0
+            else:
+                print("Bad iteration")
+                num_bad_iterations+=1
+        
+        if num_bad_iterations>=num_bad_iterations_allowed:
+            break #end training if CV loss curve is flattening
 
         # increments the learning rate scheduler
         scheduler.step()

@@ -46,8 +46,11 @@ def log(string):
 # 11/10/2025
 # method to parse the spectrogram into windows, probably works with more than spectrograms as well
 # parse the spectrogram spec into windows of width frames every interval frames
-def parse_spectrogram(specT,window_width,interval):
-    spec=specT.T
+def parse_spectrogram(spec,window_width,interval):
+    #spec=specT.T
+    # Expects input shape: (Height, Width, Channels) -> e.g. (63, 2955, 3)
+    #spec_h, spec_w, spec_c = spec.shape
+    spec_w=spec.shape[1]
 
     #initialize expandable list
     windowed_spec=[]
@@ -55,41 +58,50 @@ def parse_spectrogram(specT,window_width,interval):
     # windowed_spec.append(1)
 
     # amount of horizontal length or time length of spectrogram
-    total_spec_size=spec.shape[0]
+    #total_spec_size=spec.shape[1]
+    #total_spec_size=spec.shape[len(spec.shape)-3]
+    #total_spec_size=spec_w
+    #print(f"total spec width: {spec_w}")
 
+    # 1. Calculate how many full steps we can take
+    # (Width - Window) // Stride + 1
+    if spec_w < window_width:
+        # If the file is smaller than one window, pad it or skip
+        return []
+    
     # total number of windows, minus 1 potentially by integer rounding down
-    total_window_count=int(total_spec_size/interval)
+    num_windows=(spec_w-window_width)//interval+1
     
     # be sure to account for last window not lining up; 
     # if there is leftover spectrogram space left then 
     # snap the remaining amount to the right end of the spectrogram, shifting it left to do so
     dealt_with_final_window=False
 
-    for i in range(total_window_count):
-        window_start_index=int(i*interval) #perform floor operation, it all should work
-        window_end_index=int(i*interval+window_width) #perform floor operation
-        if window_end_index>total_spec_size:
+    for i in range(num_windows):
+        start=i*interval #perform floor operation, it all should work
+        end=i*interval+window_width #perform floor operation
+        if end>spec_w:
             # deal with final window here
-            windowed_spec.append(spec[-interval:].T)
+            windowed_spec.append(spec[:,-window_width:])
 
             dealt_with_final_window=True
             break
         # insert window into windowed_spec
-        windowed_spec.append(spec[window_start_index:window_end_index].T)
+        windowed_spec.append(spec[:,start:end])
     
     if dealt_with_final_window==False:
         # determine if a final window is even needed
-        last_window_end_index=int(total_window_count*interval+window_width)
-        if last_window_end_index<total_spec_size:
+        last_window_end_index=num_windows*interval+window_width
+        if last_window_end_index<spec_w:
             # deal with final window here
-            windowed_spec.append(spec[-int(interval):].T) #really weird that i need to add int() here but not above but ok
+            windowed_spec.append(spec[:,-window_width:]) #really weird that i need to add int() here but not above but ok
             # not needed because the variable isn't checked again
             # dealt_with_final_window=True
 
     # checks
     log(f"spectrogram:")
     log(spec)
-    log(f"total spectrogram size: {total_spec_size}")
+    log(f"total spectrogram width: {spec_w}")
     log(f"width: {window_width}")
     log(f"interval: {interval}")
     log(f"windowed spectrogram list: ")
@@ -197,9 +209,9 @@ printone=False
 
 
 # 1. get window
-window_width=1024
+window_width=128
 # 2. window step
-window_step=512
+window_step=64
 window_max_pos=window_width+1
 
 # 5. find top and bottom 5% energies from the distribution (???)
@@ -283,7 +295,7 @@ def getCutAudio(file_path):
         return 2,2 #failure
     
     y, sr = librosa.load(file_path, sr=None) #sr=None keeps the original sampling rate
-    D = librosa.stft(y)
+    D = librosa.stft(y, n_fft=128)
     rms_waveform = librosa.feature.rms(y=y, frame_length=window_width, hop_length=window_step)[0]
     # show energy over time graph with different thresholds
     # Create time axis for RMS (one time value per frame)
@@ -538,7 +550,7 @@ def convertAndStoreData(foldername):
                         # The result is complex, so we take the absolute value to get the magnitude
                         # https://librosa.org/doc/latest/generated/librosa.stft.html
                         # documentation says suggested nfft as 512
-                        D = librosa.stft(y)
+                        D = librosa.stft(y, n_fft=124)
                         log(f"")
                         #log("D:")
                         #log(D)
@@ -735,7 +747,45 @@ def getData(reimportdata=0):
         print("Importing data")
         data_names, data_data = importData("bitmap_training_data")
 
-    return data_names, data_data
+    ## use the method to cut a very wide piece of data into several pieces of data with smaller widths
+    ## basically this will be a list of lists where each first index corresponds to data_names
+    #data_data_expanded=[]
+    #data_names_expanded=[]
+    #for index, datum in enumerate(data_data):
+    #    new_data=1
+    #    new_names=1
+    #    data_data_expanded.append(parse_spectrogram(datum,64,32))
+    #    data_names_expanded.append(index)
+    
+    data_data_expanded = []
+    data_names_expanded = []
+
+    # Use zip() so you get the name AND the data at the same time
+    #print(f"data data shape: {np.array(data_data).shape}")
+    np.array(data_data)
+    np.array(data_names)
+    for name, datum in zip(data_names, data_data):
+        #print(f"datum shape: {datum.shape}")
+        #print(f"name shape: {name.shape}")
+        
+        # 1. Get the list of slices for this specific file
+        slices = parse_spectrogram(datum, 64, 32)
+        #print(f"slices shape: {np.array(slices).shape}")
+        
+        # 2. Add ALL slices to the main data list
+        data_data_expanded.extend(slices)
+        
+        # 3. Add the NAME multiple times (once for each slice)
+        # This creates a list like ['file1', 'file1', 'file1'] and adds it
+        data_names_expanded.extend([name] * len(slices))
+
+    # Optional: Verify they are the same length
+    print(f"Expanded Data: {len(data_data_expanded)}")
+    print(f"Expanded Names: {len(data_names_expanded)}")
+
+
+    #return data_names, data_data
+    return data_names_expanded, data_data_expanded
 
 
 
@@ -809,7 +859,7 @@ def verifyConversionAndImportingYieldsSameData():
 
 
 
-
+"""
 def get_formatted_data():
     data_names, data_data = getData()
 
@@ -865,7 +915,7 @@ def get_formatted_data():
     print(f"Sample label (Gender, Emotion, Intensity): {data_labels[0]}")
 
     return data_data, data_labels
-
+"""
 
 
 
