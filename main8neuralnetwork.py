@@ -292,7 +292,7 @@ model = HiMom().to(deviceName)
 from tqdm import tqdm
 
 #skiptraining=True
-skiptrainingifpossible=False
+skiptrainingifpossible=True
 #if skiptraining:
 #    model.load_state_dict(torch.load("model_weights.pth"))
 #    model.eval
@@ -552,9 +552,13 @@ misclassified_images=[]
 
 # evaluate the model
 print("Testing model...")
+
+# Add progress bar to the test loop
+progress_bar_test = tqdm(test_data, desc="Testing", leave=False)
+
 # Tell PyTorch we don't need to calculate gradients, which saves memory and speeds up
 with torch.no_grad():
-    for test_case in test_data:
+    for test_case in progress_bar_test:
         # test_case is a tuple (image_tensor, label)
         #image = test_case[0].to(deviceName) # Get the image and send to device
         image = test_case[0].unsqueeze(0).to(deviceName) # Get the image and send to device
@@ -587,8 +591,12 @@ print("\n--- Saving all misclassified images to a new folder with labels ---")
 if len(misclassified_images) > 0:
     error_dir = "misclassified_errors_with_labels" # Using a new folder name
     os.makedirs(error_dir, exist_ok=True)
-
-    for i, (image, pred, actual) in enumerate(misclassified_images):
+    
+    # Add progress bar to the saving loop
+    #print(len(misclassified_images))
+    print(f"Saving {len(misclassified_images)} images...")
+    progress_bar_test = tqdm(enumerate(misclassified_images), total=len(misclassified_images), desc="Saving", leave=False)
+    for i, (image, pred, actual) in progress_bar_test:
         # Create a unique filename for each image
         filename = f"error_{i:03d}_pred_{pred}_actual_{actual}.png"
         filepath = os.path.join(error_dir, filename)
