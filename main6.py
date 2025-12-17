@@ -218,6 +218,8 @@ window_max_pos=window_width+1
 parse_width=64
 parse_interval=32
 
+final_image_height=64
+
 # 5. find top and bottom 5% energies from the distribution (???)
 #top_5_percent_energy = 0.05 * np.percentile(rms, 95)
 #bottom_5_percent_energy = 0.05 * np.percentile(rms, 5)
@@ -302,7 +304,7 @@ def getCutAudio(file_path):
     
     D = librosa.stft(y, n_fft=n_fft, hop_length=window_step)
     # Instead of D = librosa.stft(y)
-    mel_spec = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=n_fft, hop_length=window_step, n_mels=128)
+    mel_spec = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=n_fft, hop_length=window_step, n_mels=final_image_height)
     #mel_spectrogram = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=n_fft, hop_length=window_step, n_mels=100)
     # AI says CQT avoids the black lines by doing something similar to an idea 
     #cqt_spec = librosa.cqt( # it seems okay after some tweaking to make it run, however it is excruciatingly slow comparatively
