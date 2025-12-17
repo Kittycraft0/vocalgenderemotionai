@@ -819,6 +819,55 @@ def get_formatted_data():
     data_data=np.array(data_data)
     print(f"data data shape: {data_data.shape}")
 
+    # Filename identifiers
+    # Modality (01 = full-AV, 02 = video-only, 03 = audio-only).
+    # Vocal channel (01 = speech, 02 = song).
+    #THIS ONE
+    # Emotion (01 = neutral, 02 = calm, 03 = happy, 04 = sad, 05 = angry, 06 = fearful, 07 = disgust, 08 = surprised).
+    #maybe?
+    # Emotional intensity (01 = normal, 02 = strong). note: There is no strong intensity for the 'neutral' emotion.
+    # Statement (01 = "Kids are talking by the door", 02 = "Dogs are sitting by the door").
+    # Repetition (01 = 1st repetition, 02 = 2nd repetition).
+    #THIS ONE
+    # Actor (01 to 24. Odd numbered actors are male, even numbered actors are female).
+    
+    # convert data_names into a list of lists of like [gender,emotion,intensity]
+
+    # 3. Create the Labels List of Lists
+    data_labels = []
+
+    for name in data_names:
+        # Ravdess format: 03-01-06-01-02-01-12
+        parts = name.split("-")
+        
+        # --- PARSING LOGIC ---
+        
+        # EMOTION (Index 2): 01 to 08
+        # We subtract 1 to make it 0-7 for PyTorch
+        emotion = int(parts[2]) - 1 
+        
+        # INTENSITY (Index 3): 01 (Normal) or 02 (Strong)
+        # We subtract 1 to make it 0-1
+        intensity = int(parts[3]) - 1
+        
+        # GENDER (Index 6): Actor ID
+        actor_id = int(parts[6])
+        # If even -> Female (1), If odd -> Male (0)
+        gender = 1 if (actor_id % 2 == 0) else 0
+
+        # Create the row [gender, emotion, intensity]
+        data_labels.append([gender, emotion, intensity])
+
+    # Convert labels to numpy array for easier handling later
+    data_labels = np.array(data_labels)
+    
+    print(f"Labels shape: {data_labels.shape}")
+    print(f"Sample label (Gender, Emotion, Intensity): {data_labels[0]}")
+
+    return data_data, data_labels
 
 
-get_formatted_data()
+
+
+
+#get_formatted_data()

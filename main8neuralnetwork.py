@@ -1,5 +1,100 @@
 # 10/30/2025
 
+from torch.utils.data import Dataset, random_split
+from torchvision import transforms
+from PIL import Image
+import numpy as np
+
+from main6 import getData
+
+# This class makes your lists look like the MNIST dataset object
+class RavdessDataset(Dataset):
+    def __init__(self, images, labels, transform=None, target_index=1):
+        """
+        target_index: Which label to train on?
+        0 = Gender
+        1 = Emotion (Default)
+        2 = Intensity
+        """
+        self.images = images
+        self.labels = labels
+        self.transform = transform
+        self.target_index = target_index
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, idx):
+        # 1. Get the image
+        img_array = self.images[idx]
+        # Convert numpy array to PIL Image so Torchvision transforms work
+        img = Image.fromarray(img_array)
+        
+        # 2. Apply transforms (Resize, ToTensor, etc)
+        if self.transform:
+            img = self.transform(img)
+            
+        # 3. Get the specific label we want (e.g., just Emotion)
+        # The label is a vector [Gender, Emotion, Intensity]
+        # We pick just one so the training loop doesn't get confused
+        label = self.labels[idx][self.target_index]
+        
+        # Return exactly what MNIST returns: (Image Tensor, Single Integer Label)
+        return img, int(label)
+
+def get_formatted_train_test_data(target_feature=0):
+    # 1. Get raw data from your conversion script
+    # Ensure getData() is imported or available in this scope!
+    print("Importing raw data...")
+    raw_names, raw_data = getData() 
+    
+    # 2. Parse Labels (Gender, Emotion, Intensity)
+    parsed_labels = []
+    for name in raw_names:
+        parts = name.split("-")
+        try:
+            # -1 to convert 1-8 to 0-7 (Zero Indexing)
+            emotion = int(parts[2]) - 1 
+            intensity = int(parts[3]) - 1
+            # Even=Female(1), Odd=Male(0)
+            gender = 1 if (int(parts[6]) % 2 == 0) else 0
+            parsed_labels.append([gender, emotion, intensity])
+        except:
+            print(f"Skipping malformed file: {name}")
+
+    # 3. Create the Transforms
+    # CRITICAL: We resize to 64x64. 
+    # MNIST is 28x28, but your spectrograms might be rectangular. 
+    # Squishing them to squares (64x64) is standard for simple CNNs.
+    train_transform = transforms.Compose([
+        transforms.Resize((64, 64)),
+        transforms.ToTensor()
+    ])
+
+    # 4. Create ONE big dataset
+    full_dataset = RavdessDataset(
+        images=raw_data, 
+        labels=parsed_labels, 
+        transform=train_transform,
+        target_index=target_feature
+    )
+
+    # 5. Split into Train (for training/CV) and Test (for final eval)
+    # MNIST usually has 60k Train, 10k Test (~15% test)
+    total_count = len(full_dataset)
+    test_count = int(total_count * 0.15) # 15% for final testing
+    train_count = total_count - test_count
+
+    print(f"Splitting data: {train_count} Training items, {test_count} Test items")
+
+    train_data, test_data = random_split(
+        full_dataset, 
+        [train_count, test_count],
+        generator=torch.Generator().manual_seed(42)
+    )
+
+    return train_data, test_data
+
 import torch
 
 # set up device
@@ -36,12 +131,13 @@ transform = transforms.ToTensor()
 
 # 2. Download and load the training data
 #    download=True will download it to the 'data' folder if it's not already there.
-train_data = datasets.MNIST(
-    root="data",         # Where to store the data
-    train=True,          # Get the training set
-    download=True,       # Download it if not present
-    transform=transform  # Apply the transformation
-)
+train_data, test_data = get_formatted_train_test_data(target_feature=0)
+#train_data = datasets.MNIST(
+#    root="data",         # Where to store the data
+#    train=True,          # Get the training set
+#    download=True,       # Download it if not present
+#    transform=transform  # Apply the transformation
+#)
 
 
 #print(f"type(train_data): {type(train_data)}")
@@ -74,12 +170,12 @@ print(f"CV set size: {len(cv_subset)}")
 
 
 # 3. Download and load the test data
-test_data = datasets.MNIST(
-    root="data",
-    train=False,         # Get the test set
-    download=True,
-    transform=transform
-)
+#test_data = datasets.MNIST(
+#    root="data",
+#    train=False,         # Get the test set
+#    download=True,
+#    transform=transform
+#)
 
 print(f"Training data length: {len(train_data)}")
 print(f"Test data length: {len(test_data)}")
@@ -128,42 +224,53 @@ class HiMom(nn.Module):
         # Convolutional layers "see" 2D shapes (lines, curves) instead of just pixels
         self.features = nn.Sequential(
             # Layer 1: Sees edges
-            nn.Conv2d(1, 10, kernel_size=3, padding=1), 
+            nn.Conv2d(3, 32, kernel_size=3, padding=1), 
+            nn.BatchNorm2d(32), # makes it work better
             nn.ReLU(),
             nn.MaxPool2d(2), # Shrinks image from 28x28 -> 14x14
 
             # Layer 2: Sees shapes (loops, corners)
-            nn.Conv2d(10, 16, kernel_size=3, padding=1),
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64), # makes it work better
             nn.ReLU(),
             nn.MaxPool2d(2)  # Shrinks image from 14x14 -> 7x7
         )
         
         # Linear layers decide what the shapes mean (e.g., "Loop + Line = 9")
         self.classifier = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(16 * 7 * 7, 512), # 64 features * 7 * 7 pixels
+            #nn.Flatten(),
+            
+            # Dropout: Randomly zeroes out neurons during training. 
+            # This forces the model to learn robust features, not just memorize pixels.
+            # Good to prevent overfitting.
+            nn.Dropout(p=0.5),
+
+            # not 64 * 7 * 7
+            nn.Linear(16384, 128), # 64 features * 7 * 7 pixels
             nn.ReLU(),
-            nn.Linear(512,512),
+            nn.Linear(128,64),
             nn.ReLU(),
-            nn.Linear(512, 10) # Output 10 scores (0-9)
+            nn.Linear(64, 2) # Output 2 classes (Male/Female)
         )
 
         self.flatten = nn.Flatten()
         self.linear_relu_stack = nn.Sequential(
-            nn.Linear(28*28,512),
+            nn.Linear(16384,512),
             nn.ReLU(),
             nn.Linear(512,512),
             nn.ReLU(),
             nn.Linear(512,10),
+            nn.ReLU(),
+            nn.Linear(10,2),
 
         )
 
     def forward(self, x):
         x = self.features(x) # comment out to turn into linear only and it will work just fine
-        #logits = self.classifier(x) # same as self.linear_relu_stack(self.flatten(x))
-        
         x=self.flatten(x)
-        logits=self.linear_relu_stack(x)
+        #print(f"shape of x: {x.shape}")
+        logits = self.classifier(x)
+        #logits=self.linear_relu_stack(x)
         return logits
 
 #some_data=[[2,3,4],[3,4,5]]
@@ -190,7 +297,7 @@ else:
     loss_fn = nn.CrossEntropyLoss()
 
     # Adam is a popular "teacher" that updates the model's weights
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
     # Learning rate scheduler
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
@@ -230,6 +337,9 @@ else:
     # Capture training CV losses for data checking and visualization
     train_losses=[]
     cv_losses=[]
+
+    # Save best CV loss for comparison to save models with lowest CV loss
+    best_cv_loss = float('inf')
     for epoch in range(num_epochs):
         print(f"Epoch {epoch+1}/{num_epochs}")
 
@@ -290,6 +400,15 @@ else:
 
         print(f"CV loss for epoch {epoch+1}: {cv_losses[epoch]}")
         print(f"train loss for epoch {epoch+1}: {train_losses[epoch]}")
+
+        # Saving logic to save best model with lowest CV loss
+        current_cv_loss = cv_losses[epoch]
+        
+        # Only save if this is the best score we've ever seen
+        if current_cv_loss < best_cv_loss:
+            best_cv_loss = current_cv_loss
+            torch.save(model.state_dict(), "best_gender_model.pth")
+            print(f"   > New best model saved! (Loss: {best_cv_loss:.4f})")
 
         # increments the learning rate scheduler
         scheduler.step()
@@ -411,12 +530,15 @@ if len(misclassified_images) > 0:
         filepath = os.path.join(error_dir, filename)
         
         # Squeeze image from [1, 28, 28] to [28, 28] for plotting
-        img_data = image.squeeze()
+        #img_data = image.squeeze()
+        # 1. Remove the batch dimension (squeeze)
+        # 2. Swap dimensions: (C, H, W) -> (H, W, C) using permute
+        img_data = image.squeeze().permute(1, 2, 0)
 
         # Create a figure and axis for this single image
         fig, ax = plt.subplots(figsize=(1.5, 1.5)) # Small figure size for single image
         
-        ax.imshow(img_data, cmap='gray')
+        ax.imshow(img_data)
         ax.set_title(f"Pred: {pred}\nActual: {actual}", fontsize=10) # Add title with labels
         ax.axis('off') # Hide axes
 
