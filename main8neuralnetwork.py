@@ -1,11 +1,21 @@
 # 10/30/2025
 
-from torch.utils.data import Dataset, random_split
-from torchvision import transforms
-from PIL import Image
-import numpy as np
-
 from main6 import getData
+import matplotlib.pyplot as plt
+import numpy as np
+import os
+from PIL import Image
+import torch
+from torch import nn
+from torch.utils.data import Dataset, random_split
+from torch.utils.data import DataLoader
+from torchvision import transforms
+from tqdm import tqdm
+from torch.utils.data import DataLoader
+from torchvision import datasets,transforms
+# download MNIST data for training and use
+# pyplot
+# You can now use this with a DataLoader
 
 # This class makes your lists look like the MNIST dataset object
 class RavdessDataset(Dataset):
@@ -46,7 +56,7 @@ def get_formatted_train_test_data(target_feature=0, filter_gender=None):
     # 1. Get raw data from your conversion script
     # Ensure getData() is imported or available in this scope!
     print("Importing raw data...")
-    raw_names, raw_data = getData(1) 
+    raw_names, raw_data = getData(0) 
 
     #print(f"raw data: {raw_data}")
     raw_data_shape=np.array(raw_data).shape
@@ -102,7 +112,6 @@ def get_formatted_train_test_data(target_feature=0, filter_gender=None):
 
     return train_data, test_data, raw_data_shape
 
-import torch
 
 # set up device
 def set_up_device():
@@ -121,107 +130,6 @@ def set_up_device():
         quit()
     print(f"Using {deviceName}")
     return deviceName
-
-# set up device
-deviceName=set_up_device()
-
-
-import os
-from torch import nn
-from torch.utils.data import DataLoader
-from torchvision import datasets,transforms
-
-
-# download MNIST data for training and use
-import torch
-from torchvision import datasets, transforms
-
-# pyplot
-import matplotlib.pyplot as plt
-
-from tqdm import tqdm
-
-# 1. Define a transform to convert the images to Tensors
-transform = transforms.ToTensor()
-
-# 2. Download and load the training data
-#    download=True will download it to the 'data' folder if it's not already there.
-train_data, test_data, raw_data_shape = get_formatted_train_test_data(target_feature=0)
-
-# Get male only dataset for male emotion training
-# target_feature=1 (Emotion), filter_gender=0 (Male only)
-train_data_M, test_data_M, raw_data_shape_M = get_formatted_train_test_data(target_feature=1, filter_gender=0)
-
-# Get female only dataset for female emotion training
-# target_feature=1 (Emotion), filter_gender=1 (Female only)
-train_data_F, test_data_F, raw_data_shape_F = get_formatted_train_test_data(target_feature=1, filter_gender=1)
-
-#train_data = datasets.MNIST(
-#    root="data",         # Where to store the data
-#    train=True,          # Get the training set
-#    download=True,       # Download it if not present
-#    transform=transform  # Apply the transformation
-#)
-
-
-#print(f"type(train_data): {type(train_data)}")
-## get 20% (or whatever CV_data_proportion is) out of train_data and put it in a CV_data variable
-#number_of_items_to_remove_from_training_data=int(len(train_data)//(1/CV_data_proportion))
-#print(f"number_of_items_to_remove_from_training_data: {number_of_items_to_remove_from_training_data}")
-
-from torch.utils.data import random_split
-
-# 1. Calculate the lengths
-total_length = len(train_data) # Use len(), not .size
-CV_data_proportion=0.2 # 20% for CV
-cv_length = int(total_length * CV_data_proportion) # 20% for CV
-train_length = total_length - cv_length # The rest for training
-
-# 2. Use random_split to create two new dataset objects
-# generator=torch.Generator().manual_seed(42) ensures you get the same split every time you run it
-train_subset, cv_subset = random_split(
-    train_data, 
-    [train_length, cv_length], 
-    generator=torch.Generator().manual_seed(42)
-)
-
-print(f"Training set size: {len(train_subset)}")
-print(f"CV set size: {len(cv_subset)}")
-
-# 3. Now pass THESE into your DataLoaders
-#train_loader = DataLoader(train_subset, batch_size=64, shuffle=True)
-#cv_loader = DataLoader(cv_subset, batch_size=64, shuffle=False)
-
-
-# 3. Download and load the test data
-#test_data = datasets.MNIST(
-#    root="data",
-#    train=False,         # Get the test set
-#    download=True,
-#    transform=transform
-#)
-
-print(f"Training data length: {len(train_data)}")
-print(f"Test data length: {len(test_data)}")
-
-# You can now use this with a DataLoader
-from torch.utils.data import DataLoader
-
-batch_size=32
-
-# batch size=1 is stochastic gradient descent, too small and unpredictable
-# batch size=60000 is batch gradient descent, too large for gpu memory, and can get stick in smaller local minima easier
-# batch size=32, 64, 128, 256 is mini-batch gradient descent, much better
-train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
-cv_loader = DataLoader(cv_subset, batch_size=batch_size, shuffle=False)
-#train_loader = DataLoader(train_data, batch_size=64, shuffle=True)
-
-# Get one batch of images and labels
-images, labels = next(iter(train_loader))
-
-print(f"Shape of one batch of images: {images.shape}") # [batch_size, color_channels, height, width]
-print(f"Shape of one batch of labels: {labels.shape}")
-
 
 
 # convolutional neural network
@@ -631,6 +539,91 @@ def save_misclassified_images(misclassified_images):
         print(f"Saved {len(misclassified_images)} wrong images in: {full_dir_path}")
     else:
         print("No errors to save.")
+
+
+# set up device
+deviceName=set_up_device()
+
+
+# 1. Define a transform to convert the images to Tensors
+transform = transforms.ToTensor()
+
+# 2. Download and load the training data
+#    download=True will download it to the 'data' folder if it's not already there.
+train_data, test_data, raw_data_shape = get_formatted_train_test_data(target_feature=0)
+
+# Get male only dataset for male emotion training
+# target_feature=1 (Emotion), filter_gender=0 (Male only)
+train_data_M, test_data_M, raw_data_shape_M = get_formatted_train_test_data(target_feature=1, filter_gender=0)
+
+# Get female only dataset for female emotion training
+# target_feature=1 (Emotion), filter_gender=1 (Female only)
+train_data_F, test_data_F, raw_data_shape_F = get_formatted_train_test_data(target_feature=1, filter_gender=1)
+
+#train_data = datasets.MNIST(
+#    root="data",         # Where to store the data
+#    train=True,          # Get the training set
+#    download=True,       # Download it if not present
+#    transform=transform  # Apply the transformation
+#)
+
+
+#print(f"type(train_data): {type(train_data)}")
+## get 20% (or whatever CV_data_proportion is) out of train_data and put it in a CV_data variable
+#number_of_items_to_remove_from_training_data=int(len(train_data)//(1/CV_data_proportion))
+#print(f"number_of_items_to_remove_from_training_data: {number_of_items_to_remove_from_training_data}")
+
+
+# 1. Calculate the lengths
+total_length = len(train_data) # Use len(), not .size
+CV_data_proportion=0.2 # 20% for CV
+cv_length = int(total_length * CV_data_proportion) # 20% for CV
+train_length = total_length - cv_length # The rest for training
+
+# 2. Use random_split to create two new dataset objects
+# generator=torch.Generator().manual_seed(42) ensures you get the same split every time you run it
+train_subset, cv_subset = random_split(
+    train_data, 
+    [train_length, cv_length], 
+    generator=torch.Generator().manual_seed(42)
+)
+
+print(f"Training set size: {len(train_subset)}")
+print(f"CV set size: {len(cv_subset)}")
+
+# 3. Now pass THESE into your DataLoaders
+#train_loader = DataLoader(train_subset, batch_size=64, shuffle=True)
+#cv_loader = DataLoader(cv_subset, batch_size=64, shuffle=False)
+
+
+# 3. Download and load the test data
+#test_data = datasets.MNIST(
+#    root="data",
+#    train=False,         # Get the test set
+#    download=True,
+#    transform=transform
+#)
+
+print(f"Training data length: {len(train_data)}")
+print(f"Test data length: {len(test_data)}")
+
+
+batch_size=32
+
+# batch size=1 is stochastic gradient descent, too small and unpredictable
+# batch size=60000 is batch gradient descent, too large for gpu memory, and can get stick in smaller local minima easier
+# batch size=32, 64, 128, 256 is mini-batch gradient descent, much better
+train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
+cv_loader = DataLoader(cv_subset, batch_size=batch_size, shuffle=False)
+#train_loader = DataLoader(train_data, batch_size=64, shuffle=True)
+
+# Get one batch of images and labels
+images, labels = next(iter(train_loader))
+
+print(f"Shape of one batch of images: {images.shape}") # [batch_size, color_channels, height, width]
+print(f"Shape of one batch of labels: {labels.shape}")
+
+
 
 
 trained_gender_model=train_model()
