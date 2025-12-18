@@ -104,6 +104,7 @@ def get_formatted_train_test_data(target_feature=0, filter_gender=None):
 
 import torch
 
+# set up device
 def set_up_device():
     # set up device
     print(f"CUDA available? {torch.cuda.is_available()}")
@@ -121,6 +122,7 @@ def set_up_device():
     print(f"Using {deviceName}")
     return deviceName
 
+# set up device
 deviceName=set_up_device()
 
 
@@ -222,27 +224,8 @@ print(f"Shape of one batch of labels: {labels.shape}")
 
 
 
-## define neural network
-#class HiMom(nn.Module):
-#    def __init__(self):
-#        super().__init__()
-#        self.flatten = nn.Flatten()
-#        self.linear_relu_stack = nn.Sequential(
-#            nn.Linear(28*28,512),
-#            nn.ReLU(),
-#            nn.Linear(512,512),
-#            nn.ReLU(),
-#            nn.Linear(512,10),
-#
-#        )
-#
-#    def forward(self, x):
-#        x=self.flatten(x)
-#        logits=self.linear_relu_stack(x)
-#        return logits
-
 # convolutional neural network
-class HiMom(nn.Module):
+class ConvolutionalNeuralNetwork(nn.Module):
     def __init__(self, num_outputs=2):
         super().__init__()
         # Convolutional layers "see" 2D shapes (lines, curves) instead of just pixels
@@ -296,11 +279,8 @@ class HiMom(nn.Module):
 #some_data=[[2,3,4],[3,4,5]]
 
 def train_model():
-    pass
 
-    #model = HiMom().to("cuda")
-    #model = HiMom().to("cpu")
-    model = HiMom().to(deviceName)
+    model = ConvolutionalNeuralNetwork().to(deviceName)
 
 
     #skiptraining=True
