@@ -8,3 +8,8 @@ data/
 bitmap_training_data/
 bitmap_training_data_old/
 reference/
+best_gender_model.pth
+emotion_model_F.pth
+emotion_model_M.pth
+gender_model.pth
+model_weights.pth

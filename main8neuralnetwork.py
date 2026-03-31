@@ -17,6 +17,15 @@ from torchvision import datasets,transforms
 # pyplot
 # You can now use this with a DataLoader
 
+# 12/17/2025
+# debug logs
+debug=False
+logs=[]
+def log(string):
+    logs.append(string)
+    if debug==True:
+        print(string)
+
 # This class makes your lists look like the MNIST dataset object
 class RavdessDataset(Dataset):
     def __init__(self, images, labels, transform=None, target_index=1):
@@ -55,12 +64,12 @@ class RavdessDataset(Dataset):
 def get_formatted_train_test_data(target_feature=0, filter_gender=None):
     # 1. Get raw data from your conversion script
     # Ensure getData() is imported or available in this scope!
-    print("Importing raw data...")
+    log("Importing raw data...")
     raw_names, raw_data = getData(0) 
 
     #print(f"raw data: {raw_data}")
     raw_data_shape=np.array(raw_data).shape
-    print(f"raw data shape: {raw_data_shape}")
+    log(f"raw data shape: {raw_data_shape}")
     #quit()
     
     # 2. Parse Labels (Gender, Emotion, Intensity)
@@ -77,7 +86,12 @@ def get_formatted_train_test_data(target_feature=0, filter_gender=None):
             if filter_gender is not None and gender != filter_gender:
                 continue # skip if not correct gender
 
-            parsed_labels.append([gender, emotion, intensity])
+            if target_feature=="everything":
+                combined_label=(gender*8+emotion)
+                parsed_labels.append([combined_label])
+            else:
+                parsed_labels.append([gender, emotion, intensity])
+
         except:
             print(f"Skipping malformed file: {name}")
 
@@ -88,12 +102,17 @@ def get_formatted_train_test_data(target_feature=0, filter_gender=None):
         transforms.ToTensor()
     ])
 
+    if target_feature == "everything":
+        effective_index = 0
+    else:
+        effective_index = target_feature
+    
     # 4. Create ONE big dataset
     full_dataset = RavdessDataset(
         images=raw_data, 
         labels=parsed_labels, 
         transform=train_transform,
-        target_index=target_feature
+        target_index=effective_index
     )
 
     # 5. Split into Train (for training/CV) and Test (for final eval)
@@ -102,7 +121,7 @@ def get_formatted_train_test_data(target_feature=0, filter_gender=None):
     test_count = int(total_count * 0.15) # 15% for final testing
     train_count = total_count - test_count
 
-    print(f"Splitting data: {train_count} Training items, {test_count} Test items")
+    log(f"Splitting data: {train_count} Training items, {test_count} Test items")
 
     train_data, test_data = random_split(
         full_dataset, 
@@ -134,7 +153,7 @@ def set_up_device():
 
 # convolutional neural network
 class ConvolutionalNeuralNetwork(nn.Module):
-    def __init__(self, num_outputs=2):
+    def __init__(self, raw_data_shape, num_outputs=2):
         super().__init__()
         # Convolutional layers "see" 2D shapes (lines, curves) instead of just pixels
         self.features = nn.Sequential(
@@ -151,12 +170,12 @@ class ConvolutionalNeuralNetwork(nn.Module):
             nn.MaxPool2d(2),  # Shrinks image from 14x14 -> 7x7
             
             ## Layer 3: Shrinks the data for the sake of not making my graphics card crash
-            #nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            ##nn.BatchNorm2d(64), # makes it work better
-            #nn.ReLU(),
-            #nn.MaxPool2d(2)  # Shrinks image from 7x7 -> 3.5x3.5
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            #nn.BatchNorm2d(128), # makes it work better
+            nn.ReLU(),
+            nn.MaxPool2d(2)  # Shrinks image from 7x7 -> 3.5x3.5
         )
-        flattened_size=int(64*(raw_data_shape[1]//2//2)*(raw_data_shape[2]//2//2))
+        flattened_size=int(128*(raw_data_shape[1]//2//2//2)*(raw_data_shape[2]//2//2//2))
         # Linear layers decide what the shapes mean (e.g., "Loop + Line = 9")
         self.flatten = nn.Flatten()
         self.classifier = nn.Sequential(
@@ -186,20 +205,16 @@ class ConvolutionalNeuralNetwork(nn.Module):
 
 #some_data=[[2,3,4],[3,4,5]]
 
-def train_model():
+def train_model(deviceName, save_name, train_loader, cv_loader, raw_data_shape, num_outputs=2):
 
-    model = ConvolutionalNeuralNetwork().to(deviceName)
+    model = ConvolutionalNeuralNetwork(raw_data_shape, num_outputs).to(deviceName)
 
 
     #skiptraining=True
-    skiptrainingifpossible=False
-    #if skiptraining:
-    #    model.load_state_dict(torch.load("model_weights.pth"))
-    #    model.eval
-    #else:
-    if os.path.exists("model_weights.pth") and skiptrainingifpossible==True:
-        print("Loading saved model weights...")
-        model.load_state_dict(torch.load("model_weights.pth"))
+    skiptrainingifpossible=True
+    if os.path.exists(f"{save_name}.pth") and skiptrainingifpossible==True:
+        log("Loading saved model weights...")
+        model.load_state_dict(torch.load(f"{save_name}.pth"))
         print("Loaded saved model weights")
     else:
         # Run your entire training loop here
@@ -209,7 +224,7 @@ def train_model():
         loss_fn = nn.CrossEntropyLoss()
 
         # Adam is a popular "teacher" that updates the model's weights
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=0.0001)
 
         # Learning rate scheduler
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
@@ -219,21 +234,28 @@ def train_model():
 
 
 
+        
+        # Get one batch of images and labels
+        images, labels = next(iter(train_loader))
+
+        log(f"Shape of one batch of images: {images.shape}") # [batch_size, color_channels, height, width]
+        log(f"Shape of one batch of labels: {labels.shape}")
 
 
-        # model test before training
-        #X = torch.tensor(some_data,dtype=torch.float32).to(deviceName)
-        #X = torch.randn(2, 28, 28).to(deviceName)
-        X = images.to(deviceName)
-        logits=model(X)
-        pred_probab=nn.Softmax(dim=1)(logits)
-        y_pred=pred_probab.argmax(1)
-        #print(f"untrained guesses: {y_pred}")
-        labels_on_device=labels.to(deviceName)
-        print("")
-        print("Untrained model:")
-        print(f"num correct?: {sum(y_pred==labels_on_device)}/{len(labels_on_device)}")
-        print(f"proportion correct: {sum(y_pred==labels_on_device)/len(labels_on_device)*100}%")
+
+        ## model test before training
+        ##X = torch.tensor(some_data,dtype=torch.float32).to(deviceName)
+        ##X = torch.randn(2, 28, 28).to(deviceName)
+        #X = images.to(deviceName)
+        #logits=model(X)
+        #pred_probab=nn.Softmax(dim=1)(logits)
+        #y_pred=pred_probab.argmax(1)
+        ##print(f"untrained guesses: {y_pred}")
+        #labels_on_device=labels.to(deviceName)
+        #log("")
+        #log("Untrained model:")
+        #log(f"num correct?: {sum(y_pred==labels_on_device)}/{len(labels_on_device)}")
+        #log(f"proportion correct: {sum(y_pred==labels_on_device)/len(labels_on_device)*100}%")
 
 
 
@@ -251,8 +273,8 @@ def train_model():
         cv_losses=[]
 
         # Threshold to stop training if CV loss is not smaller than this number times its last for so many iterations
-        threshold_multiplier=0.99
-        num_bad_iterations_allowed=3
+        threshold_multiplier=1
+        num_bad_iterations_allowed=10
         num_bad_iterations=0
 
         # Save best CV loss for comparison to save models with lowest CV loss
@@ -357,20 +379,23 @@ def train_model():
             # Saving logic to save best model with lowest CV loss
             current_cv_loss = cv_losses[epoch]
 
+            # Using a threshold multiplier because that seems better than a set number. 
+            # After all, the CV loss for the numbers was several orders of magnitude lower.
+            if current_cv_loss<best_cv_loss*threshold_multiplier:
+                num_bad_iterations=0
+            else:
+                print("Bad iteration")
+                num_bad_iterations+=1
+
             # Only save if this is the best score we've ever seen
             if current_cv_loss < best_cv_loss:
                 best_cv_loss = current_cv_loss
-                torch.save(model.state_dict(), "best_gender_model.pth")
+                # save using filename variable
+                torch.save(model.state_dict(), f"{save_name}.pth")
                 print(f"   > New best model saved! (Loss: {best_cv_loss:.4f})")
 
-            # Using a threshold multiplier because that seems better than a set number. After all, the CV loss for the numbers was several orders of magnitude lower.
-            if epoch>=1:
-                if current_cv_loss<cv_losses[epoch-1]*threshold_multiplier:
-                    num_bad_iterations=0
-                else:
-                    print("Bad iteration")
-                    num_bad_iterations+=1
 
+            
             if num_bad_iterations>=num_bad_iterations_allowed:
                 break #end training if CV loss curve is flattening
 
@@ -385,7 +410,7 @@ def train_model():
 
         # save it
         # --- AFTER your training loop ---
-        model_filename = "model_weights.pth"
+        model_filename = f"{save_name}.pth"
         full_model_path = os.path.abspath(model_filename)
 
         torch.save(model.state_dict(), model_filename)
@@ -428,9 +453,9 @@ def train_model():
         print("printed data:")
         print(cv_losses)
         # CV Loss Plot formatting and plotting
-        plt.title('CV Loss Convergence by Number of Epochs')
+        plt.title(f'CV and Training Loss Convergence by Number of Epochs for model {save_name}')
         plt.xlabel('Epochs')
-        plt.ylabel('MSE Loss (Cross-Validation) (log scale)')
+        plt.ylabel('MSE Loss (log scale)')
         plt.yscale('log')
         plt.legend(title="Hidden Layer Size")
         plt.grid(True, linestyle='--', alpha=0.7)
@@ -438,7 +463,7 @@ def train_model():
     
     return model
 
-def evaluate_model(model):
+def evaluate_model(deviceName, model, test_data):
     pass
     correct=0
     total=len(test_data)
@@ -492,11 +517,11 @@ def evaluate_model(model):
     return misclassified_images
 
 
-def save_misclassified_images(misclassified_images):
+def save_misclassified_images(misclassified_images, error_dir):
     print("\n--- Saving all misclassified images to a new folder with labels ---")
 
     if len(misclassified_images) > 0:
-        error_dir = "misclassified_errors_with_labels" # Using a new folder name
+        #error_dir = "misclassified_errors_with_labels" # Using a new folder name
         import shutil
         try:
             shutil.rmtree(error_dir)
@@ -540,25 +565,229 @@ def save_misclassified_images(misclassified_images):
     else:
         print("No errors to save.")
 
+def get_data_loaders(train_data,batch_size):
+    # 1. Calculate the lengths
+    total_length = len(train_data) # Use len(), not .size
+    CV_data_proportion=0.2 # 20% for CV
+    cv_length = int(total_length * CV_data_proportion) # 20% for CV
+    train_length = total_length - cv_length # The rest for training
 
-# set up device
-deviceName=set_up_device()
+    # 2. Use random_split to create two new dataset objects
+    # generator=torch.Generator().manual_seed(42) ensures you get the same split every time you run it
+    train_subset, cv_subset = random_split(
+        train_data, 
+        [train_length, cv_length], 
+        generator=torch.Generator().manual_seed(42)
+    )
+
+    print(f"Training set size: {len(train_subset)}")
+    print(f"CV set size: {len(cv_subset)}")
+    log(f"Training data length: {len(train_data)}")
+    #print(f"Test data length: {len(test_data)}")
+
+    # 3. Now pass THESE into your DataLoaders
+    # batch size=1 is stochastic gradient descent, too small and unpredictable
+    # batch size=60000 is batch gradient descent, too large for gpu memory, and can get stick in smaller local minima easier
+    # batch size=32, 64, 128, 256 is mini-batch gradient descent, much better
+    train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
+    cv_loader = DataLoader(cv_subset, batch_size=batch_size, shuffle=False)
+    #train_loader = DataLoader(train_data, batch_size=64, shuffle=True)
+    return train_loader, cv_loader
+
+def settings():
+
+    batch_size=32
+    error_dir="misclassified_errors_with_labels"
+    return batch_size, error_dir
 
 
-# 1. Define a transform to convert the images to Tensors
-transform = transforms.ToTensor()
+def getTrainedModel(deviceName, batch_size, save_name, error_dir, num_outputs=2, target_feature=0, filter_gender=None):
+    # Get dataset for training
+    train_data, test_data, raw_data_shape = get_formatted_train_test_data(target_feature=target_feature, filter_gender=filter_gender)
 
-# 2. Download and load the training data
-#    download=True will download it to the 'data' folder if it's not already there.
-train_data, test_data, raw_data_shape = get_formatted_train_test_data(target_feature=0)
+    # Get data loaders for serving data for training
+    train_loader, cv_loader = get_data_loaders(train_data, batch_size)
 
-# Get male only dataset for male emotion training
-# target_feature=1 (Emotion), filter_gender=0 (Male only)
-train_data_M, test_data_M, raw_data_shape_M = get_formatted_train_test_data(target_feature=1, filter_gender=0)
+    # Train models
+    trained_model=train_model(deviceName, save_name, train_loader, cv_loader, raw_data_shape, num_outputs)
 
-# Get female only dataset for female emotion training
-# target_feature=1 (Emotion), filter_gender=1 (Female only)
-train_data_F, test_data_F, raw_data_shape_F = get_formatted_train_test_data(target_feature=1, filter_gender=1)
+    # Evaluate models
+    #misclassified_images=evaluate_model(deviceName, trained_model, test_data)
+
+    # Save misclassified images
+    #save_misclassified_images(misclassified_images, error_dir)
+
+    return trained_model
+
+def classify_with_model(model,x):
+    # get the logits list
+    logits = model(x)
+    
+    # get the predicted index
+    _, predicted_index = torch.max(logits.data, 1)
+    prediction=predicted_index.item()
+    
+    return prediction
+
+def classify_gender_and_emotion(gender_model, emotion_model_M, emotion_model_F,x):
+    gender=classify_with_model(gender_model,x)
+    if gender == 0:
+        emotion=classify_with_model(emotion_model_M,x)
+    elif gender==1:
+        emotion=classify_with_model(emotion_model_F,x)
+    else:
+        print("[in the classify method] classify_with_model is broken, it returned gender is not equal to 0 or 1")
+        quit()
+    
+    return gender, emotion
+
+def test_total_classification(deviceName, gender_model,emotion_model_M,emotion_model_F):
+    train_data, test_data, raw_data_shape = get_formatted_train_test_data("everything")
+    log("test data:")
+    log(test_data)
+    
+    # Add progress bar to the test loop
+    progress_bar_test = tqdm(test_data, desc="Testing", leave=False)
+    # Tell PyTorch we don't need to calculate gradients, which saves memory and speeds up
+    correct_G=0
+    correct_E=0
+    correct_B=0
+    total=0
+    with torch.no_grad():
+        for test_case in progress_bar_test:
+            image=test_case[0]
+            label=test_case[1] # combined label
+            #print(f"label: {label}")
+            #quit()
+
+            # unsqueeze
+            image = image.unsqueeze(0).to(deviceName)
+            
+            gender_guess, emotion_guess=classify_gender_and_emotion(gender_model,emotion_model_M,emotion_model_F,image)
+            gender_real=label//8
+            emotion_real=label%8
+
+            if gender_guess==gender_real:
+                correct_G+=1
+            if emotion_guess==emotion_real:
+                correct_E+=1
+            if gender_guess==gender_real and emotion_guess==emotion_real:
+                correct_B+=1
+            total+=1
+    
+    # correct in gender
+    print(f"Number correct gender: {correct_G}/{total}")
+    accuracy_G = 100 * correct_G / total
+    print(f"Gender accuracy on test data: {accuracy_G:.2f} %")
+
+    # correct in emotion
+    print(f"Number correct emotion: {correct_E}/{total}")
+    accuracy_E = 100 * correct_E / total
+    print(f"Emotion accuracy on test data: {accuracy_E:.2f} %")
+
+    # correct in both
+    print(f"Number correct both gender and emotion: {correct_B}/{total}")
+    accuracy_B = 100 * correct_B / total
+    print(f"Total accuracy on test data: {accuracy_B:.2f} %")
+                
+
+            
+#test_total_classification(1,2,3)
+
+def get_trained_models():
+    batch_size, error_dir=settings()
+
+    # set up device
+    deviceName=set_up_device()
+
+    gender_model=getTrainedModel(deviceName, batch_size, "gender_model", error_dir)
+    
+    emotion_model_M=getTrainedModel(deviceName, batch_size, "emotion_model_M", error_dir, 8, 1, 0)
+    
+    emotion_model_F=getTrainedModel(deviceName, batch_size, "emotion_model_F", error_dir, 8, 1, 1)
+
+    return deviceName, gender_model, emotion_model_M, emotion_model_F
+
+def load_models_only_no_dataset():
+    """
+    Loads the architecture and weights without importing the raw dataset.
+    """
+    # 1. Settings
+    batch_size, error_dir = settings()
+    deviceName = set_up_device()
+    
+    # 2. Define Architecture (We need raw_data_shape to initialize the class)
+    # Based on your main6 code, the shape is likely (3, 64, 64) or similar.
+    # We will assume standard training shape (channels, height, width)
+    # You might need to adjust (3, 64, 64) if your parse_spectrogram uses different widths.
+    dummy_shape = (3, 64, 64) 
+    
+    # 3. Initialize Models
+    gender_model = ConvolutionalNeuralNetwork(dummy_shape, 2).to(deviceName)
+    emotion_model_M = ConvolutionalNeuralNetwork(dummy_shape, 8).to(deviceName)
+    emotion_model_F = ConvolutionalNeuralNetwork(dummy_shape, 8).to(deviceName)
+    
+    # 4. Load Weights
+    print("Loading weights from disk...")
+    if os.path.exists("gender_model.pth"):
+        gender_model.load_state_dict(torch.load("gender_model.pth"))
+    else:
+        print("WARNING: gender_model.pth not found!")
+
+    if os.path.exists("emotion_model_M.pth"):
+        emotion_model_M.load_state_dict(torch.load("emotion_model_M.pth"))
+    else:
+        print("WARNING: emotion_model_M.pth not found!")
+        
+    if os.path.exists("emotion_model_F.pth"):
+        emotion_model_F.load_state_dict(torch.load("emotion_model_F.pth"))
+    else:
+        print("WARNING: emotion_model_F.pth not found!")
+
+    # Set to eval mode
+    gender_model.eval()
+    emotion_model_M.eval()
+    emotion_model_F.eval()
+    
+    return deviceName, gender_model, emotion_model_M, emotion_model_F
+
+def main():
+    deviceName, gender_model, emotion_model_M, emotion_model_F = get_trained_models()
+    # Testing total classification
+    #print("testing classification of both gender and emotion")
+    test_total_classification(deviceName, gender_model, emotion_model_M, emotion_model_F)
+    
+    return gender_model, emotion_model_M, emotion_model_F
+
+
+#main()
+
+# classification class needs needs: 
+# initialization (single call, no parameters)
+# classifier.classify (classifies gender), 
+# classifier.classify_gender_and_emotion (classifies gender and emotion)
+
+class Classifier():
+    # initialization (single call, no parameters)    
+    def __init__(self):
+        deviceName, gender_model, emotion_model_M, emotion_model_F = get_trained_models()
+        self.deviceName=deviceName
+        self.gender_model=gender_model
+        self.emotion_model_M=emotion_model_M
+        self.emotion_model_F=emotion_model_F
+    
+    def classify(self, x):
+        return classify_with_model(self.gender_model, x)
+    
+    def classify_gender_and_emotion(self, x):
+        return classify_gender_and_emotion(self.gender_model, self.emotion_model_M, self.emotion_model_F, x)
+    
+    def test_models(self):
+        #train_data, test_data, raw_data_shape = get_formatted_train_test_data("everything")
+        #evaluate_model(self.deviceName,self.gender_model,self.test_data)
+        test_total_classification(self.deviceName,self.gender_model,self.emotion_model_M,self.emotion_model_F)
+    
+
 
 #train_data = datasets.MNIST(
 #    root="data",         # Where to store the data
@@ -574,24 +803,10 @@ train_data_F, test_data_F, raw_data_shape_F = get_formatted_train_test_data(targ
 #print(f"number_of_items_to_remove_from_training_data: {number_of_items_to_remove_from_training_data}")
 
 
-# 1. Calculate the lengths
-total_length = len(train_data) # Use len(), not .size
-CV_data_proportion=0.2 # 20% for CV
-cv_length = int(total_length * CV_data_proportion) # 20% for CV
-train_length = total_length - cv_length # The rest for training
 
-# 2. Use random_split to create two new dataset objects
-# generator=torch.Generator().manual_seed(42) ensures you get the same split every time you run it
-train_subset, cv_subset = random_split(
-    train_data, 
-    [train_length, cv_length], 
-    generator=torch.Generator().manual_seed(42)
-)
 
-print(f"Training set size: {len(train_subset)}")
-print(f"CV set size: {len(cv_subset)}")
 
-# 3. Now pass THESE into your DataLoaders
+
 #train_loader = DataLoader(train_subset, batch_size=64, shuffle=True)
 #cv_loader = DataLoader(cv_subset, batch_size=64, shuffle=False)
 
@@ -604,31 +819,9 @@ print(f"CV set size: {len(cv_subset)}")
 #    transform=transform
 #)
 
-print(f"Training data length: {len(train_data)}")
-print(f"Test data length: {len(test_data)}")
-
-
-batch_size=32
-
-# batch size=1 is stochastic gradient descent, too small and unpredictable
-# batch size=60000 is batch gradient descent, too large for gpu memory, and can get stick in smaller local minima easier
-# batch size=32, 64, 128, 256 is mini-batch gradient descent, much better
-train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
-cv_loader = DataLoader(cv_subset, batch_size=batch_size, shuffle=False)
-#train_loader = DataLoader(train_data, batch_size=64, shuffle=True)
-
-# Get one batch of images and labels
-images, labels = next(iter(train_loader))
-
-print(f"Shape of one batch of images: {images.shape}") # [batch_size, color_channels, height, width]
-print(f"Shape of one batch of labels: {labels.shape}")
 
 
 
-
-trained_gender_model=train_model()
-misclassified_images=evaluate_model(trained_gender_model)
-save_misclassified_images(misclassified_images)
 
 
 #calculon huggingface
