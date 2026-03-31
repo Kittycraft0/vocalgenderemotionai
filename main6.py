@@ -188,6 +188,36 @@ def importDataset():
 
 printone=False
 
+# 12/17/2025 didn't feel like figuring out a better place to put this
+def process_live_audio(y, sr):
+    """
+    Takes raw audio data (y) and sample rate (sr) directly from memory.
+    Returns the formatted RGB bitmap array ready for the neural network.
+    """
+    # 1. Compute Mel Spectrogram
+    mel_spec = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=n_fft, hop_length=window_step, n_mels=final_image_height)
+    
+    # 2. Convert to dB
+    S_db = librosa.power_to_db(mel_spec, ref=np.max)
+    
+    # 3. RMS Energy calculation (for consistency with training, though silence removal on live 
+    #    chunks is tricky. We might skip rigorous thresholding to prevent crashing on silence,
+    #    or just ensure we have data).
+    
+    # For live audio, we usually skip complex silence removal (cutting) because it messes up 
+    # the timing of the live stream. We just process the window as is.
+    
+    # 4. Color conversion (Must match training EXACTLY)
+    # The training data used your db_to_rgba function
+    spectrogram_color_data = db_to_rgba(S_db)
+    
+    # Vertical flip (matched from your convertAndStoreData function)
+    spectrogram_color_data = np.flipud(spectrogram_color_data)
+    
+    # Convert to 0-255 uint8 RGB
+    spectrogram_bitmap_array = (spectrogram_color_data[:, :, :3] * 255).astype(np.uint8)
+    
+    return spectrogram_bitmap_array
 
 # https://stackoverflow.com/questions/44787437/how-to-convert-a-wav-file-to-a-spectrogram-in-python3
 #import matplotlib.pyplot as plt
