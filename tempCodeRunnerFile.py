@@ -1,1 +1,1 @@
-spec_frames_per_sample=1
+artists
