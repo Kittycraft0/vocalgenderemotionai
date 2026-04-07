@@ -20,3 +20,5 @@ tempCodeRunnerFile.py
 main6.cpython-313.pyc
 main8neuralnetwork.cpython-313.pyc
 sounds/
+*.pyc
+*.cpython
