@@ -28,12 +28,22 @@ from PIL import Image
 from torchvision import transforms
 from main6 import process_live_audio
 from main8neuralnetwork import load_models_only_no_dataset, classify_with_model
+from main10morevocalinformation import get_audio_data
 
 # --- CONFIGURATION ---
 SAMPLE_RATE = 22050     
-WINDOW_SECONDS = 3.0    
+WINDOW_SECONDS = 2.0    
 UPDATE_INTERVAL = 30    # 30ms = ~33 FPS (Smoother) #changed to 250 cuz laggy on non gpu device
 DEVICE_INDEX = None     
+
+# Ask the computer for the stats of this specific microphone
+device_info = sd.query_devices(DEVICE_INDEX, 'input')
+
+# Pull out the sample rate and convert it to an integer
+SAMPLE_RATE = int(device_info['default_samplerate'])
+
+
+print(f"Microphone detected! Running at {SAMPLE_RATE} Hz")
 
 # Labels
 EMOTIONS = ["Neutral", "Calm", "Happy", "Sad", "Angry", "Fearful", "Disgust", "Surprised"]
@@ -228,6 +238,10 @@ def update_dashboard(frame):
             target_g_probs = g_probs
             target_e_probs = e_probs
             current_color = model_color
+
+    # 2.5 run the math for everything else and get the data
+    audio_data=get_audio_data(audio_buffer,WINDOW_SECONDS,SAMPLE_RATE)
+    print(f"Audio data: {audio_data}")
     
     # 3. Smoothing (This runs EVERY frame using the target targets we saved above)
     gender_smooth = (gender_smooth * (1 - ALPHA)) + (target_g_probs * ALPHA)
@@ -256,159 +270,8 @@ def update_dashboard(frame):
         artists.append(text)
 
     return artists
-"""def update_dashboard(frame):
-    global emotion_smooth, gender_smooth
-    frame_counter += 1  # Add 1 every frame
-    
-    # 1. Get Audiotomorrow
-    current_audio = audio_buffer.copy()
-    
-    # --- SILENCE GATE ---
-    # Calculate volume (Root Mean Square)
-    volume = np.sqrt(np.mean(current_audio**2))
 
-    #print(f"Mic Volume: {volume:.5f}")
-    
-    # If too quiet, fade bars to zero and skip the heavy AI processing
-    if volume < SILENCE_THRESHOLD:
-        # Fade out smoothly
-        gender_smooth = (gender_smooth * (1 - ALPHA)) + (0 * ALPHA)
-        emotion_smooth = (emotion_smooth * (1 - ALPHA)) + (0 * ALPHA)
-        
-        # Still update the visual bars to show they are dropping
-        for bar, height, text in zip(gender_bars, gender_smooth, gender_texts):
-            bar.set_height(height)
-            text.set_text("") # Hide text when silent
-            text.set_y(height + 0.02)
-            
-        for bar, height, text in zip(emotion_bars, emotion_smooth, emotion_texts):
-            bar.set_height(height)
-            text.set_text("")
-            text.set_y(height + 0.02)
-            
-        # Optional: You can still show the spectrogram if you want to see the "silence"
-        # But we won't run the neural network
-        try:
-            bitmap = process_live_audio(current_audio, SAMPLE_RATE)
-            # Crop logic...
-            target_w = 256 
-            if bitmap.shape[1] >= target_w:
-                start = (bitmap.shape[1] - target_w) // 2
-                crop = bitmap[:, start:start+target_w, :]
-            else:
-                # FIX: Use bitmap.shape[0] (which is 64) for the height so it fits perfectly
-                crop = np.zeros((bitmap.shape[0], target_w, 3), dtype=np.uint8) 
-                crop[:, :bitmap.shape[1], :] = bitmap
-            im_display.set_data(crop)
-            return [im_display] + list(gender_bars) + list(emotion_bars)
-        # Fix the first one (inside the silence gate)
-        except Exception as e:
-            print(f"Spectrogram error: {e}")
-            return [im_display] + list(gender_bars) + list(emotion_bars) + gender_texts + emotion_texts
 
-    # --- BELOW IS THE STANDARD AI PROCESSING (Only runs if volume > threshold) ---
-    
-    try:
-        bitmap = process_live_audio(current_audio, SAMPLE_RATE)
-    # Fix the second one (in the standard AI processing)
-    except Exception as e:
-        print(f"Spectrogram error: {e}")
-        return [im_display] + list(gender_bars) + list(emotion_bars) + gender_texts + emotion_texts
-
-    # Crop
-    target_w = 256 
-    if bitmap.shape[1] >= target_w:
-        start = (bitmap.shape[1] - target_w) // 2
-        crop = bitmap[:, start:start+target_w, :]
-    else:
-        # FIX: Use bitmap.shape[0] so the heights match!
-        crop = np.zeros((bitmap.shape[0], target_w, 3), dtype=np.uint8) 
-        crop[:, :bitmap.shape[1], :] = bitmap
-
-    im_display.set_data(crop)
-    im_display.set_data(crop)
-    
-    # ONLY RUN THE HEAVY AI MATH EVERY 5 FRAMES
-    if frame_counter % 5 == 0:
-        # 2. Inference
-        img_pil = Image.fromarray(crop)
-
-        # FIX: Stretch the image to 256x256 right before the neural network gets it
-        img_pil = img_pil.resize((256, 256)) 
-
-        img_tensor = transform(img_pil).unsqueeze(0).to(device)
-
-        with torch.no_grad():
-            g_logits = gender_model(img_tensor)
-            g_probs = torch.nn.functional.softmax(g_logits, dim=1).cpu().numpy()[0]
-
-            predicted_gender = np.argmax(g_probs)
-
-            if predicted_gender == 0: 
-                e_logits = emotion_model_M(img_tensor)
-                model_color = 'cyan' 
-            else: 
-                e_logits = emotion_model_F(img_tensor)
-                model_color = 'magenta'
-
-            e_probs = torch.nn.functional.softmax(e_logits, dim=1).cpu().numpy()[0]
-
-    "" "# ONLY RUN THE HEAVY AI MATH EVERY 5 FRAMES
-    if frame_counter % 5 == 0:
-        # 2. Inference
-        img_pil = Image.fromarray(crop)
-        img_pil = img_pil.resize((256, 256)) 
-        img_tensor = transform(img_pil).unsqueeze(0).to(device)
-        
-        with torch.no_grad():
-            g_logits = gender_model(img_tensor)
-            g_probs = torch.nn.functional.softmax(g_logits, dim=1).cpu().numpy()[0]
-            
-            predicted_gender = np.argmax(g_probs)
-            
-            if predicted_gender == 0: 
-                e_logits = emotion_model_M(img_tensor)
-                model_color = 'cyan' 
-            else: 
-                e_logits = emotion_model_F(img_tensor)
-                model_color = 'magenta'
-
-            # Save these as GLOBAL variables or attributes so the smoothing 
-            # math below can keep using them on the frames we skip!
-            global target_g_probs, target_e_probs, current_color
-            target_g_probs = g_probs
-            target_e_probs = torch.nn.functional.softmax(e_logits, dim=1).cpu().numpy()[0]
-            current_color = model_color "" "
-    
-    # 3. Smoothing
-    gender_smooth = (gender_smooth * (1 - ALPHA)) + (g_probs * ALPHA)
-    emotion_smooth = (emotion_smooth * (1 - ALPHA)) + (e_probs * ALPHA)
-
-    # 4. Update Artists
-    artists = [im_display]
-    
-    # Gender Updates
-    for bar, height, text in zip(gender_bars, gender_smooth, gender_texts):
-        bar.set_height(height)
-        text.set_text(f"{height:.0%}")
-        text_y = min(max(height + 0.02, 0.05), 1.0)
-        text.set_y(text_y)
-        artists.append(bar)
-        artists.append(text)
-    
-    # Emotion Updates
-    for bar, height, text in zip(emotion_bars, emotion_smooth, emotion_texts):
-        bar.set_height(height)
-        bar.set_color(model_color)
-        text.set_text(f"{height:.0%}")
-        text_y = min(max(height + 0.02, 0.05), 1.0)
-        text.set_y(text_y)
-        artists.append(bar)
-        artists.append(text)
-
-    return artists
-"""
-    
 def run():
     stream = sd.InputStream(
         device=DEVICE_INDEX,
