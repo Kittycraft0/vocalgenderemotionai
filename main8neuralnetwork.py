@@ -274,7 +274,7 @@ def train_model(deviceName, save_name, train_loader, cv_loader, raw_data_shape, 
 
         # Threshold to stop training if CV loss is not smaller than this number times its last for so many iterations
         threshold_multiplier=1
-        num_bad_iterations_allowed=10
+        num_bad_iterations_allowed=5
         num_bad_iterations=0
 
         # Save best CV loss for comparison to save models with lowest CV loss
@@ -720,7 +720,7 @@ def load_models_only_no_dataset():
     # Based on your main6 code, the shape is likely (3, 64, 64) or similar.
     # We will assume standard training shape (channels, height, width)
     # You might need to adjust (3, 64, 64) if your parse_spectrogram uses different widths.
-    dummy_shape = (3, 64, 64) 
+    dummy_shape = (3, 256, 256)
     
     # 3. Initialize Models
     gender_model = ConvolutionalNeuralNetwork(dummy_shape, 2).to(deviceName)

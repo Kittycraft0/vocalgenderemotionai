@@ -32,7 +32,7 @@ from main8neuralnetwork import load_models_only_no_dataset, classify_with_model
 # --- CONFIGURATION ---
 SAMPLE_RATE = 22050     
 WINDOW_SECONDS = 2.0    
-UPDATE_INTERVAL = 30    # 30ms = ~33 FPS (Smoother)
+UPDATE_INTERVAL = 30    # 30ms = ~33 FPS (Smoother) #changed to 250 cuz laggy on non gpu device
 DEVICE_INDEX = None     
 
 # Labels
@@ -57,8 +57,8 @@ def audio_callback(indata, frames, time, status):
 
 # --- VISUALIZATION SETUP ---
 # Fixed size, manual layout
-fig = plt.figure(figsize=(12, 9)) 
-plt.style.use('dark_background')
+#plt.style.use('dark_background')
+fig = plt.figure(figsize=(12, 9), facecolor='darkcyan') # Change 'darkcyan' to 'cyan' if you want it bright!
 fig.suptitle('Live SER Classifier (RAVDESS)', fontsize=18, color='white', fontweight='bold', y=0.96)
 
 # Manually reserve space: 
@@ -72,7 +72,9 @@ gs = fig.add_gridspec(2, 2, height_ratios=[1, 1])
 ax_spec = fig.add_subplot(gs[0, :])
 ax_spec.set_title("Live Mel-Spectrogram Input", fontsize=14)
 ax_spec.axis('off')
-dummy_img = np.zeros((64, 64, 3), dtype=np.uint8)
+
+# FIX: Set height back to 64, but keep width at 256
+dummy_img = np.zeros((64, 256, 3), dtype=np.uint8) 
 im_display = ax_spec.imshow(dummy_img, aspect='auto', origin='upper', animated=True)
 
 # 2. Gender Bar
@@ -139,6 +141,8 @@ def update_dashboard(frame):
     # --- SILENCE GATE ---
     # Calculate volume (Root Mean Square)
     volume = np.sqrt(np.mean(current_audio**2))
+
+    print(f"Mic Volume: {volume:.5f}")
     
     # If too quiet, fade bars to zero and skip the heavy AI processing
     if volume < SILENCE_THRESHOLD:
@@ -162,38 +166,49 @@ def update_dashboard(frame):
         try:
             bitmap = process_live_audio(current_audio, SAMPLE_RATE)
             # Crop logic...
-            target_w = 64
+            target_w = 256 
             if bitmap.shape[1] >= target_w:
                 start = (bitmap.shape[1] - target_w) // 2
                 crop = bitmap[:, start:start+target_w, :]
             else:
-                crop = np.zeros((64, 64, 3), dtype=np.uint8)
+                # FIX: Use bitmap.shape[0] (which is 64) for the height so it fits perfectly
+                crop = np.zeros((bitmap.shape[0], target_w, 3), dtype=np.uint8) 
                 crop[:, :bitmap.shape[1], :] = bitmap
             im_display.set_data(crop)
             return [im_display] + list(gender_bars) + list(emotion_bars)
-        except:
-            return []
+        # Fix the first one (inside the silence gate)
+        except Exception as e:
+            print(f"Spectrogram error: {e}")
+            return [im_display] + list(gender_bars) + list(emotion_bars) + gender_texts + emotion_texts
 
     # --- BELOW IS THE STANDARD AI PROCESSING (Only runs if volume > threshold) ---
     
     try:
         bitmap = process_live_audio(current_audio, SAMPLE_RATE)
-    except:
-        return [] 
+    # Fix the second one (in the standard AI processing)
+    except Exception as e:
+        print(f"Spectrogram error: {e}")
+        return [im_display] + list(gender_bars) + list(emotion_bars) + gender_texts + emotion_texts
 
     # Crop
-    target_w = 64
+    target_w = 256 
     if bitmap.shape[1] >= target_w:
         start = (bitmap.shape[1] - target_w) // 2
         crop = bitmap[:, start:start+target_w, :]
     else:
-        crop = np.zeros((64, 64, 3), dtype=np.uint8)
+        # FIX: Use bitmap.shape[0] so the heights match!
+        crop = np.zeros((bitmap.shape[0], target_w, 3), dtype=np.uint8) 
         crop[:, :bitmap.shape[1], :] = bitmap
 
+    im_display.set_data(crop)
     im_display.set_data(crop)
     
     # 2. Inference
     img_pil = Image.fromarray(crop)
+    
+    # FIX: Stretch the image to 256x256 right before the neural network gets it
+    img_pil = img_pil.resize((256, 256)) 
+    
     img_tensor = transform(img_pil).unsqueeze(0).to(device)
     
     with torch.no_grad():
@@ -250,7 +265,8 @@ def run():
     with stream:
         print("Microphone Active. Starting Dashboard...")
         # blit=True is the key to high performance
-        ani = animation.FuncAnimation(fig, update_dashboard, interval=UPDATE_INTERVAL, blit=True)
+        # but blit=true makes lag so i'm switching it to false -4/7/2026
+        ani = animation.FuncAnimation(fig, update_dashboard, interval=UPDATE_INTERVAL, blit=True) 
         plt.show()
 
 if __name__ == "__main__":
