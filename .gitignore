@@ -13,3 +13,10 @@ emotion_model_F.pth
 emotion_model_M.pth
 gender_model.pth
 model_weights.pth
+uncut_data_spectrogram_bitmap.bmp
+cut_data_spectrogram_bitmap.bmp
+my_spectrogram.bmp
+tempCodeRunnerFile.py
+main6.cpython-313.pyc
+main8neuralnetwork.cpython-313.pyc
+sounds/
