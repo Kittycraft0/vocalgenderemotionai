@@ -31,7 +31,7 @@ from main8neuralnetwork import load_models_only_no_dataset, classify_with_model
 
 # --- CONFIGURATION ---
 SAMPLE_RATE = 22050     
-WINDOW_SECONDS = 2.0    
+WINDOW_SECONDS = 3.0    
 UPDATE_INTERVAL = 30    # 30ms = ~33 FPS (Smoother) #changed to 250 cuz laggy on non gpu device
 DEVICE_INDEX = None     
 
@@ -142,7 +142,7 @@ def update_dashboard(frame):
     # Calculate volume (Root Mean Square)
     volume = np.sqrt(np.mean(current_audio**2))
 
-    print(f"Mic Volume: {volume:.5f}")
+    #print(f"Mic Volume: {volume:.5f}")
     
     # If too quiet, fade bars to zero and skip the heavy AI processing
     if volume < SILENCE_THRESHOLD:
