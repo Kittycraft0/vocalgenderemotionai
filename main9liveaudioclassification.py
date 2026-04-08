@@ -243,6 +243,7 @@ def update_dashboard(frame):
     audio_data=get_audio_data(audio_buffer,WINDOW_SECONDS,SAMPLE_RATE)
     print(f"Audio data: {audio_data}")
     
+    
     # 3. Smoothing (This runs EVERY frame using the target targets we saved above)
     gender_smooth = (gender_smooth * (1 - ALPHA)) + (target_g_probs * ALPHA)
     emotion_smooth = (emotion_smooth * (1 - ALPHA)) + (target_e_probs * ALPHA)

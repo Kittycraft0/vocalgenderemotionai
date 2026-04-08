@@ -45,14 +45,61 @@
 # Riley Mohr
 
 
-def get_audio_data(audio_buffer,rf,time):
-    print(len(audio_buffer),rf,time)
-    if(int(rf*time)!=int(len(audio_buffer))):
-        print("The input data does not match up! Something might be wrong! int(rf*time)!=int(len(audio_buffer))")
+import librosa
+import numpy as np
+
+def get_audio_data(audio_buffer,time,sample_rate):
+    print(len(audio_buffer),time,sample_rate)
+    if(int(sample_rate*time)!=int(len(audio_buffer))):
+        print("The input data does not match up! Something might be wrong! int(sample_rate*time)!=int(len(audio_buffer))")
     data={
         "pitch":-1,
         "formants":[],
-        "vocalweight":[]
+        "vocalweight":-1
     }
-    
+    data["pitch"]=get_pitch(audio_buffer,sample_rate)
+    data["formants"]=get_formants(audio_buffer)
+    data["vocalweight"]=get_vocal_weight(audio_buffer)
+
     return(data)
+
+
+def get_pitch(audio_buffer,sample_rate):
+    # ai allows me to not have to read the documentation and spent 3 hours producing something otherwise produced in 3 minutes
+    """
+    Analyzes an audio buffer and returns the median F0 (pitch) in Hertz.
+    """
+    # 1. Run the pYIN algorithm
+    # fmin and fmax bound the human vocal range to prevent false tracking from room noise.
+    # 75Hz to 600Hz captures almost all human speech.
+    print(f"length of used data: {len(audio_buffer[-int(sample_rate*0.050):])}")
+    f0 = librosa.yin( # algorithm that gets f0, use yin instead of pyin because probabilistic is slow
+        y=audio_buffer[-int(sample_rate*0.050):], # most recent 50ms of audio
+        fmin=75, # lowest human speech
+        fmax=600, # highest human speech f0 plus some because i go higher sometimes to 1000-2000, was 600 now 6000 not anymore neither is it 3515
+        sr=sample_rate 
+        #fill_na=np.nan # Unvoiced frames will return 'NaN' (Not a Number) #only used for pyin
+    )
+    
+    # 2. Filter out the unvoiced/silent frames (the NaNs)
+    valid_pitch_frames = f0[~np.isnan(f0)]
+
+    # 3. Calculate the average pitch for this specific buffer
+    if len(valid_pitch_frames) > 0: #gotta make sure it's not empty!!!
+        # We use median instead of mean to ignore sudden mic pops or glitches
+        current_pitch = np.median(valid_pitch_frames)
+        return current_pitch
+    else:
+        # Returns 0 if you are whispering or totally silent
+        return 0.0
+
+
+    #return -1
+
+
+def get_formants(audio_buffer):
+    return []
+
+
+def get_vocal_weight(audio_buffer):
+    return -1
