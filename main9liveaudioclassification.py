@@ -29,6 +29,7 @@ from torchvision import transforms
 from main6 import process_live_audio
 from main8neuralnetwork import load_models_only_no_dataset, classify_with_model
 from main10morevocalinformation import get_audio_data
+import matplotlib.ticker as ticker
 
 # --- CONFIGURATION ---
 SAMPLE_RATE = 22050     
@@ -76,19 +77,41 @@ fig.suptitle('Live SER Classifier (RAVDESS)', fontsize=18, color='white', fontwe
 # hspace=0.3 gives room between spectrogram and bars
 fig.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.25, wspace=0.2, hspace=0.3)
 
-gs = fig.add_gridspec(2, 2, height_ratios=[1, 1])
+# set ratios and stuffs
+gs = fig.add_gridspec(4, 4, height_ratios=[1, 1, 1, 5], width_ratios=[2,2,2,5])
 
 # 1. Spectrogram
 ax_spec = fig.add_subplot(gs[0, :])
 ax_spec.set_title("Live Mel-Spectrogram Input", fontsize=14)
 ax_spec.axis('off')
 
+
+# high quality spectrogram
+hq_spec = fig.add_subplot(gs[1, :])
+hq_spec.set_title("Live Audio Input", fontsize=14)
+hq_spec.axis('on')
+# low frequency and high frequency or something idk
+hq_spec.set_ylim(50, 3000) 
+# -3 seconds to 0 seconds
+hq_spec.set_xlim(-WINDOW_SECONDS, 0) 
+#hq_spec.set_xticks(range(len(WINDOW_SECONDS*4))) #no!!! the math is so bad here!!!!
+#hq_spec.set_xticklabels("Seconds") #that's not how that works!!!!!!!!
+hq_spec.set_xlabel("Seconds")
+
+# --- THE FIX ---
+# 1. Change the scale to logarithmic
+hq_spec.set_yscale('log')
+
+# 2. Force the tick labels to be standard numbers (e.g., 100, 1000) instead of scientific (10^2, 10^3)
+hq_spec.yaxis.set_major_formatter(ticker.ScalarFormatter())
+
+
 # FIX: Set height back to 64, but keep width at 256
 dummy_img = np.zeros((64, 256, 3), dtype=np.uint8) 
 im_display = ax_spec.imshow(dummy_img, aspect='auto', origin='upper', animated=True)
 
 # 2. Gender Bar
-ax_gender = fig.add_subplot(gs[1, 0])
+ax_gender = fig.add_subplot(gs[2, 0])
 ax_gender.set_title("Gender", fontsize=14)
 ax_gender.set_ylim(0, 1.1) 
 gender_bars = ax_gender.bar(GENDERS, [0.01, 0.01], color=['cyan', 'magenta']) # Start near 0
@@ -96,7 +119,7 @@ ax_gender.set_xticks(range(len(GENDERS)))
 ax_gender.set_xticklabels(GENDERS, fontsize=12, color='white', fontweight='bold')
 
 # 3. Emotion Bar
-ax_emotion = fig.add_subplot(gs[1, 1])
+ax_emotion = fig.add_subplot(gs[2, 1])
 ax_emotion.set_title("Emotion", fontsize=14)
 ax_emotion.set_ylim(0, 1.1) 
 emotion_bars = ax_emotion.bar(EMOTIONS, [0.01]*8, color='orange')
