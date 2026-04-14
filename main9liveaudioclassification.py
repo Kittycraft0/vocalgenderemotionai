@@ -32,7 +32,7 @@ from main10morevocalinformation import get_audio_data
 import matplotlib.ticker as ticker
 
 # --- CONFIGURATION ---
-SAMPLE_RATE = 22050     
+#SAMPLE_RATE = 22050     
 WINDOW_SECONDS = 2.0    
 UPDATE_INTERVAL = 30    # 30ms = ~33 FPS (Smoother) #changed to 250 cuz laggy on non gpu device
 DEVICE_INDEX = None     
@@ -162,12 +162,9 @@ emotion_smooth = np.zeros(8)
 gender_smooth = np.zeros(2)
 ALPHA = 0.3 # Slightly faster response
 
-# --- SILENCE CONFIGURATION ---
-SILENCE_THRESHOLD = 0.01  # Amplitude threshold (0.0 to 1.0). Tweak this if it cuts off your voice.
-
 frame_counter = 0
 # --- SILENCE CONFIGURATION ---
-SILENCE_THRESHOLD = 0.01  # Amplitude threshold (0.0 to 1.0)
+SILENCE_THRESHOLD = 0.01  # Amplitude threshold (0.0 to 1.0) Tweak this if it cuts off your voice.
 
 # --- FRAME SKIPPING GLOBALS ---
 frame_counter = 0
