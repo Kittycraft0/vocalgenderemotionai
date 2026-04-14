@@ -1,5 +1,6 @@
 #4/14/2026
 # so i don't need to wait for imports every single time i want to test something
+# holy unoptomized no wonder the thing is so slow
 
 import matplotlib.pyplot as plt
 import sounddevice as sd
@@ -61,7 +62,8 @@ gs = fig.add_gridspec(4, 4, height_ratios=[1, 1, 1, 5], width_ratios=[2,2,2,5])
 # what is this i don't get it
 # FIX: Set height back to 64, but keep width at 256
 # 1. Spectrogram
-ax_spec = fig.add_subplot(gs[0, :])
+# size of spectrogram is set here, changed first : from 0 such that now it takes up the full window
+ax_spec = fig.add_subplot(gs[:, :])
 ax_spec.set_title("Spectrogram", fontsize=14)
 ax_spec.axis('off')
 dummy_img = np.zeros((64, 256, 3), dtype=np.uint8) 
@@ -69,7 +71,7 @@ specrogram_display = ax_spec.imshow(dummy_img, aspect='auto', origin='upper', an
 
 
 
-def process_live_audio(y, sr):
+def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     """
     Takes raw audio data (y) and sample rate (sr) directly from memory.
     Returns the formatted RGB bitmap array ready for the neural network.
@@ -129,7 +131,7 @@ def update_dashboard(frame):
     current_audio = audio_buffer.copy()
     
     # --- SILENCE GATE ---
-    volume = np.sqrt(np.mean(current_audio**2))
+    #volume = np.sqrt(np.mean(current_audio**2))
     
 
     # run the math to get audio data
@@ -138,15 +140,16 @@ def update_dashboard(frame):
 
 
     bitmap = process_live_audio(current_audio, SAMPLE_RATE)
-    target_w = 256
-    if bitmap.shape[1] >= target_w:
-        start = (bitmap.shape[1] - target_w) // 2
-        crop = bitmap[:, start:start+target_w, :]
-    else:
-        crop = np.zeros((bitmap.shape[0], target_w, 3), dtype=np.uint8) 
-        crop[:, :bitmap.shape[1], :] = bitmap
-    specrogram_display.set_data(crop)
-            
+    #target_w = 256
+    #if bitmap.shape[1] >= target_w:
+    #    start = (bitmap.shape[1] - target_w) // 2
+    #    crop = bitmap[:, start:start+target_w, :]
+    #else:
+    #    crop = np.zeros((bitmap.shape[0], target_w, 3), dtype=np.uint8) 
+    #    crop[:, :bitmap.shape[1], :] = bitmap
+    #specrogram_display.set_data(crop)
+    specrogram_display.set_data(bitmap)
+
 
     visual_update_list = [specrogram_display]
 
