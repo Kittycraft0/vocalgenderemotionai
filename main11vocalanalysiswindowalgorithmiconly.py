@@ -71,6 +71,12 @@ specrogram_display = ax_spec.imshow(dummy_img, aspect='auto', origin='upper', an
 
 
 
+# idea:
+# have spectrogram stored as a bitmap image ready for rendering
+# LIFO new data in from the right out to the left, e.g. all of the data is moved down and then new data is put on top of it or something
+# the new data that is put in is the second half of putting a snipped that is twice as long as the hole created, converted into mel spectrogram,
+# and then converted to bitmap.
+
 def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     """
     Takes raw audio data (y) and sample rate (sr) directly from memory.
@@ -136,12 +142,16 @@ def update_dashboard(frame):
 
     # run the math to get audio data
     audio_data=get_audio_data(audio_buffer,WINDOW_SECONDS,SAMPLE_RATE)
-    print(f"Audio data: {audio_data}")
+    #print(f"Audio data: {audio_data}")
+    print(f"Audio pitch: {audio_data["pitch"]}")
+    #print(librosa.hz_to_mel(audio_data["pitch"]))
 
 
     bitmap = process_live_audio(current_audio, SAMPLE_RATE)
+    #bitmap[bitmap.shape[0],np.floor(63-librosa.hz_to_mel(audio_data["pitch"]))]=0
     #target_w = 256
     #if bitmap.shape[1] >= target_w:
+    # 
     #    start = (bitmap.shape[1] - target_w) // 2
     #    crop = bitmap[:, start:start+target_w, :]
     #else:

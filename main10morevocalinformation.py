@@ -49,7 +49,7 @@ import librosa
 import numpy as np
 
 def get_audio_data(audio_buffer,time,sample_rate):
-    print(len(audio_buffer),time,sample_rate)
+    #print(len(audio_buffer),time,sample_rate)
     if(int(sample_rate*time)!=int(len(audio_buffer))):
         print("The input data does not match up! Something might be wrong! int(sample_rate*time)!=int(len(audio_buffer))")
     data={
@@ -72,7 +72,7 @@ def get_pitch(audio_buffer,sample_rate):
     # 1. Run the pYIN algorithm
     # fmin and fmax bound the human vocal range to prevent false tracking from room noise.
     # 75Hz to 600Hz captures almost all human speech.
-    print(f"length of used data: {len(audio_buffer[-int(sample_rate*0.050):])}")
+    #print(f"length of used data: {len(audio_buffer[-int(sample_rate*0.050):])}")
     f0 = librosa.yin( # algorithm that gets f0, use yin instead of pyin because probabilistic is slow
         y=audio_buffer[-int(sample_rate*0.050):], # most recent 50ms of audio
         fmin=75, # lowest human speech
