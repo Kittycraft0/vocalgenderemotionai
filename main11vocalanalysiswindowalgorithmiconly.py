@@ -46,7 +46,7 @@ img.setLevels([-80, 0]) # Maps -80dB to black, 0dB to bright/white
 #SAMPLE_RATE = 22050
 TOTAL_WINDOW_SECONDS=10.0
 BUFFER_SECONDS = 2.0    
-UPDATE_INTERVAL_MS = 30    # 30ms = ~33 FPS (Smoother) #changed to 250 cuz laggy on non gpu device
+UPDATE_INTERVAL_MS = 10    # 30ms = ~33 FPS (Smoother) #changed to 250 cuz laggy on non gpu device
 DEVICE_INDEX = None
 
 
@@ -151,7 +151,7 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     global last_time
     current_time=time.time()
     elapsed_seconds=current_time-last_time #useful
-    last_time=current_time
+    #last_time=current_time
     print(current_time-start_time)
     # ai helped me here
     # 1. Figure out how many raw audio samples represent the elapsed time
@@ -161,7 +161,7 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     new_columns = ideal_samples // window_step
     # If not enough time has passed to make at least 1 column of pixels, just wait.
     #if new_columns < 1:
-    #    return full_spectrogram_bitmap_array
+    #    return spectrogram_data #full_spectrogram_bitmap_array
     # 3. Librosa STFT Math (The Secret Sauce)
     # To get exactly 'new_columns' of output without Librosa injecting silence at the edges,
     # we need this exact number of historical samples from the audio buffer:
@@ -275,6 +275,7 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     #print(spectrogram_data[0][0])
     global last_processed_time
     last_processed_time += (actual_new_cols * window_step / sr)
+    last_time=current_time
 
     #global bbb
     #print(f"bbb: {bbb}")
