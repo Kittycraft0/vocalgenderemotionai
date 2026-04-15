@@ -56,12 +56,13 @@ import numpy as np
 
 # reset array
 array=np.tile(np.arange(1,9),8).reshape(8,8)
-zeros=int(np.zeros((8,3)))
-int_arr=zeros.floor()
+zeros=np.zeros((8,3))
+int_arr=np.uint8(zeros)#.floor()
 print(int_arr)
 array=np.concat([array[:,0:5],zeros],axis=1)
 print(array)
 
+print(array[:,-2:])
 
 
 #matrix[:,0:8]=matrix[:,2:10]

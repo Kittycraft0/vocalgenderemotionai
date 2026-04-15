@@ -15,25 +15,12 @@ fig = plt.figure(figsize=(12, 9), facecolor='#886688') # Change 'darkcyan' to 'c
 fig.suptitle('Live Audio Information', fontsize=18, color='white', fontweight='bold', y=0.96)
 
 # --- CONFIGURATION ---
-#SAMPLE_RATE = 22050     
-WINDOW_SECONDS = 2.0    
+#SAMPLE_RATE = 22050
+TOTAL_WINDOW_SECONDS=10.0
+BUFFER_SECONDS = 2.0    
 UPDATE_INTERVAL = 30    # 30ms = ~33 FPS (Smoother) #changed to 250 cuz laggy on non gpu device
 DEVICE_INDEX = None
 
-# 1. get vertical resolution
-n_fft=1024
-# 2. get window
-#window_width=512
-# 3. window step
-window_step=256
-#window_max_pos=window_width+1
-#parse_width=64
-#parse_interval=32
-final_image_height=64
-# 5. find top and bottom 5% energies from the distribution (???)
-#top_5_percent_energy = 0.05 * np.percentile(rms, 95)
-#bottom_5_percent_energy = 0.05 * np.percentile(rms, 5)
-cmap_name="magma"
 
 
 # Ask the computer for the stats of this specific microphone
@@ -42,8 +29,28 @@ device_info = sd.query_devices(DEVICE_INDEX, 'input')
 SAMPLE_RATE = int(device_info['default_samplerate'])
 print(f"Microphone detected! Running at {SAMPLE_RATE} Hz")
 
+
+# 1. get vertical resolution
+n_fft=1024
+# 2. get window
+#window_width=512
+# 3. window step
+resolutionfactor=32
+window_step=int(65536/resolutionfactor) #was 256 # i don't understand why this is the magic number that makes each pixel a square
+#window_step=int(SAMPLE_RATE/resolutionfactor) #was 256
+#window_max_pos=window_width+1
+#parse_width=64
+#parse_interval=32
+spectrogram_pixel_height=16*resolutionfactor
+# 5. find top and bottom 5% energies from the distribution (???)
+#top_5_percent_energy = 0.05 * np.percentile(rms, 95)
+#bottom_5_percent_energy = 0.05 * np.percentile(rms, 5)
+cmap_name="magma"
+
+
+
 # --- AUDIO BUFFER STATE ---
-buffer_size = int(SAMPLE_RATE * WINDOW_SECONDS)
+buffer_size = int(SAMPLE_RATE * BUFFER_SECONDS)
 audio_buffer = np.zeros(buffer_size, dtype=np.float32)
 def audio_callback(indata, frames, time, status):
     global audio_buffer
@@ -76,15 +83,46 @@ specrogram_display = ax_spec.imshow(dummy_img, aspect='auto', origin='upper', an
 # LIFO new data in from the right out to the left, e.g. all of the data is moved down and then new data is put on top of it or something
 # the new data that is put in is the second half of putting a snipped that is twice as long as the hole created, converted into mel spectrogram,
 # and then converted to bitmap.
-
+#prev_array=np.array((spectrogram_pixel_height,int(2*SAMPLE_RATE/(window_step)+1),3))#(spectrogram_color_data[:, :, :3] * 255).astype(np.uint8)
+full_spectrogram_bitmap_array=np.zeros((spectrogram_pixel_height,int(2*SAMPLE_RATE/(window_step)+1)*10,3)).astype(np.uint8)
+n=0
+slice_seconds=1
+import time
+start_time = time.time()
+#time.time-start_time
+#width=int(SAMPLE_RATE*slice_seconds/(window_step)+1)
+b=1
+last_time=start_time
 def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     """
     Takes raw audio data (y) and sample rate (sr) directly from memory.
     Returns the formatted RGB bitmap array ready for the neural network.
     """
-    # 1. Compute Mel Spectrogram
-    mel_spec = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=n_fft, hop_length=window_step, n_mels=final_image_height)
+    global last_time
+    new_time=time.time()
+    seconds_per_frame=new_time-last_time #useful
+    last_time=new_time
     
+    #global width
+    #global b
+    #print(time.time()-start_time) #time since initialization
+    # get slice_seconds slice width
+    #global slice_seconds
+    y_slice_width=int(SAMPLE_RATE*seconds_per_frame)
+    new_window_width=int(SAMPLE_RATE*seconds_per_frame/(window_step)+1)
+    print(new_window_width)
+    print(y_slice_width)
+    # get slice of y
+    if y.shape[0]<=y_slice_width:
+        print(f"AUDIO BUFFER NOT BIG ENOUGH!!! GOT f{y.shape[0]} NEEDS AT LEAST f{y_slice_width}")
+        return
+    y_slice=y[-y_slice_width:]
+    # 1. Compute Mel Spectrogram
+    mel_spec = librosa.feature.melspectrogram(y=y_slice, sr=sr, n_fft=n_fft, hop_length=window_step, n_mels=spectrogram_pixel_height)
+    #print(y, sr, n_fft, window_step, spectrogram_pixel_height)
+    #print(mel_spec.shape)
+    #print(mel_spec.shape[1], int(2*sr/(window_step)+1)) #they are the same
+
     # 2. Convert to dB
     S_db = librosa.power_to_db(mel_spec, ref=np.max)
     
@@ -123,7 +161,40 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     # Convert to 0-255 uint8 RGB
     spectrogram_bitmap_array = (spectrogram_color_data[:, :, :3] * 255).astype(np.uint8)
     
-    return spectrogram_bitmap_array
+    # roll the image to the left by window length/2
+    # roll the second half or so of received array visual to the image 
+    #array=np.tile(np.arange(1,9),8).reshape(8,8)
+    #zeros=int(np.zeros((8,3)))
+    #int_arr=zeros.floor()
+    #print(int_arr)
+    #array=np.concat([array[:,0:5],zeros],axis=1)
+    global full_spectrogram_bitmap_array
+    global n
+    n+=1
+    print(spectrogram_bitmap_array.shape[1])
+    print(int(2*SAMPLE_RATE/(window_step)+1))
+    #if n%5==0:
+    
+    # shift currently displayed image to the left by width*b pixels
+    full_spectrogram_bitmap_array[:,:-int(new_window_width*b),:]=full_spectrogram_bitmap_array[:,int(new_window_width*b):,:]
+    # append new image to right
+    full_spectrogram_bitmap_array[:,-int(new_window_width*b):,:]=spectrogram_bitmap_array[:,-int(new_window_width*b):,:]
+    #np.roll(full_spectrogram_bitmap_array,-100,axis=1)
+    #full_spectrogram_bitmap_array[:,:-int(2*SAMPLE_RATE/(window_step)+1),:]=spectrogram_bitmap_array
+    #full_spectrogram_bitmap_array=np.concat(
+    #    [full_spectrogram_bitmap_array[:,:-int(spectrogram_bitmap_array.shape[1]/2),:],
+    #     spectrogram_bitmap_array[:,:-int(spectrogram_bitmap_array.shape[1]/2),:]],axis=1)
+    #else:
+    #    full_spectrogram_bitmap_array=np.concat(
+    #        [full_spectrogram_bitmap_array[:,:-int(spectrogram_bitmap_array.shape[2]/2),:],
+    #         int(np.zeros(
+    #             (
+    #             spectrogram_pixel_height,
+    #             int((2*SAMPLE_RATE/(window_step)+1)/2)
+    #             ,3
+    #             )
+    #             ))],axis=1)
+    return full_spectrogram_bitmap_array
 
 
 def update_dashboard(frame):
@@ -141,7 +212,7 @@ def update_dashboard(frame):
     
 
     # run the math to get audio data
-    audio_data=get_audio_data(audio_buffer,WINDOW_SECONDS,SAMPLE_RATE)
+    audio_data=get_audio_data(audio_buffer,BUFFER_SECONDS,SAMPLE_RATE)
     #print(f"Audio data: {audio_data}")
     print(f"Audio pitch: {audio_data["pitch"]}")
     #print(librosa.hz_to_mel(audio_data["pitch"]))
