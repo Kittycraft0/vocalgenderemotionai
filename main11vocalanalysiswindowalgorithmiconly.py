@@ -46,7 +46,7 @@ img.setLevels([-80, 0]) # Maps -80dB to black, 0dB to bright/white
 #SAMPLE_RATE = 22050
 TOTAL_WINDOW_SECONDS=10.0
 BUFFER_SECONDS = 2.0    
-UPDATE_INTERVAL_MS = 10    # 30ms = ~33 FPS (Smoother) #changed to 250 cuz laggy on non gpu device
+UPDATE_INTERVAL_MS = 30    # 30ms = ~33 FPS (Smoother) #changed to 250 cuz laggy on non gpu device
 DEVICE_INDEX = None
 
 
@@ -148,7 +148,7 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     Takes raw audio data (y) and sample rate (sr) directly from memory.
     Returns the formatted RGB bitmap array ready for the neural network.
     """
-    global last_time
+    global last_time, bbb
     current_time=time.time()
     elapsed_seconds=current_time-last_time #useful
     #last_time=current_time
@@ -165,10 +165,16 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     # 3. Librosa STFT Math (The Secret Sauce)
     # To get exactly 'new_columns' of output without Librosa injecting silence at the edges,
     # we need this exact number of historical samples from the audio buffer:
+    print(f"bbb: {bbb}")
+    bbb+=1
     samples_to_pull = (new_columns - 1) * window_step + n_fft
     # Check if the buffer even has enough data yet (prevents crashing on startup)
+    print(samples_to_pull)
+    print(len(y))
     if samples_to_pull > len(y):
-        return spectrogram_data #full_spectrogram_bitmap_array
+        samples_to_pull=len(y)-1
+        #return spectrogram_data #full_spectrogram_bitmap_array
+    
     
     #global width
     #global b
@@ -180,8 +186,10 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     #print(new_window_width)
     #print(samples_to_pull)
     # get slice of y
+    print(f"bbb: {bbb}")
+    bbb+=1
     if len(y)<=samples_to_pull:
-        print(f"AUDIO BUFFER NOT BIG ENOUGH!!! GOT f{y.shape[0]} NEEDS AT LEAST f{samples_to_pull}")
+        print(f"AUDIO BUFFER NOT BIG ENOUGH!!! GOT f{int(y.shape[0])} NEEDS AT LEAST f{int(samples_to_pull)}")
         return
     # Extract exactly what we need from the very end of the rolling audio buffer
     y_slice=y[-samples_to_pull:]
@@ -278,8 +286,8 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     last_time=current_time
 
     #global bbb
-    #print(f"bbb: {bbb}")
-    #bbb+=1
+    print(f"bbb: {bbb}")
+    bbb+=1
     
     return spectrogram_data
 
