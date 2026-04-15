@@ -11,14 +11,42 @@ import librosa
 import matplotlib.colors as mcolors
 
 
-fig = plt.figure(figsize=(12, 9), facecolor='#886688') # Change 'darkcyan' to 'cyan' if you want it bright!
-fig.suptitle('Live Audio Information', fontsize=18, color='white', fontweight='bold', y=0.96)
+#fig = plt.figure(figsize=(12, 9), facecolor='#886688') # Change 'darkcyan' to 'cyan' if you want it bright!
+#fig.suptitle('Live Audio Information', fontsize=18, color='white', fontweight='bold', y=0.96)
+
+# ai made pyqtgraph setup
+import pyqtgraph as pg
+from pyqtgraph.Qt import QtCore
+# --- PYQTGRAPH UI SETUP ---
+# Create the application
+app = pg.mkQApp("Live Audio Dashboard")
+
+# Create the main window
+win = pg.GraphicsLayoutWidget(show=True, title="Live Audio Information")
+win.resize(1000, 600)
+win.setBackground('#886688')
+
+# Add a plot for the spectrogram
+p1 = win.addPlot(title="Spectrogram")
+p1.hideAxis('bottom')
+p1.hideAxis('left')
+
+# Create the ImageItem and add it to the plot
+img = pg.ImageItem()
+p1.addItem(img)
+
+# Set up the Colormap (Magma)
+colormap = pg.colormap.get('magma')
+img.setLookupTable(colormap.getLookupTable())
+img.setLevels([-80, 0]) # Maps -80dB to black, 0dB to bright/white
+
+
 
 # --- CONFIGURATION ---
 #SAMPLE_RATE = 22050
 TOTAL_WINDOW_SECONDS=10.0
 BUFFER_SECONDS = 2.0    
-UPDATE_INTERVAL = 30    # 30ms = ~33 FPS (Smoother) #changed to 250 cuz laggy on non gpu device
+UPDATE_INTERVAL_MS = 30    # 30ms = ~33 FPS (Smoother) #changed to 250 cuz laggy on non gpu device
 DEVICE_INDEX = None
 
 
@@ -35,8 +63,9 @@ n_fft=1024
 # 2. get window
 #window_width=512
 # 3. window step
-resolutionfactor=32
-window_step=int(65536/resolutionfactor) #was 256 # i don't understand why this is the magic number that makes each pixel a square
+resolutionfactor=8
+#window_step=int(65536/resolutionfactor) #was 256 # i don't understand why this is the magic number that makes each pixel a square
+window_step=int(4096*4/resolutionfactor) #was 256 # i don't understand why this is the magic number that makes each pixel a square
 #window_step=int(SAMPLE_RATE/resolutionfactor) #was 256
 #window_max_pos=window_width+1
 #parse_width=64
@@ -63,18 +92,18 @@ def audio_callback(indata, frames, time, status):
 
 
 # set ratios and stuffs
-gs = fig.add_gridspec(4, 4, height_ratios=[1, 1, 1, 5], width_ratios=[2,2,2,5])
+#gs = fig.add_gridspec(4, 4, height_ratios=[1, 1, 1, 5], width_ratios=[2,2,2,5])
 
 
 # what is this i don't get it
 # FIX: Set height back to 64, but keep width at 256
 # 1. Spectrogram
 # size of spectrogram is set here, changed first : from 0 such that now it takes up the full window
-ax_spec = fig.add_subplot(gs[:, :])
-ax_spec.set_title("Spectrogram", fontsize=14)
-ax_spec.axis('off')
-dummy_img = np.zeros((64, 256, 3), dtype=np.uint8) 
-specrogram_display = ax_spec.imshow(dummy_img, aspect='auto', origin='upper', animated=True)
+#ax_spec = fig.add_subplot(gs[:, :])
+#ax_spec.set_title("Spectrogram", fontsize=14)
+#ax_spec.axis('off')
+#dummy_img = np.zeros((64, 256, 3), dtype=np.uint8) 
+#specrogram_display = ax_spec.imshow(dummy_img, aspect='auto', origin='upper', animated=True)
 
 
 
@@ -84,7 +113,7 @@ specrogram_display = ax_spec.imshow(dummy_img, aspect='auto', origin='upper', an
 # the new data that is put in is the second half of putting a snipped that is twice as long as the hole created, converted into mel spectrogram,
 # and then converted to bitmap.
 #prev_array=np.array((spectrogram_pixel_height,int(2*SAMPLE_RATE/(window_step)+1),3))#(spectrogram_color_data[:, :, :3] * 255).astype(np.uint8)
-full_spectrogram_bitmap_array=np.zeros((spectrogram_pixel_height,int(2*SAMPLE_RATE/(window_step)+1)*10,3)).astype(np.uint8)
+#full_spectrogram_bitmap_array=np.zeros((spectrogram_pixel_height,int(2*SAMPLE_RATE/(window_step)+1)*10,3)).astype(np.uint8)
 n=0
 slice_seconds=1
 import time
@@ -106,12 +135,14 @@ cmap = plt.get_cmap(cmap_name)
 
 # 1. Pre-calculate the exact maximum width of our visual buffer
 # e.g., 10 seconds of history to display on screen
-MAX_COLUMNS = int(BUFFER_SECONDS * SAMPLE_RATE / window_step)
-full_spectrogram_bitmap_array = np.zeros((spectrogram_pixel_height, MAX_COLUMNS, 3), dtype=np.uint8)
+MAX_COLUMNS = int(TOTAL_WINDOW_SECONDS * SAMPLE_RATE / window_step)
+spectrogram_data = np.full((MAX_COLUMNS, spectrogram_pixel_height), -80.0, dtype=np.float32)
+#full_spectrogram_bitmap_array = np.zeros((spectrogram_pixel_height, MAX_COLUMNS, 3), dtype=np.uint8)
 
 # 2. Keep track of exact time so we don't drift
 last_processed_time = time.time()
-
+start_time=last_processed_time
+bbb=0
 def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     """
     Takes raw audio data (y) and sample rate (sr) directly from memory.
@@ -121,7 +152,7 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     current_time=time.time()
     elapsed_seconds=current_time-last_time #useful
     last_time=current_time
-
+    print(current_time-start_time)
     # ai helped me here
     # 1. Figure out how many raw audio samples represent the elapsed time
     ideal_samples = int(elapsed_seconds * sr)
@@ -129,15 +160,15 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     # If we don't do this, the image columns jump around and stitch poorly.
     new_columns = ideal_samples // window_step
     # If not enough time has passed to make at least 1 column of pixels, just wait.
-    if new_columns < 1:
-        return full_spectrogram_bitmap_array
+    #if new_columns < 1:
+    #    return full_spectrogram_bitmap_array
     # 3. Librosa STFT Math (The Secret Sauce)
     # To get exactly 'new_columns' of output without Librosa injecting silence at the edges,
     # we need this exact number of historical samples from the audio buffer:
     samples_to_pull = (new_columns - 1) * window_step + n_fft
     # Check if the buffer even has enough data yet (prevents crashing on startup)
     if samples_to_pull > len(y):
-        return full_spectrogram_bitmap_array
+        return spectrogram_data #full_spectrogram_bitmap_array
     
     #global width
     #global b
@@ -146,12 +177,12 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     #global slice_seconds
     #y_slice_width=int(SAMPLE_RATE*elapsed_seconds)
     new_window_width=int(SAMPLE_RATE*elapsed_seconds/(window_step)+1)
-    print(new_window_width)
-    print(samples_to_pull)
+    #print(new_window_width)
+    #print(samples_to_pull)
     # get slice of y
-    #if len(y)<=y_slice_width:
-    #    print(f"AUDIO BUFFER NOT BIG ENOUGH!!! GOT f{y.shape[0]} NEEDS AT LEAST f{y_slice_width}")
-    #    return
+    if len(y)<=samples_to_pull:
+        print(f"AUDIO BUFFER NOT BIG ENOUGH!!! GOT f{y.shape[0]} NEEDS AT LEAST f{samples_to_pull}")
+        return
     # Extract exactly what we need from the very end of the rolling audio buffer
     y_slice=y[-samples_to_pull:]
     # 4. Compute Spectrogram 
@@ -163,6 +194,10 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
 
     # 5. Color formatting
     S_db = librosa.power_to_db(mel_spec, ref=np.max)
+    
+    # PyQtGraph expects (X, Y). Librosa outputs (Y, X). 
+    # .T transposes it so it faces the right way!
+    S_db = S_db.T
     
     # 3. RMS Energy calculation (for consistency with training, though silence removal on live 
     #    chunks is tricky. We might skip rigorous thresholding to prevent crashing on silence,
@@ -183,21 +218,22 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
 
     # 4. Color conversion (Must match training EXACTLY)
     # The training data used your db_to_rgba function
-    spectrogram_color_data = cmap(norm(S_db))
+    #spectrogram_color_data = cmap(norm(S_db))
     
     # Vertical flip (matched from your convertAndStoreData function)
-    spectrogram_color_data = np.flipud(spectrogram_color_data)
+    #spectrogram_color_data = np.flipud(spectrogram_color_data)
     
     # Convert to 0-255 uint8 RGB
-    new_bitmap = (spectrogram_color_data[:, :, :3] * 255).astype(np.uint8)
+    #new_bitmap = (spectrogram_color_data[:, :, :3] * 255).astype(np.uint8)
 
     # Double check actual output width just to be completely safe
-    actual_new_cols = new_bitmap.shape[1]
+    actual_new_cols = S_db.shape[0]
+    #actual_new_cols = new_bitmap.shape[1]
     
     # 6. SHIFT the main image array left by the exact number of new columns
-    full_spectrogram_bitmap_array[:, :-actual_new_cols, :] = full_spectrogram_bitmap_array[:, actual_new_cols:, :]
+    spectrogram_data[:-actual_new_cols,:] = spectrogram_data[actual_new_cols:,:]
     # 7. PASTE the new data onto the right edge
-    full_spectrogram_bitmap_array[:, -actual_new_cols:, :] = new_bitmap
+    spectrogram_data[-actual_new_cols:,:] = S_db #new_bitmap
     
     ## roll the image to the left by window length/2
     ## roll the second half or so of received array visual to the image 
@@ -236,13 +272,17 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     # 8. Update timer. 
     # We only advance the timer by the EXACT amount of audio we processed. 
     # This completely prevents timing jitter and drift over long periods.
+    #print(spectrogram_data[0][0])
     global last_processed_time
     last_processed_time += (actual_new_cols * window_step / sr)
+
+    #global bbb
+    #print(f"bbb: {bbb}")
+    #bbb+=1
     
-    return full_spectrogram_bitmap_array
+    return spectrogram_data
 
-
-def update_dashboard(frame):
+def update_dashboard():
     # 1. Bring in all our globals properly!
     #global emotion_smooth, gender_smooth, frame_counter
     #global target_g_probs, target_e_probs, current_color
@@ -252,18 +292,24 @@ def update_dashboard(frame):
     # 1. Get Audio
     current_audio = audio_buffer.copy()
     
+
     # --- SILENCE GATE ---
     #volume = np.sqrt(np.mean(current_audio**2))
     
 
     # run the math to get audio data
-    audio_data=get_audio_data(audio_buffer,BUFFER_SECONDS,SAMPLE_RATE)
+    #audio_data=get_audio_data(audio_buffer,BUFFER_SECONDS,SAMPLE_RATE)
     #print(f"Audio data: {audio_data}")
-    print(f"Audio pitch: {audio_data["pitch"]}")
+    #print(f"Audio pitch: {audio_data["pitch"]}")
     #print(librosa.hz_to_mel(audio_data["pitch"]))
 
 
     bitmap = process_live_audio(current_audio, SAMPLE_RATE)
+    
+    # --- 3. RENDER ---
+    # Give the raw numbers to the GPU and let it handle the colors
+    img.setImage(bitmap, autoLevels=False)
+
     #bitmap[bitmap.shape[0],np.floor(63-librosa.hz_to_mel(audio_data["pitch"]))]=0
     #target_w = 256
     #if bitmap.shape[1] >= target_w:
@@ -274,13 +320,20 @@ def update_dashboard(frame):
     #    crop = np.zeros((bitmap.shape[0], target_w, 3), dtype=np.uint8) 
     #    crop[:, :bitmap.shape[1], :] = bitmap
     #specrogram_display.set_data(crop)
-    specrogram_display.set_data(bitmap)
+    #specrogram_display.set_data(bitmap)
 
 
-    visual_update_list = [specrogram_display]
+    #visual_update_list = [specrogram_display]
 
     # return whatever you want updated
-    return visual_update_list
+    #return visual_update_list
+
+
+# --- START THE LOOP ---
+# PyQtGraph uses QTimer instead of Matplotlib's FuncAnimation
+timer = QtCore.QTimer()
+timer.timeout.connect(update_dashboard)
+timer.start(UPDATE_INTERVAL_MS)
 
 
 def run():
@@ -294,10 +347,11 @@ def run():
     
     with stream:
         print("Microphone Active. Starting Dashboard...")
-        # blit=True is the key to high performance
-        # but blit=true makes lag so i'm switching it to false -4/7/2026
-        ani = animation.FuncAnimation(fig, update_dashboard, interval=UPDATE_INTERVAL, blit=True) 
-        plt.show()
+        #ani = animation.FuncAnimation(fig, update_dashboard, interval=UPDATE_INTERVAL_MS, blit=True) 
+        #plt.show()
+        # Start the audio stream and the GUI event loop
+        pg.exec() # Keeps the application running
+
 
 if __name__ == "__main__":
     run()
