@@ -93,37 +93,75 @@ start_time = time.time()
 #width=int(SAMPLE_RATE*slice_seconds/(window_step)+1)
 b=1
 last_time=start_time
+
+# 1. Create the Normalizer
+# This maps the input range [min_db, max_db] to [0.0, 1.0]
+min_db=-80.0
+max_db=0.0
+norm = mcolors.Normalize(vmin=min_db, vmax=max_db)
+
+# 2. Get the Colormap object from matplotlib
+cmap_name=cmap_name
+cmap = plt.get_cmap(cmap_name)
+
+# 1. Pre-calculate the exact maximum width of our visual buffer
+# e.g., 10 seconds of history to display on screen
+MAX_COLUMNS = int(BUFFER_SECONDS * SAMPLE_RATE / window_step)
+full_spectrogram_bitmap_array = np.zeros((spectrogram_pixel_height, MAX_COLUMNS, 3), dtype=np.uint8)
+
+# 2. Keep track of exact time so we don't drift
+last_processed_time = time.time()
+
 def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     """
     Takes raw audio data (y) and sample rate (sr) directly from memory.
     Returns the formatted RGB bitmap array ready for the neural network.
     """
     global last_time
-    new_time=time.time()
-    seconds_per_frame=new_time-last_time #useful
-    last_time=new_time
+    current_time=time.time()
+    elapsed_seconds=current_time-last_time #useful
+    last_time=current_time
+
+    # ai helped me here
+    # 1. Figure out how many raw audio samples represent the elapsed time
+    ideal_samples = int(elapsed_seconds * sr)
+    # 2. CRITICAL MATH: Round down to a perfect multiple of 'window_step' (hop_length).
+    # If we don't do this, the image columns jump around and stitch poorly.
+    new_columns = ideal_samples // window_step
+    # If not enough time has passed to make at least 1 column of pixels, just wait.
+    if new_columns < 1:
+        return full_spectrogram_bitmap_array
+    # 3. Librosa STFT Math (The Secret Sauce)
+    # To get exactly 'new_columns' of output without Librosa injecting silence at the edges,
+    # we need this exact number of historical samples from the audio buffer:
+    samples_to_pull = (new_columns - 1) * window_step + n_fft
+    # Check if the buffer even has enough data yet (prevents crashing on startup)
+    if samples_to_pull > len(y):
+        return full_spectrogram_bitmap_array
     
     #global width
     #global b
     #print(time.time()-start_time) #time since initialization
     # get slice_seconds slice width
     #global slice_seconds
-    y_slice_width=int(SAMPLE_RATE*seconds_per_frame)
-    new_window_width=int(SAMPLE_RATE*seconds_per_frame/(window_step)+1)
+    #y_slice_width=int(SAMPLE_RATE*elapsed_seconds)
+    new_window_width=int(SAMPLE_RATE*elapsed_seconds/(window_step)+1)
     print(new_window_width)
-    print(y_slice_width)
+    print(samples_to_pull)
     # get slice of y
-    if y.shape[0]<=y_slice_width:
-        print(f"AUDIO BUFFER NOT BIG ENOUGH!!! GOT f{y.shape[0]} NEEDS AT LEAST f{y_slice_width}")
-        return
-    y_slice=y[-y_slice_width:]
-    # 1. Compute Mel Spectrogram
-    mel_spec = librosa.feature.melspectrogram(y=y_slice, sr=sr, n_fft=n_fft, hop_length=window_step, n_mels=spectrogram_pixel_height)
+    #if len(y)<=y_slice_width:
+    #    print(f"AUDIO BUFFER NOT BIG ENOUGH!!! GOT f{y.shape[0]} NEEDS AT LEAST f{y_slice_width}")
+    #    return
+    # Extract exactly what we need from the very end of the rolling audio buffer
+    y_slice=y[-samples_to_pull:]
+    # 4. Compute Spectrogram 
+    # center=False is MANDATORY here. It stops Librosa from adding silence padding!
+    mel_spec = librosa.feature.melspectrogram(y=y_slice, sr=sr, n_fft=n_fft, hop_length=window_step, n_mels=spectrogram_pixel_height,center=False)
     #print(y, sr, n_fft, window_step, spectrogram_pixel_height)
     #print(mel_spec.shape)
     #print(mel_spec.shape[1], int(2*sr/(window_step)+1)) #they are the same
 
-    # 2. Convert to dB
+    # 5. Color formatting
     S_db = librosa.power_to_db(mel_spec, ref=np.max)
     
     # 3. RMS Energy calculation (for consistency with training, though silence removal on live 
@@ -133,15 +171,7 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     # For live audio, we usually skip complex silence removal (cutting) because it messes up 
     # the timing of the live stream. We just process the window as is.
     
-    # 1. Create the Normalizer
-    # This maps the input range [min_db, max_db] to [0.0, 1.0]
-    min_db=-80.0
-    max_db=0.0
-    norm = mcolors.Normalize(vmin=min_db, vmax=max_db)
     
-    # 2. Get the Colormap object from matplotlib
-    cmap_name=cmap_name
-    cmap = plt.get_cmap(cmap_name)
     
     # 3. Calculate the color
     # norm(db_value) converts dB to 0-1 scale
@@ -159,41 +189,56 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     spectrogram_color_data = np.flipud(spectrogram_color_data)
     
     # Convert to 0-255 uint8 RGB
-    spectrogram_bitmap_array = (spectrogram_color_data[:, :, :3] * 255).astype(np.uint8)
+    new_bitmap = (spectrogram_color_data[:, :, :3] * 255).astype(np.uint8)
+
+    # Double check actual output width just to be completely safe
+    actual_new_cols = new_bitmap.shape[1]
     
-    # roll the image to the left by window length/2
-    # roll the second half or so of received array visual to the image 
-    #array=np.tile(np.arange(1,9),8).reshape(8,8)
-    #zeros=int(np.zeros((8,3)))
-    #int_arr=zeros.floor()
-    #print(int_arr)
-    #array=np.concat([array[:,0:5],zeros],axis=1)
-    global full_spectrogram_bitmap_array
-    global n
-    n+=1
-    print(spectrogram_bitmap_array.shape[1])
-    print(int(2*SAMPLE_RATE/(window_step)+1))
-    #if n%5==0:
+    # 6. SHIFT the main image array left by the exact number of new columns
+    full_spectrogram_bitmap_array[:, :-actual_new_cols, :] = full_spectrogram_bitmap_array[:, actual_new_cols:, :]
+    # 7. PASTE the new data onto the right edge
+    full_spectrogram_bitmap_array[:, -actual_new_cols:, :] = new_bitmap
     
-    # shift currently displayed image to the left by width*b pixels
-    full_spectrogram_bitmap_array[:,:-int(new_window_width*b),:]=full_spectrogram_bitmap_array[:,int(new_window_width*b):,:]
-    # append new image to right
-    full_spectrogram_bitmap_array[:,-int(new_window_width*b):,:]=spectrogram_bitmap_array[:,-int(new_window_width*b):,:]
-    #np.roll(full_spectrogram_bitmap_array,-100,axis=1)
-    #full_spectrogram_bitmap_array[:,:-int(2*SAMPLE_RATE/(window_step)+1),:]=spectrogram_bitmap_array
-    #full_spectrogram_bitmap_array=np.concat(
-    #    [full_spectrogram_bitmap_array[:,:-int(spectrogram_bitmap_array.shape[1]/2),:],
-    #     spectrogram_bitmap_array[:,:-int(spectrogram_bitmap_array.shape[1]/2),:]],axis=1)
-    #else:
-    #    full_spectrogram_bitmap_array=np.concat(
-    #        [full_spectrogram_bitmap_array[:,:-int(spectrogram_bitmap_array.shape[2]/2),:],
-    #         int(np.zeros(
-    #             (
-    #             spectrogram_pixel_height,
-    #             int((2*SAMPLE_RATE/(window_step)+1)/2)
-    #             ,3
-    #             )
-    #             ))],axis=1)
+    ## roll the image to the left by window length/2
+    ## roll the second half or so of received array visual to the image 
+    ##array=np.tile(np.arange(1,9),8).reshape(8,8)
+    ##zeros=int(np.zeros((8,3)))
+    ##int_arr=zeros.floor()
+    ##print(int_arr)
+    ##array=np.concat([array[:,0:5],zeros],axis=1)
+    #global full_spectrogram_bitmap_array
+    #global n
+    #n+=1
+    #print(spectrogram_bitmap_array.shape[1])
+    #print(int(2*SAMPLE_RATE/(window_step)+1))
+    ##if n%5==0:
+    #
+    ## shift currently displayed image to the left by width*b pixels
+    #full_spectrogram_bitmap_array[:,:-int(new_window_width*b),:]=full_spectrogram_bitmap_array[:,int(new_window_width*b):,:]
+    ## append new image to right
+    #full_spectrogram_bitmap_array[:,-int(new_window_width*b):,:]=spectrogram_bitmap_array[:,-int(new_window_width*b):,:]
+    ##np.roll(full_spectrogram_bitmap_array,-100,axis=1)
+    ##full_spectrogram_bitmap_array[:,:-int(2*SAMPLE_RATE/(window_step)+1),:]=spectrogram_bitmap_array
+    ##full_spectrogram_bitmap_array=np.concat(
+    ##    [full_spectrogram_bitmap_array[:,:-int(spectrogram_bitmap_array.shape[1]/2),:],
+    ##     spectrogram_bitmap_array[:,:-int(spectrogram_bitmap_array.shape[1]/2),:]],axis=1)
+    ##else:
+    ##    full_spectrogram_bitmap_array=np.concat(
+    ##        [full_spectrogram_bitmap_array[:,:-int(spectrogram_bitmap_array.shape[2]/2),:],
+    ##         int(np.zeros(
+    ##             (
+    ##             spectrogram_pixel_height,
+    ##             int((2*SAMPLE_RATE/(window_step)+1)/2)
+    ##             ,3
+    ##             )
+    ##             ))],axis=1)
+
+    # 8. Update timer. 
+    # We only advance the timer by the EXACT amount of audio we processed. 
+    # This completely prevents timing jitter and drift over long periods.
+    global last_processed_time
+    last_processed_time += (actual_new_cols * window_step / sr)
+    
     return full_spectrogram_bitmap_array
 
 
