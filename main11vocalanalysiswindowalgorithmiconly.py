@@ -26,6 +26,8 @@ win = pg.GraphicsLayoutWidget(show=True, title="Live Audio Information")
 win.resize(1000, 600)
 win.setBackground('#886688')
 
+
+
 # Add a plot for the spectrogram
 p1 = win.addPlot(title="Spectrogram")
 p1.hideAxis('bottom')
@@ -34,6 +36,34 @@ p1.hideAxis('left')
 # Create the ImageItem and add it to the plot
 img = pg.ImageItem()
 p1.addItem(img)
+
+# --- NEW: Setup the Pitch Plot ---
+win.nextRow() # This tells PyQtGraph to go to the line below the spectrogram
+p2 = win.addPlot(title="Pitch Tracker (Hz)")
+p2.setYRange(0, 1000) # Locks the Y-axis to standard human voice range
+p2.showGrid(x=True, y=True, alpha=0.3)
+
+# Create a green line graph to hold our data
+pitch_curve = p2.plot(pen=pg.mkPen('g', width=2))
+
+# Tell the UI to drop down to the next row before drawing the graphs!
+win.nextRow()
+# --- NEW: Create the Text Readout ---
+# size='20pt' makes it nice and big, color='w' makes it white
+readout_label = win.addLabel(text="Pitch: -- Hz | Note: --", size='20pt', bold=True, color='w')
+
+# --- NEW: Setup the Formant Plot ---
+win.nextRow() # Drop down to a new row
+p3 = win.addPlot(title="Formant Tracker (Hz)")
+p3.setYRange(0, 5500) # Praat searches up to 5500Hz by default
+p3.showGrid(x=True, y=True, alpha=0.3)
+
+# Create 5 differently colored lines for F1 through F5
+f1_curve = p3.plot(pen=pg.mkPen(color=(0, 255, 0), width=2))
+f2_curve = p3.plot(pen=pg.mkPen(color=(0, 255, 127), width=2))
+f3_curve = p3.plot(pen=pg.mkPen(color=(255, 0, 0), width=2))
+f4_curve = p3.plot(pen=pg.mkPen(color=(255, 0, 255), width=2))
+f5_curve = p3.plot(pen=pg.mkPen(color=(255, 255, 255), width=2))
 
 # Set up the Colormap (Magma)
 #colormap = pg.colormap.get('magma')
@@ -145,6 +175,12 @@ MAX_COLUMNS = int(TOTAL_WINDOW_SECONDS * SAMPLE_RATE / window_step)
 #full_spectrogram_bitmap_array = np.zeros((spectrogram_pixel_height, MAX_COLUMNS, 3), dtype=np.uint8)
 #spectrogram_data = np.zeros((spectrogram_pixel_height, MAX_COLUMNS, 3), dtype=np.uint8)
 spectrogram_data = np.zeros((MAX_COLUMNS, spectrogram_pixel_height, 3), dtype=np.uint8)
+
+# Create an array of zeros to hold our pitch history.
+# Making it MAX_COLUMNS long means it perfectly matches the 2-second width of the spectrogram!
+pitch_history = np.zeros(MAX_COLUMNS, dtype=np.float32)
+# A 2D array: 5 rows (for F1-F5) and MAX_COLUMNS wide
+formant_history = np.zeros((5, MAX_COLUMNS), dtype=np.float32)
 
 # 2. Keep track of exact time so we don't drift
 last_processed_time = time.time()
@@ -345,6 +381,8 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     return spectrogram_data
 
 def update_dashboard():
+    global pitch_history, formant_history
+
     # 1. Bring in all our globals properly!
     #global emotion_smooth, gender_smooth, frame_counter
     #global target_g_probs, target_e_probs, current_color
@@ -358,24 +396,97 @@ def update_dashboard():
     # --- SILENCE GATE ---
     #volume = np.sqrt(np.mean(current_audio**2))
     
+    bitmap = process_live_audio(current_audio, SAMPLE_RATE)
 
     # run the math to get audio data
     audio_data=get_audio_data(audio_buffer,BUFFER_SECONDS,SAMPLE_RATE)
     #print(f"Audio data: {audio_data}")
-    print(f"Audio pitch: {audio_data["pitch"]}")
-    #print(librosa.hz_to_mel(audio_data["pitch"]))
+    #print(f"Audio pitch: {pitch_hz}")
+    #print(librosa.hz_to_mel(pitch_hz))
+    pitch_hz=audio_data["pitch"]
+    if pitch_hz > 0: # If a pitch is actually detected
+        # Let Librosa calculate the closest musical note!
+        closest_note = librosa.hz_to_note(pitch_hz)
+        max_mel = librosa.hz_to_mel(SAMPLE_RATE / 2)
+        pitch_mel=int(librosa.hz_to_mel(pitch_hz))
+        pitch_y = int((pitch_mel / max_mel) * spectrogram_pixel_height)
+        pitch_y = np.clip(pitch_y, 2, spectrogram_pixel_height - 2) # Numpy clamp!
+        bitmap[-5:, pitch_y-2:pitch_y+2] = [0, 255, 255]
+        # Format the text so it limits decimals to 1 spot (e.g., 440.5 Hz)
+        readout_label.setText(f"Pitch: {pitch_hz:.1f} Hz  |  Note: {closest_note}")
+    else:
+        # If silence, clear the readout
+        readout_label.setText("Pitch: -- Hz  |  Note: --")
 
 
-    bitmap = process_live_audio(current_audio, SAMPLE_RATE)
+    
+    #pitch_y = int((pitch_mel / max_mel) * spectrogram_pixel_height)
+    #pitch_y = max(2, min(pitch_y, spectrogram_pixel_height - 2))
+    #bitmap[-5:,pitch_y-2:pitch_y+2]=[0,255,255]
+    
+    # 1. Convert to pure Numpy array
+    formants_arr = np.array(audio_data["formants"])
+    # 2. Vectorized Math: Convert all 5 to Mel, scale them, and cast to int instantly
+    formants_mel = librosa.hz_to_mel(formants_arr)
+    formants_y = ((formants_mel / max_mel) * spectrogram_pixel_height).astype(int)
+    # 3. Vectorized Clamp: Keep all 5 safely inside the screen bounds
+    formants_y = np.clip(formants_y, 2, spectrogram_pixel_height - 2)
 
-    pitch_y=int(librosa.hz_to_mel(audio_data["pitch"]))
-    bitmap[-5:,pitch_y-2:pitch_y+2]=[0,255,0]
+    formant_colors = [[0, 255, 0], [0, 255, 127], [255, 0, 0], [255, 0, 255], [255, 255, 255]]
+    
+    # 4. Inject colors (Unrolled to avoid loops. We check >0 so silence doesn't draw at the bottom)
+    if formants_arr[0] > 0: bitmap[-5:, formants_y[0]:formants_y[0]+2] = formant_colors[0]
+    if formants_arr[1] > 0: bitmap[-5:, formants_y[1]:formants_y[1]+2] = formant_colors[1]
+    if formants_arr[2] > 0: bitmap[-5:, formants_y[2]:formants_y[2]+2] = formant_colors[2]
+    if formants_arr[3] > 0: bitmap[-5:, formants_y[3]:formants_y[3]+2] = formant_colors[3]
+    if formants_arr[4] > 0: bitmap[-5:, formants_y[4]:formants_y[4]+2] = formant_colors[4]
+
+
+    # render the formants and graph them out onto a separate graph
+    #formants_y=librosa.hz_to_mel(audio_data["formants"]).astype(int)
+    #formants_y[:] = max(2, min(formants_y[:], spectrogram_pixel_height - 2))
+    bitmap[-5:,formants_y[0]:formants_y[0]+2]=formant_colors[0]
+    bitmap[-5:,formants_y[1]:formants_y[1]+2]=formant_colors[1]
+    bitmap[-5:,formants_y[2]:formants_y[2]+2]=formant_colors[2]
+    bitmap[-5:,formants_y[3]:formants_y[3]+2]=formant_colors[3]
+    #[0,255,0]
+    #[0,255,127]
+    #[255,0,0]
+    #[255,0,255]
+
     
     # --- 3. RENDER ---
     # Give the raw numbers to the GPU and let it handle the colors
     img.setImage(bitmap, autoLevels=False)
 
-    #bitmap[bitmap.shape[0],np.floor(63-librosa.hz_to_mel(audio_data["pitch"]))]=0
+
+    # --- 3. NEW: UPDATE PITCH GRAPH ---
+    # Shift the history array to the left by 1
+    pitch_history = np.roll(pitch_history, -1)
+    
+    # Put the newest pitch on the far right edge
+    pitch_history[-1] = pitch_hz
+
+    # np.where is an inline vectorized if/else statement
+    pitch_history[-1] = np.where(pitch_hz > 0, pitch_hz, np.nan)
+    
+    # Give the array to the curve to draw it!
+    pitch_curve.setData(pitch_history)
+    
+    # --- 5. UPDATE FORMANT GRAPH (VECTORIZED) ---
+    global formant_history
+    formant_history = np.roll(formant_history, -1, axis=1)
+    
+    # Vectorized assignment: If formant > 0, use the value, otherwise insert NaN
+    formant_history[:, -1] = np.where(formants_arr > 0, formants_arr, np.nan)
+
+    f1_curve.setData(formant_history[0])
+    f2_curve.setData(formant_history[1])
+    f3_curve.setData(formant_history[2])
+    f4_curve.setData(formant_history[3])
+    f5_curve.setData(formant_history[4])
+
+    #bitmap[bitmap.shape[0],np.floor(63-librosa.hz_to_mel(pitch_hz))]=0
     #target_w = 256
     #if bitmap.shape[1] >= target_w:
     # 

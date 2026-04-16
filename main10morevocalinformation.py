@@ -58,7 +58,17 @@ def get_audio_data(audio_buffer,time,sample_rate):
         "vocalweight":-1
     }
     data["pitch"]=get_pitch(audio_buffer,sample_rate)
-    data["formants"]=get_formants(audio_buffer)
+
+    if data["pitch"] > 0:
+        # ONLY pass the most recent 100 milliseconds of audio to Praat!
+        recent_audio = audio_buffer[-int(sample_rate * 0.100):]
+        data["formants"] = get_formants_praat(recent_audio, sample_rate)
+    else:
+        # If silence, don't make Praat do any math at all
+        data["formants"] = [0.0, 0.0, 0.0, 0.0, 0.0]
+    
+    
+    
     data["vocalweight"]=get_vocal_weight(audio_buffer)
 
     return(data)
@@ -100,6 +110,37 @@ def get_pitch(audio_buffer,sample_rate):
 def get_formants(audio_buffer):
     return []
 
+import parselmouth
+
+def get_formants_praat(audio_buffer, sample_rate):
+    """
+    Extracts F1, F2, F3 using the industry-standard Praat algorithm.
+    """
+    # Create a Parselmouth Sound object from the numpy array
+    sound = parselmouth.Sound(audio_buffer, sampling_frequency=sample_rate)
+    
+    # Get the formant object (max 5 formants, max frequency 5500Hz for adult male/female)
+    # Change 5500 to 5000 for standard male voices, or leave at 5500 for universal.
+    formants = sound.to_formant_burg(max_number_of_formants=5, maximum_formant=5500.0)
+    
+    # Get the time at the exact middle of the audio buffer snippet
+    mid_time = sound.get_total_duration() / 2.0
+    
+    # Extract the values of F1, F2, and F3 at that specific time
+    f1 = formants.get_value_at_time(1, mid_time)
+    f2 = formants.get_value_at_time(2, mid_time)
+    f3 = formants.get_value_at_time(3, mid_time)
+    f4 = formants.get_value_at_time(4, mid_time)
+    f5 = formants.get_value_at_time(5, mid_time)
+    
+    # Handle 'NaN' if no formants were found (e.g., during silence)
+    if np.isnan(f1): f1 = 0
+    if np.isnan(f2): f2 = 0
+    if np.isnan(f3): f3 = 0
+    if np.isnan(f4): f4 = 0
+    if np.isnan(f5): f5 = 0
+    
+    return [f1, f2, f3, f4, f5]
 
 def get_vocal_weight(audio_buffer):
     return -1
