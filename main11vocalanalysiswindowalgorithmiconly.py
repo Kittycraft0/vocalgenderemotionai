@@ -36,9 +36,9 @@ img = pg.ImageItem()
 p1.addItem(img)
 
 # Set up the Colormap (Magma)
-colormap = pg.colormap.get('magma')
-img.setLookupTable(colormap.getLookupTable())
-img.setLevels([-80, 0]) # Maps -80dB to black, 0dB to bright/white
+#colormap = pg.colormap.get('magma')
+#img.setLookupTable(colormap.getLookupTable())
+#img.setLevels([-80, 0]) # Maps -80dB to black, 0dB to bright/white
 
 
 
@@ -141,8 +141,10 @@ cmap = plt.get_cmap(cmap_name)
 # 1. Pre-calculate the exact maximum width of our visual buffer
 # e.g., 10 seconds of history to display on screen
 MAX_COLUMNS = int(TOTAL_WINDOW_SECONDS * SAMPLE_RATE / window_step)
-spectrogram_data = np.full((MAX_COLUMNS, spectrogram_pixel_height), -80.0, dtype=np.float32)
+#spectrogram_data = np.full((MAX_COLUMNS, spectrogram_pixel_height), -80.0, dtype=np.float32)
 #full_spectrogram_bitmap_array = np.zeros((spectrogram_pixel_height, MAX_COLUMNS, 3), dtype=np.uint8)
+#spectrogram_data = np.zeros((spectrogram_pixel_height, MAX_COLUMNS, 3), dtype=np.uint8)
+spectrogram_data = np.zeros((MAX_COLUMNS, spectrogram_pixel_height, 3), dtype=np.uint8)
 
 # 2. Keep track of exact time so we don't drift
 last_processed_time = time.time()
@@ -273,22 +275,22 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
 
     # 4. Color conversion (Must match training EXACTLY)
     # The training data used your db_to_rgba function
-    #spectrogram_color_data = cmap(norm(S_db))
+    spectrogram_color_data = cmap(norm(S_db))
     
     # Vertical flip (matched from your convertAndStoreData function)
     #spectrogram_color_data = np.flipud(spectrogram_color_data)
     
     # Convert to 0-255 uint8 RGB
-    #new_bitmap = (spectrogram_color_data[:, :, :3] * 255).astype(np.uint8)
+    new_bitmap = (spectrogram_color_data[:, :, :3] * 255).astype(np.uint8)
 
     # Double check actual output width just to be completely safe
     actual_new_cols = S_db.shape[0]
     #actual_new_cols = new_bitmap.shape[1]
     
     # 6. SHIFT the main image array left by the exact number of new columns
-    spectrogram_data[:-actual_new_cols,:] = spectrogram_data[actual_new_cols:,:]
+    spectrogram_data[:-actual_new_cols,:,:] = spectrogram_data[actual_new_cols:,:]
     # 7. PASTE the new data onto the right edge
-    spectrogram_data[-actual_new_cols:,:] = S_db #new_bitmap
+    spectrogram_data[-actual_new_cols:,:,:] = new_bitmap #S_db #new_bitmap
     
     ## roll the image to the left by window length/2
     ## roll the second half or so of received array visual to the image 
@@ -358,13 +360,16 @@ def update_dashboard():
     
 
     # run the math to get audio data
-    #audio_data=get_audio_data(audio_buffer,BUFFER_SECONDS,SAMPLE_RATE)
+    audio_data=get_audio_data(audio_buffer,BUFFER_SECONDS,SAMPLE_RATE)
     #print(f"Audio data: {audio_data}")
-    #print(f"Audio pitch: {audio_data["pitch"]}")
+    print(f"Audio pitch: {audio_data["pitch"]}")
     #print(librosa.hz_to_mel(audio_data["pitch"]))
 
 
     bitmap = process_live_audio(current_audio, SAMPLE_RATE)
+
+    pitch_y=int(librosa.hz_to_mel(audio_data["pitch"]))
+    bitmap[-5:,pitch_y-2:pitch_y+2]=[0,255,0]
     
     # --- 3. RENDER ---
     # Give the raw numbers to the GPU and let it handle the colors
