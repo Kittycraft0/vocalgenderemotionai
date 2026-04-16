@@ -59,11 +59,12 @@ print(f"Microphone detected! Running at {SAMPLE_RATE} Hz")
 
 
 # 1. get vertical resolution
-n_fft=1024
+#n_fft=1024
+n_fft=4096
 # 2. get window
 #window_width=512
 # 3. window step
-resolutionfactor=8
+resolutionfactor=16
 #window_step=int(65536/resolutionfactor) #was 256 # i don't understand why this is the magic number that makes each pixel a square
 window_step=int(4096*4/resolutionfactor) #was 256 # i don't understand why this is the magic number that makes each pixel a square
 #window_step=int(SAMPLE_RATE/resolutionfactor) #was 256
@@ -81,12 +82,16 @@ cmap_name="magma"
 # --- AUDIO BUFFER STATE ---
 buffer_size = int(SAMPLE_RATE * BUFFER_SECONDS)
 audio_buffer = np.zeros(buffer_size, dtype=np.float32)
+# NEW: Keep a running tally of exactly how much audio the mic has collected
+total_samples_received = 0 
+samples_processed = 0
 def audio_callback(indata, frames, time, status):
-    global audio_buffer
+    global audio_buffer, total_samples_received
     if status: print(status)
     new_data = indata.flatten()
     audio_buffer = np.roll(audio_buffer, -len(new_data))
     audio_buffer[-len(new_data):] = new_data
+    total_samples_received += len(new_data)
 
 
 
@@ -148,32 +153,59 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     Takes raw audio data (y) and sample rate (sr) directly from memory.
     Returns the formatted RGB bitmap array ready for the neural network.
     """
-    global last_time, bbb
+    global bbb, last_processed_time, samples_processed
+    # 1. Check exactly how much fresh audio is sitting in the buffer waiting for us
+    unprocessed_samples = total_samples_received - samples_processed
+    # 2. How many columns can we draw with this fresh audio?
+    new_columns = unprocessed_samples // window_step
+    # If we don't have enough fresh audio to draw a column, ABORT and wait.
+    # This prevents the duplicate-drawing stutter!
+    if new_columns < 1:
+        return spectrogram_data
+    
+    
+    #global last_time, bbb
     current_time=time.time()
-    elapsed_seconds=current_time-last_time #useful
+    #elapsed_seconds=current_time-last_time #useful
+    elapsed_seconds=current_time-last_processed_time #useful
+
+    # --- THE DEADLOCK FIX ---
+    # What is the absolute maximum number of columns our 2-second buffer can hold?
+    max_possible_columns = (len(y) - n_fft) // window_step + 1
+    
+    # If the UI lagged (like during startup) and the mic collected more audio 
+    # than the buffer can hold, we MUST drop the oldest data to catch up!
+    if new_columns > max_possible_columns:
+        print(f"Skipping {new_columns - max_possible_columns} dropped frames to catch up!")
+        # Advance the "processed" counter to skip the lost data
+        samples_processed += (new_columns - max_possible_columns) * window_step
+        new_columns = max_possible_columns
+
     #last_time=current_time
-    print(current_time-start_time)
+    #last_time=current_time
+    #print(current_time-start_time)
     # ai helped me here
     # 1. Figure out how many raw audio samples represent the elapsed time
-    ideal_samples = int(elapsed_seconds * sr)
+    #ideal_samples = int(elapsed_seconds * sr)
     # 2. CRITICAL MATH: Round down to a perfect multiple of 'window_step' (hop_length).
     # If we don't do this, the image columns jump around and stitch poorly.
-    new_columns = ideal_samples // window_step
+    #new_columns = ideal_samples // window_step
     # If not enough time has passed to make at least 1 column of pixels, just wait.
     #if new_columns < 1:
     #    return spectrogram_data #full_spectrogram_bitmap_array
     # 3. Librosa STFT Math (The Secret Sauce)
     # To get exactly 'new_columns' of output without Librosa injecting silence at the edges,
     # we need this exact number of historical samples from the audio buffer:
-    print(f"bbb: {bbb}")
+    #print(f"bbb: {bbb}")
     bbb+=1
     samples_to_pull = (new_columns - 1) * window_step + n_fft
     # Check if the buffer even has enough data yet (prevents crashing on startup)
-    print(samples_to_pull)
-    print(len(y))
+    #print(samples_to_pull)
+    #print(len(y))
+    # this triggers if the samples to pull is larger than the buffer as well
     if samples_to_pull > len(y):
-        samples_to_pull=len(y)-1
-        #return spectrogram_data #full_spectrogram_bitmap_array
+        #samples_to_pull=len(y)-1
+        return spectrogram_data #full_spectrogram_bitmap_array
     
     
     #global width
@@ -182,13 +214,13 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     # get slice_seconds slice width
     #global slice_seconds
     #y_slice_width=int(SAMPLE_RATE*elapsed_seconds)
-    new_window_width=int(SAMPLE_RATE*elapsed_seconds/(window_step)+1)
+    #new_window_width=int(SAMPLE_RATE*elapsed_seconds/(window_step)+1)
     #print(new_window_width)
     #print(samples_to_pull)
     # get slice of y
-    print(f"bbb: {bbb}")
+    #print(f"bbb: {bbb}")
     bbb+=1
-    if len(y)<=samples_to_pull:
+    if len(y)<samples_to_pull:
         print(f"AUDIO BUFFER NOT BIG ENOUGH!!! GOT f{int(y.shape[0])} NEEDS AT LEAST f{int(samples_to_pull)}")
         return
     # Extract exactly what we need from the very end of the rolling audio buffer
@@ -199,13 +231,28 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     #print(y, sr, n_fft, window_step, spectrogram_pixel_height)
     #print(mel_spec.shape)
     #print(mel_spec.shape[1], int(2*sr/(window_step)+1)) #they are the same
-
+    #for i in range(1, mel_spec.shape[0]):
+    #    # If the absolute maximum energy in this frequency band is 0, it's a dead band.
+    #    if np.max(mel_spec[i, :]) == 0.0:
+    #        # Copy the raw energy from the frequency band directly below it
+    #        mel_spec[i, :] = mel_spec[i-1, :]
+    
     # 5. Color formatting
-    S_db = librosa.power_to_db(mel_spec, ref=np.max)
+    #S_db = librosa.power_to_db(mel_spec, ref=np.max)
+    S_db = librosa.power_to_db(mel_spec, ref=1.0)
     
     # PyQtGraph expects (X, Y). Librosa outputs (Y, X). 
     # .T transposes it so it faces the right way!
     S_db = S_db.T
+
+    # Loop through every frequency band (starting at 1 so we can look backwards at 0)
+    #for i in range(1, S_db.shape[1]):
+    #    # If the loudest sound in this entire frequency band is -80 (meaning it's empty)
+    #    if np.max(S_db[:, i]) <= -80.0:
+    #        # Copy all the visual data from the band directly below it!
+    #        S_db[:, i] = S_db[:, i-1]
+    
+    actual_new_cols = S_db.shape[0]
     
     # 3. RMS Energy calculation (for consistency with training, though silence removal on live 
     #    chunks is tricky. We might skip rigorous thresholding to prevent crashing on silence,
@@ -277,16 +324,20 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     ##             )
     ##             ))],axis=1)
 
+    # 7. MARK THESE SAMPLES AS PROCESSED!
+    # This completely locks the UI framerate to the microphone's hardware speed.
+    samples_processed += (actual_new_cols * window_step)
+    
     # 8. Update timer. 
     # We only advance the timer by the EXACT amount of audio we processed. 
     # This completely prevents timing jitter and drift over long periods.
     #print(spectrogram_data[0][0])
-    global last_processed_time
+    #global last_processed_time
     last_processed_time += (actual_new_cols * window_step / sr)
-    last_time=current_time
+    
 
     #global bbb
-    print(f"bbb: {bbb}")
+    #print(f"bbb: {bbb}")
     bbb+=1
     
     return spectrogram_data
@@ -351,7 +402,7 @@ def run():
         channels=1,
         samplerate=SAMPLE_RATE,
         callback=audio_callback,
-        blocksize=int(SAMPLE_RATE * 0.1) 
+        blocksize=int(SAMPLE_RATE * 0.03) 
     )
     
     with stream:
