@@ -58,6 +58,17 @@ p3 = win.addPlot(title="Formant Tracker (Hz)")
 p3.setYRange(0, 5500) # Praat searches up to 5500Hz by default
 p3.showGrid(x=True, y=True, alpha=0.3)
 
+# --- NEW: Setup the Thickness / Weight Plot ---
+win.nextRow() # Drop down to a new row
+p4 = win.addPlot(title="Thickness / Weight (%)")
+p4.setYRange(0, 100) # Match the HTML 0-100% scale
+p4.showGrid(x=True, y=True, alpha=0.3)
+
+# Create 3 differently colored curves to match the HTML color bands!
+weight_green_curve = p4.plot(pen=pg.mkPen(color=(0, 255, 0), width=2), connect='finite')
+weight_red_curve = p4.plot(pen=pg.mkPen(color=(255, 0, 0), width=2), connect='finite')
+weight_blue_curve = p4.plot(pen=pg.mkPen(color=(0, 127, 255), width=2), connect='finite')
+
 # Create 5 differently colored lines for F1 through F5
 f1_curve = p3.plot(pen=pg.mkPen(color=(0, 255, 0), width=2))
 f2_curve = p3.plot(pen=pg.mkPen(color=(0, 255, 127), width=2))
@@ -178,9 +189,17 @@ spectrogram_data = np.zeros((MAX_COLUMNS, spectrogram_pixel_height, 3), dtype=np
 
 # Create an array of zeros to hold our pitch history.
 # Making it MAX_COLUMNS long means it perfectly matches the 2-second width of the spectrogram!
-pitch_history = np.zeros(MAX_COLUMNS, dtype=np.float32)
+#pitch_history = np.zeros(MAX_COLUMNS, dtype=np.float32)
 # A 2D array: 5 rows (for F1-F5) and MAX_COLUMNS wide
-formant_history = np.zeros((5, MAX_COLUMNS), dtype=np.float32)
+#formant_history = np.zeros((5, MAX_COLUMNS), dtype=np.float32)
+# (Change your zeros to np.full with np.nan so the lines don't draw at 0 before they fill up!)
+pitch_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
+formant_history = np.full((5, MAX_COLUMNS), np.nan, dtype=np.float32)
+weight_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
+
+
+# --- NEW: Weight History ---
+weight_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
 
 # 2. Keep track of exact time so we don't drift
 last_processed_time = time.time()
@@ -486,6 +505,7 @@ def update_dashboard():
     f4_curve.setData(formant_history[3])
     f5_curve.setData(formant_history[4])
 
+    
     #bitmap[bitmap.shape[0],np.floor(63-librosa.hz_to_mel(pitch_hz))]=0
     #target_w = 256
     #if bitmap.shape[1] >= target_w:
@@ -503,6 +523,45 @@ def update_dashboard():
 
     # return whatever you want updated
     #return visual_update_list
+    # 4. Update the Text Readout
+    
+    # --- 4. UPDATE TEXT READOUT ---
+    weight_percent = audio_data.get("vocalweight", 0.0)
+    
+    if pitch_hz > 0:
+        closest_note = librosa.hz_to_note(pitch_hz)
+        readout_label.setText(f"Pitch: {pitch_hz:.1f} Hz  |  Note: {closest_note}  |  Weight: {weight_percent:.1f}%")
+    else:
+        # The HTML app considers unvoiced sounds (S, Sh, F) as thick/heavy
+        readout_label.setText(f"Pitch: -- Hz  |  Note: --  |  Weight: {weight_percent:.1f}% (Unvoiced)")
+    
+    # ... (existing Formant Graph update code) ...
+
+    # --- 10. UPDATE WEIGHT GRAPH (Vectorized Color Bridging) ---
+    global weight_history
+    weight_history = np.roll(weight_history, -1)
+    
+    # Check for absolute silence using the raw audio buffer to hide the line
+    if np.max(np.abs(current_audio)) < 0.001:
+        weight_history[-1] = np.nan
+    else:
+        weight_history[-1] = weight_percent
+
+    # 1. Create true/false masks for the 3 color thresholds from the HTML file
+    green_mask = (weight_history < 16.5)
+    red_mask = (weight_history >= 16.5) & (weight_history < 27.5)
+    blue_mask = (weight_history >= 27.5)
+
+    # 2. To prevent visual gaps where colors change, we use a NumPy shift trick 
+    # to stretch the masks forward by 1 point so the lines perfectly bridge together!
+    green_mask = green_mask | np.pad(green_mask[:-1], (1, 0), constant_values=False)
+    red_mask = red_mask | np.pad(red_mask[:-1], (1, 0), constant_values=False)
+    blue_mask = blue_mask | np.pad(blue_mask[:-1], (1, 0), constant_values=False)
+
+    # 3. Apply the masks to create 3 separate fragmented lines and render them
+    weight_green_curve.setData(np.where(green_mask, weight_history, np.nan))
+    weight_red_curve.setData(np.where(red_mask, weight_history, np.nan))
+    weight_blue_curve.setData(np.where(blue_mask, weight_history, np.nan))
 
 
 # --- START THE LOOP ---

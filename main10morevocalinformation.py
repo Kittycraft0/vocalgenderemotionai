@@ -69,7 +69,7 @@ def get_audio_data(audio_buffer,time,sample_rate):
     
     
     
-    data["vocalweight"]=get_vocal_weight(audio_buffer)
+    data["vocalweight"]=get_vocal_weight(audio_buffer, sample_rate)
 
     return(data)
 
@@ -142,5 +142,46 @@ def get_formants_praat(audio_buffer, sample_rate):
     
     return [f1, f2, f3, f4, f5]
 
-def get_vocal_weight(audio_buffer):
-    return -1
+def get_vocal_weight(audio_buffer, sample_rate):
+    """
+    Ported from the HTML Thickness Meter.
+    Calculates vocal thickness [0-100%] using MFCC valley counting.
+    """
+    # 1. Grab the most recent 100ms of audio
+    recent_audio = audio_buffer[-int(sample_rate * 0.100):]
+
+    # If silence, return 0
+    if np.max(np.abs(recent_audio)) < 0.001:
+        return 0.0
+
+    # --- HTML DEFAULT SETTINGS ---
+    num_bins = 100
+    intensity_threshold = -4.0
+    range_limit = 100.0
+
+    # 2. Extract MFCCs (matches Meyda.js 'mfcc' feature)
+    # librosa returns shape (n_mfcc, frames). We average them across the 100ms window.
+    mfccs = librosa.feature.mfcc(y=recent_audio, sr=sample_rate, n_mfcc=num_bins)
+    mels = np.mean(mfccs, axis=1)
+
+    # 3. Apply the Range Limit
+    max_range = int((range_limit / 100.0) * (len(mels) - 1))
+    mels_sliced = mels[:max_range+1] # +1 because we need the right-side neighbor for comparison
+
+    # --- VECTORIZED VALLEY COUNTER ---
+    # Shift arrays to represent left neighbor, center, and right neighbor
+    left = mels_sliced[:-2]
+    center = mels_sliced[1:-1]
+    right = mels_sliced[2:]
+
+    # The HTML Math: (center < threshold) AND (center < left) AND (center < right)
+    is_valley = (center < intensity_threshold) & (center < left) & (center < right)
+
+    # Count the total number of valleys found
+    peaks = np.sum(is_valley)
+
+    # 4. Calculate final thickness percentage [0, 100]
+    # Exact JS Math: Math.min(100, (100*peaks)/(RangeLimit*NumBins/300))
+    thickness = min(100.0, (100.0 * peaks) / ((range_limit * num_bins) / 300.0))
+
+    return thickness
