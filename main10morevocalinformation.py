@@ -218,8 +218,8 @@ def get_vocal_weight(audio_buffer, sample_rate):
     roundedpotentialslist=[]
     for value in potentialslist:
         roundedpotentialslist.append("{:.3g}".format(value))
-    print(f"potential peaks: {potentialpeaks}")
-    print(f"potentials list: {roundedpotentialslist}")
+    #print(f"potential peaks: {potentialpeaks}")
+    #print(f"potentials list: {roundedpotentialslist}")
     return potentialslist[0]
             
     print(peaks)
