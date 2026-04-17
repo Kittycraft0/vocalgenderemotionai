@@ -570,22 +570,72 @@ timer = QtCore.QTimer()
 timer.timeout.connect(update_dashboard)
 timer.start(UPDATE_INTERVAL_MS)
 
-
+# direct hardware microphone data?
+directmicrophonedatatoggle=True
 def run():
-    stream = sd.InputStream(
-        device=DEVICE_INDEX,
-        channels=1,
-        samplerate=SAMPLE_RATE,
-        callback=audio_callback,
-        blocksize=int(SAMPLE_RATE * 0.03) 
-    )
-    
-    with stream:
-        print("Microphone Active. Starting Dashboard...")
-        #ani = animation.FuncAnimation(fig, update_dashboard, interval=UPDATE_INTERVAL_MS, blit=True) 
-        #plt.show()
-        # Start the audio stream and the GUI event loop
-        pg.exec() # Keeps the application running
+    if not directmicrophonedatatoggle:
+        stream = sd.InputStream(
+            device=DEVICE_INDEX,
+            channels=1,
+            samplerate=SAMPLE_RATE,
+            callback=audio_callback,
+            blocksize=int(SAMPLE_RATE * 0.03) 
+        )
+
+        with stream:
+            print("Microphone Active. Starting Dashboard...")
+            #ani = animation.FuncAnimation(fig, update_dashboard, interval=UPDATE_INTERVAL_MS, blit=True) 
+            #plt.show()
+            # Start the audio stream and the GUI event loop
+            pg.exec() # Keeps the application running
+    else:
+
+        # 1. Look for WASAPI (The Windows Audio API that allows raw hardware access)
+        wasapi_info = sd.query_hostapis()
+        wasapi_index = None
+        for i, api in enumerate(wasapi_info):
+            if 'WASAPI' in api['name']:
+                wasapi_index = i
+                break
+
+        # 2. Setup the stream parameters
+        stream_kwargs = {
+            'channels': 1,
+            'samplerate': SAMPLE_RATE,
+            'callback': audio_callback,
+            'blocksize': int(SAMPLE_RATE * 0.03) 
+        }
+
+        # 3. If WASAPI is found, apply the Exclusive Mode bypass trick!
+        if wasapi_index is not None:
+            print("WASAPI detected. Engaging Exclusive Mode to bypass Windows noise gates...")
+
+            # We have to find the specific device index for the WASAPI version of your mic
+            # (Since device indices change depending on the API you use)
+            devices = sd.query_devices()
+            for i, dev in enumerate(devices):
+                if dev['hostapi'] == wasapi_index and dev['max_input_channels'] > 0:
+                    # Grab the first available WASAPI input device
+                    stream_kwargs['device'] = i
+                    break
+
+            # Apply the magic flag that blocks Windows from modifying the audio
+            stream_kwargs['extra_settings'] = sd.WasapiSettings(exclusive=True)
+
+        else:
+            # Fallback for Mac/Linux users (Mac uses CoreAudio which doesn't have aggressive AGC by default)
+            print("Standard audio API detected...")
+            stream_kwargs['device'] = DEVICE_INDEX
+
+        # 4. Start the Stream!
+        try:
+            stream = sd.InputStream(**stream_kwargs)
+            with stream:
+                print("Microphone Active. Starting Dashboard...")
+                pg.exec() # Keeps the application running
+        except Exception as e:
+            print(f"\nCRITICAL AUDIO ERROR: {e}")
+            print("Note: Exclusive Mode requires your SAMPLE_RATE to perfectly match your hardware's native rate.")
 
 
 if __name__ == "__main__":

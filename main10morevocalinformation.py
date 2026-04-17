@@ -192,7 +192,7 @@ def get_vocal_weight(audio_buffer, sample_rate):
     
     max_range = int((RangeLimit / 100.0) * (len(mels) - 1))
     
-    print(max_range)
+    #print(max_range)
     potentialslist=[]
     for i in range(1, max_range):
         #print((mels[i] < IntensityThreshold)) #false
@@ -218,9 +218,10 @@ def get_vocal_weight(audio_buffer, sample_rate):
     roundedpotentialslist=[]
     for value in potentialslist:
         roundedpotentialslist.append("{:.3g}".format(value))
-    #print(f"potential peaks: {potentialpeaks}")
-    #print(f"potentials list: {roundedpotentialslist}")
-    return potentialslist[0]
+    print(f"potential peaks: {potentialpeaks}")
+    print(f"potentials list: {roundedpotentialslist}")
+    #return potentialslist[0]
+    return min(100.0, (100.0 * potentialpeaks) / (RangeLimit * NumBins / 300.0))
             
     print(peaks)
     thickness = min(100.0, (100.0 * peaks) / (RangeLimit * NumBins / 300.0))
