@@ -142,46 +142,86 @@ def get_formants_praat(audio_buffer, sample_rate):
     
     return [f1, f2, f3, f4, f5]
 
-def get_vocal_weight(audio_buffer, sample_rate):
-    """
-    Ported from the HTML Thickness Meter.
-    Calculates vocal thickness [0-100%] using MFCC valley counting.
-    """
-    # 1. Grab the most recent 100ms of audio
-    recent_audio = audio_buffer[-int(sample_rate * 0.100):]
+import warnings # Make sure this is at the very top of your file!
 
-    # If silence, return 0
+def get_vocal_weight(audio_buffer, sample_rate):
+    # 1. Match Meyda's exact 256 sample buffer size
+    buffer_size = 256
+    recent_audio = audio_buffer[-buffer_size:]
+
     if np.max(np.abs(recent_audio)) < 0.001:
         return 0.0
+    
+    # A. Meyda applies a Hanning window
+    window = np.hanning(buffer_size)
+    windowed_audio = recent_audio * window
+    
+    # B. Meyda gets the Amplitude Spectrum and squares it to get Power
+    complex_spec = np.fft.rfft(windowed_audio)
+    power_spec = np.abs(complex_spec) ** 2
+    
+    # C. Meyda applies a Mel Filterbank (Using the HTK formula)
+    # --- THIS IS THE FIX: Mute the Empty Filter warning! ---
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        mel_basis = librosa.filters.mel(sr=sample_rate, n_fft=buffer_size, n_mels=100, htk=True)
+        
+    mel_energies = np.dot(mel_basis, power_spec)
+    
+    # D. Meyda uses Natural Log
+    mel_log = np.log(mel_energies + 1.0)
+    
+    # E. Meyda uses an un-normalized Type-II DCT
+    N = len(mel_log)
+    n = np.arange(N)
+    k = np.arange(N).reshape(-1, 1)
+    meyda_dct_matrix = 2 * np.cos(np.pi * k * (2 * n + 1) / (2 * N))
+    
+    mfccs = np.dot(meyda_dct_matrix, mel_log)
 
-    # --- HTML DEFAULT SETTINGS ---
-    num_bins = 100
-    intensity_threshold = -4.0
-    range_limit = 100.0
-
-    # 2. Extract MFCCs (matches Meyda.js 'mfcc' feature)
-    # librosa returns shape (n_mfcc, frames). We average them across the 100ms window.
-    mfccs = librosa.feature.mfcc(y=recent_audio, sr=sample_rate, n_mfcc=num_bins)
-    mels = np.mean(mfccs, axis=1)
-
-    # 3. Apply the Range Limit
-    max_range = int((range_limit / 100.0) * (len(mels) - 1))
-    mels_sliced = mels[:max_range+1] # +1 because we need the right-side neighbor for comparison
-
-    # --- VECTORIZED VALLEY COUNTER ---
-    # Shift arrays to represent left neighbor, center, and right neighbor
-    left = mels_sliced[:-2]
-    center = mels_sliced[1:-1]
-    right = mels_sliced[2:]
-
-    # The HTML Math: (center < threshold) AND (center < left) AND (center < right)
-    is_valley = (center < intensity_threshold) & (center < left) & (center < right)
-
-    # Count the total number of valleys found
-    peaks = np.sum(is_valley)
-
-    # 4. Calculate final thickness percentage [0, 100]
-    # Exact JS Math: Math.min(100, (100*peaks)/(RangeLimit*NumBins/300))
-    thickness = min(100.0, (100.0 * peaks) / ((range_limit * num_bins) / 300.0))
-
+    # ---------------------------------------------------------
+    # EXACT LINE-BY-LINE PORT OF THE HTML LOGIC
+    # ---------------------------------------------------------
+    NumBins = 100
+    RangeLimit = 100.0
+    IntensityThreshold = -4.0 
+    
+    peaks = 0
+    potentialpeaks=0
+    mels = mfccs 
+    
+    max_range = int((RangeLimit / 100.0) * (len(mels) - 1))
+    
+    print(max_range)
+    potentialslist=[]
+    for i in range(1, max_range):
+        #print((mels[i] < IntensityThreshold)) #false
+        #print((mels[i] < mels[i-1])) #false
+        #print((mels[i] < mels[i+1])) #true
+        #if (mels[i] < mels[i+1]):
+        #    if (mels[i] < mels[i-1]):
+        #        print(mels[i]) #see how low it is below the intensity threshold!?
+        #        if (mels[i] < IntensityThreshold):
+        #            print("(mels[i] < IntensityThreshold) and (mels[i] < mels[i-1]) and (mels[i] < mels[i+1])")
+        #        else:
+        #            pass #print("(mels[i] < mels[i-1]) and (mels[i] < mels[i+1])")
+        #    else:
+        #        pass #print("(mels[i] < mels[i+1])")
+        #else:
+        #    pass
+        if (mels[i] < mels[i-1]) and (mels[i] < mels[i+1]):
+            potentialpeaks+=1
+            potentialslist.append(mels[i])
+        if (mels[i] < IntensityThreshold) and (mels[i] < mels[i-1]) and (mels[i] < mels[i+1]):
+            peaks += 1
+    potentialslist.sort(reverse=True)
+    roundedpotentialslist=[]
+    for value in potentialslist:
+        roundedpotentialslist.append("{:.3g}".format(value))
+    print(f"potential peaks: {potentialpeaks}")
+    print(f"potentials list: {roundedpotentialslist}")
+    return potentialslist[0]
+            
+    print(peaks)
+    thickness = min(100.0, (100.0 * peaks) / (RangeLimit * NumBins / 300.0))
     return thickness
