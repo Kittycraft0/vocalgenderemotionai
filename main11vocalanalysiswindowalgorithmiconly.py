@@ -29,7 +29,7 @@ win.setBackground('#886688')
 
 
 # Add a plot for the spectrogram
-p1 = win.addPlot(title="Spectrogram")
+p1 = win.addPlot(title="Spectrogram",colspan=2)
 p1.hideAxis('bottom')
 p1.hideAxis('left')
 
@@ -39,12 +39,18 @@ p1.addItem(img)
 
 # --- NEW: Setup the Pitch Plot ---
 win.nextRow() # This tells PyQtGraph to go to the line below the spectrogram
-p2 = win.addPlot(title="Pitch Tracker (Hz)")
+p2 = win.addPlot(title="Pitch Tracker (Hz)",colspan=2)
 p2.setYRange(0, 1000) # Locks the Y-axis to standard human voice range
 p2.showGrid(x=True, y=True, alpha=0.3)
 
 # Create a green line graph to hold our data
 pitch_curve = p2.plot(pen=pg.mkPen('g', width=2))
+
+# --- NEW: Setup the Formant Plot ---
+win.nextRow() # Drop down to a new row
+p3 = win.addPlot(title="Formant Tracker (Hz)",colspan=2)
+p3.setYRange(0, 5500) # Praat searches up to 5500Hz by default
+p3.showGrid(x=True, y=True, alpha=0.3)
 
 # Tell the UI to drop down to the next row before drawing the graphs!
 win.nextRow()
@@ -52,17 +58,39 @@ win.nextRow()
 # size='20pt' makes it nice and big, color='w' makes it white
 readout_label = win.addLabel(text="Pitch: -- Hz | Note: --", size='20pt', bold=True, color='w')
 
-# --- NEW: Setup the Formant Plot ---
-win.nextRow() # Drop down to a new row
-p3 = win.addPlot(title="Formant Tracker (Hz)")
-p3.setYRange(0, 5500) # Praat searches up to 5500Hz by default
-p3.showGrid(x=True, y=True, alpha=0.3)
 
 # --- NEW: Setup the Thickness / Weight Plot ---
 win.nextRow() # Drop down to a new row
-p4 = win.addPlot(title="Thickness / Weight (%)")
+p4 = win.addPlot(title="Thickness / Weight (%)",colspan=2)
 p4.setYRange(0, 100) # Match the HTML 0-100% scale
 p4.showGrid(x=True, y=True, alpha=0.3)
+
+win.nextRow() # Drop down to a new row
+# 1. F1 vs F2 Plot (The Vowel Space)
+p_f12 = win.addPlot(title="Vowel Space (F1 vs F2)")
+p_f12.setLabel('bottom', "F1 (Hz)")
+p_f12.setLabel('left', "F2 (Hz)")
+# We lock the ranges to standard human vowel limits so the dot actually moves around the screen
+p_f12.setXRange(200, 1200) # F1 range
+p_f12.setYRange(600, 3000) # F2 range
+p_f12.disableAutoRange() # Locks the axes permanently
+p_f12.showGrid(x=True, y=True, alpha=0.3)
+
+# Create the dot! pen=None means no lines, symbol='o' means circle.
+dot_f12 = p_f12.plot(pen=None, symbol='o', symbolBrush='y', symbolSize=15)
+
+# 2. F3 vs F4 Plot
+# By NOT calling win.nextRow() here, PyQtGraph puts this right next to the F1/F2 plot!
+p_f34 = win.addPlot(title="F3 vs F4 Space")
+p_f34.setLabel('bottom', "F3 (Hz)")
+p_f34.setLabel('left', "F4 (Hz)")
+p_f34.setXRange(1500, 4000) # F3 range
+p_f34.setYRange(2500, 5000) # F4 range
+p_f34.disableAutoRange() # Locks the axes permanently
+p_f34.showGrid(x=True, y=True, alpha=0.3)
+
+# Create a cyan dot for this one
+dot_f34 = p_f34.plot(pen=None, symbol='o', symbolBrush='c', symbolSize=15)
 
 # Create 3 differently colored curves to match the HTML color bands!
 weight_green_curve = p4.plot(pen=pg.mkPen(color=(0, 255, 0), width=2), connect='finite')
@@ -427,6 +455,14 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
 max_mel=-1000000000
 f12pos=[0,0]
 f34pos=[0,0]
+# --- Formant Smoothing State ---
+smooth_f1 = None
+smooth_f2 = None
+smooth_f3 = None
+smooth_f4 = None
+# 1.0 is instant teleporting (jittery). 0.05 is extremely slow/laggy. 
+# 0.2 is usually the sweet spot for a snappy but smooth visual.
+SMOOTHING_FACTOR = 0.2
 def update_dashboard():
     global pitch_history, formant_history
 
@@ -595,6 +631,37 @@ def update_dashboard():
     weight_green_curve.setData(np.where(green_mask, weight_history, np.nan))
     weight_red_curve.setData(np.where(red_mask, weight_history, np.nan))
     weight_blue_curve.setData(np.where(blue_mask, weight_history, np.nan))
+
+
+
+
+
+    # --- UPDATE 2D FORMANT DOTS (WITH SMOOTHING) ---
+    global smooth_f1, smooth_f2, smooth_f3, smooth_f4
+    
+    if pitch_hz > 0 and formants_arr[0] > 0:
+        f1, f2, f3, f4 = formants_arr[0], formants_arr[1], formants_arr[2], formants_arr[3]
+        
+        # If this is the very first frame of a new sound, teleport instantly!
+        # (We don't want the dot sliding in all the way from 0,0)
+        if smooth_f1 is None:
+            smooth_f1, smooth_f2 = f1, f2
+            smooth_f3, smooth_f4 = f3, f4
+        else:
+            # Glide the current position toward the new target
+            smooth_f1 += (f1 - smooth_f1) * SMOOTHING_FACTOR
+            smooth_f2 += (f2 - smooth_f2) * SMOOTHING_FACTOR
+            smooth_f3 += (f3 - smooth_f3) * SMOOTHING_FACTOR
+            smooth_f4 += (f4 - smooth_f4) * SMOOTHING_FACTOR
+            
+        dot_f12.setData([smooth_f1], [smooth_f2])
+        dot_f34.setData([smooth_f3], [smooth_f4])
+        
+    else:
+        # Silence! Erase the dots and reset the smoothing state
+        smooth_f1 = None 
+        dot_f12.setData([], [])
+        dot_f34.setData([], [])
 
 
 # --- START THE LOOP ---
