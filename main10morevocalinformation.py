@@ -142,7 +142,7 @@ def get_formants_praat(audio_buffer, sample_rate):
     
     return [f1, f2, f3, f4, f5]
 
-import warnings # Make sure this is at the very top of your file!
+import warnings
 
 def get_vocal_weight(audio_buffer, sample_rate):
     # 1. Match Meyda's exact 256 sample buffer size
@@ -182,47 +182,49 @@ def get_vocal_weight(audio_buffer, sample_rate):
     # ---------------------------------------------------------
     # EXACT LINE-BY-LINE PORT OF THE HTML LOGIC
     # ---------------------------------------------------------
-    NumBins = 100
-    RangeLimit = 100.0
-    IntensityThreshold = -4.0 
+    NumBins = 100#200 #100
+    RangeLimit = 100#200 #100.0
+    IntensityThreshold = -0.0001 #-4.0 
     
-    peaks = 0
-    potentialpeaks=0
     mels = mfccs 
     
     max_range = int((RangeLimit / 100.0) * (len(mels) - 1))
-    
-    #print(max_range)
-    potentialslist=[]
-    for i in range(1, max_range):
-        #print((mels[i] < IntensityThreshold)) #false
-        #print((mels[i] < mels[i-1])) #false
-        #print((mels[i] < mels[i+1])) #true
-        #if (mels[i] < mels[i+1]):
-        #    if (mels[i] < mels[i-1]):
-        #        print(mels[i]) #see how low it is below the intensity threshold!?
-        #        if (mels[i] < IntensityThreshold):
-        #            print("(mels[i] < IntensityThreshold) and (mels[i] < mels[i-1]) and (mels[i] < mels[i+1])")
-        #        else:
-        #            pass #print("(mels[i] < mels[i-1]) and (mels[i] < mels[i+1])")
-        #    else:
-        #        pass #print("(mels[i] < mels[i+1])")
-        #else:
-        #    pass
-        if (mels[i] < mels[i-1]) and (mels[i] < mels[i+1]):
-            potentialpeaks+=1
-            potentialslist.append(mels[i])
-        if (mels[i] < IntensityThreshold) and (mels[i] < mels[i-1]) and (mels[i] < mels[i+1]):
-            peaks += 1
-    potentialslist.sort(reverse=True)
-    roundedpotentialslist=[]
-    for value in potentialslist:
-        roundedpotentialslist.append("{:.3g}".format(value))
-    print(f"potential peaks: {potentialpeaks}")
-    print(f"potentials list: {roundedpotentialslist}")
+
+    # for loop allergy code to get rid of the need to use the for loop commented out below
+    # 1. Slice the array to only include the range we care about
+    # (+1 because we need the right-side neighbor for the very last check)
+    mels_sliced = mels[:max_range + 1]
+
+    # 2. Create the overlapping shifted arrays
+    left = mels_sliced[:-2]   # Everything from index 0 up to the second-to-last
+    center = mels_sliced[1:-1] # Everything from index 1 up to the last
+    right = mels_sliced[2:]    # Everything from index 2 to the end
+
+    # 3. Vectorized Math: Apply your exact boolean logic to all items instantly
+    is_valley = (center < IntensityThreshold) & (center < left) & (center < right)
+
+    # 4. np.sum() counts all the 'True' values in the boolean array
+    peaks = np.sum(is_valley)
+
+    #peaks = 0
+    #potentialpeaks=0
+    ##potentialslist=[]
+    #for i in range(1, max_range):
+    ##    if (mels[i] < mels[i-1]) and (mels[i] < mels[i+1]):
+    ##        potentialpeaks+=1
+    ##        potentialslist.append(mels[i])
+    #    if (mels[i] < IntensityThreshold) and (mels[i] < mels[i-1]) and (mels[i] < mels[i+1]):
+    #        peaks += 1
+    #potentialslist.sort(reverse=True)
+    #roundedpotentialslist=[]
+    #for value in potentialslist:
+    #    roundedpotentialslist.append("{:.3g}".format(value))
+    #print(f"potential peaks: {potentialpeaks}")
+    #print(f"potentials list: {roundedpotentialslist}")
     #return potentialslist[0]
-    return min(100.0, (100.0 * potentialpeaks) / (RangeLimit * NumBins / 300.0))
+    #return min(100.0, (100.0 * potentialpeaks) / (RangeLimit * NumBins / 300.0))
             
-    print(peaks)
-    thickness = min(100.0, (100.0 * peaks) / (RangeLimit * NumBins / 300.0))
+    #print(peaks)
+    thickness = min(100.0, (100.0 * peaks) / (RangeLimit * NumBins / 300.0))#*3.5 #added *10 multiplier
+    #print(thickness)
     return thickness

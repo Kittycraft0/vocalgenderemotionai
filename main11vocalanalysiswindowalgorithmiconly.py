@@ -9,7 +9,7 @@ from main10morevocalinformation import get_audio_data
 import numpy as np
 import librosa
 import matplotlib.colors as mcolors
-
+import warnings
 
 #fig = plt.figure(figsize=(12, 9), facecolor='#886688') # Change 'darkcyan' to 'cyan' if you want it bright!
 #fig.suptitle('Live Audio Information', fontsize=18, color='white', fontweight='bold', y=0.96)
@@ -100,8 +100,8 @@ print(f"Microphone detected! Running at {SAMPLE_RATE} Hz")
 
 
 # 1. get vertical resolution
-#n_fft=1024
-n_fft=4096
+n_fft=1024
+#n_fft=4096
 # 2. get window
 #window_width=512
 # 3. window step
@@ -218,7 +218,7 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     # If we don't have enough fresh audio to draw a column, ABORT and wait.
     # This prevents the duplicate-drawing stutter!
     if new_columns < 1:
-        return spectrogram_data
+        return spectrogram_data,0
     
     
     #global last_time, bbb
@@ -262,7 +262,7 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     # this triggers if the samples to pull is larger than the buffer as well
     if samples_to_pull > len(y):
         #samples_to_pull=len(y)-1
-        return spectrogram_data #full_spectrogram_bitmap_array
+        return spectrogram_data,0 #full_spectrogram_bitmap_array
     
     
     #global width
@@ -284,13 +284,17 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     y_slice=y[-samples_to_pull:]
     # 4. Compute Spectrogram 
     # center=False is MANDATORY here. It stops Librosa from adding silence padding!
-    mel_spec = librosa.feature.melspectrogram(y=y_slice, sr=sr, n_fft=n_fft, hop_length=window_step, n_mels=spectrogram_pixel_height,center=False)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        mel_spec = librosa.feature.melspectrogram(y=y_slice, sr=sr, n_fft=n_fft, hop_length=window_step, n_mels=spectrogram_pixel_height,center=False)
+    #print(mel_spec)
     #print(y, sr, n_fft, window_step, spectrogram_pixel_height)
     #print(mel_spec.shape)
     #print(mel_spec.shape[1], int(2*sr/(window_step)+1)) #they are the same
     #for i in range(1, mel_spec.shape[0]):
     #    # If the absolute maximum energy in this frequency band is 0, it's a dead band.
     #    if np.max(mel_spec[i, :]) == 0.0:
+    #        ###mel_spec[i, :]=mel_spec[i-1, :]*10000
     #        # Copy the raw energy from the frequency band directly below it
     #        mel_spec[i, :] = mel_spec[i-1, :]
     
@@ -309,7 +313,7 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     #        # Copy all the visual data from the band directly below it!
     #        S_db[:, i] = S_db[:, i-1]
     
-    actual_new_cols = S_db.shape[0]
+    #actual_new_cols = S_db.shape[0]
     
     # 3. RMS Energy calculation (for consistency with training, though silence removal on live 
     #    chunks is tricky. We might skip rigorous thresholding to prevent crashing on silence,
@@ -337,7 +341,29 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     
     # Convert to 0-255 uint8 RGB
     new_bitmap = (spectrogram_color_data[:, :, :3] * 255).astype(np.uint8)
-
+    #for i in range(1, new_bitmap.shape[1]):
+        #print(new_bitmap[0][i])
+        #print((new_bitmap[0][i]==[0,0,0]).all())
+        #print(new_bitmap.shape[2])
+        #print((new_bitmap[i]))
+        #if (new_bitmap[0][i]<=[0,0,3]).all():
+            #print(new_bitmap[0][i])
+            #new_bitmap[0][i]=[128,128,0]
+    #if new_bitmap.shape[0]>=1:
+    for j in range(1,new_bitmap.shape[1]):
+        #print("a")
+        #print((new_bitmap[:,j,:]))
+        #print((new_bitmap[:,j,:]==[0,0,3])[0])
+        #if((new_bitmap[:,j,:]<=[255,255,255])[0].all()):
+        if((new_bitmap[:,j,:]<=[0,0,3])[0].all()):
+            #print((new_bitmap[:,j,:]<=[0,0,3]))
+            #new_bitmap[:,j,:]=[128,128,0]
+            #pass
+            new_bitmap[:,j,:]=new_bitmap[:,j-1,:]
+        pass
+    #print((new_bitmap[:,0,:]))
+    #print(new_bitmap.shape)
+    
     # Double check actual output width just to be completely safe
     actual_new_cols = S_db.shape[0]
     #actual_new_cols = new_bitmap.shape[1]
@@ -397,7 +423,7 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     #print(f"bbb: {bbb}")
     bbb+=1
     
-    return spectrogram_data
+    return spectrogram_data, actual_new_cols
 
 def update_dashboard():
     global pitch_history, formant_history
@@ -415,7 +441,7 @@ def update_dashboard():
     # --- SILENCE GATE ---
     #volume = np.sqrt(np.mean(current_audio**2))
     
-    bitmap = process_live_audio(current_audio, SAMPLE_RATE)
+    bitmap, actual_new_cols= process_live_audio(current_audio, SAMPLE_RATE)
 
     # run the math to get audio data
     audio_data=get_audio_data(audio_buffer,BUFFER_SECONDS,SAMPLE_RATE)
@@ -430,7 +456,8 @@ def update_dashboard():
         pitch_mel=int(librosa.hz_to_mel(pitch_hz))
         pitch_y = int((pitch_mel / max_mel) * spectrogram_pixel_height)
         pitch_y = np.clip(pitch_y, 2, spectrogram_pixel_height - 2) # Numpy clamp!
-        bitmap[-5:, pitch_y-2:pitch_y+2] = [0, 255, 255]
+        if actual_new_cols>=1:
+            bitmap[-actual_new_cols:, pitch_y-1:pitch_y+1] = [0, 255, 255]
         # Format the text so it limits decimals to 1 spot (e.g., 440.5 Hz)
         readout_label.setText(f"Pitch: {pitch_hz:.1f} Hz  |  Note: {closest_note}")
     else:
@@ -454,20 +481,21 @@ def update_dashboard():
     formant_colors = [[0, 255, 0], [0, 255, 127], [255, 0, 0], [255, 0, 255], [255, 255, 255]]
     
     # 4. Inject colors (Unrolled to avoid loops. We check >0 so silence doesn't draw at the bottom)
-    if formants_arr[0] > 0: bitmap[-5:, formants_y[0]:formants_y[0]+2] = formant_colors[0]
-    if formants_arr[1] > 0: bitmap[-5:, formants_y[1]:formants_y[1]+2] = formant_colors[1]
-    if formants_arr[2] > 0: bitmap[-5:, formants_y[2]:formants_y[2]+2] = formant_colors[2]
-    if formants_arr[3] > 0: bitmap[-5:, formants_y[3]:formants_y[3]+2] = formant_colors[3]
-    if formants_arr[4] > 0: bitmap[-5:, formants_y[4]:formants_y[4]+2] = formant_colors[4]
+    if actual_new_cols>=1:
+        if formants_arr[0] > 0: bitmap[-actual_new_cols:, formants_y[0]:formants_y[0]+1] = formant_colors[0]
+        if formants_arr[1] > 0: bitmap[-actual_new_cols:, formants_y[1]:formants_y[1]+1] = formant_colors[1]
+        if formants_arr[2] > 0: bitmap[-actual_new_cols:, formants_y[2]:formants_y[2]+1] = formant_colors[2]
+        if formants_arr[3] > 0: bitmap[-actual_new_cols:, formants_y[3]:formants_y[3]+1] = formant_colors[3]
+        if formants_arr[4] > 0: bitmap[-actual_new_cols:, formants_y[4]:formants_y[4]+1] = formant_colors[4]
 
 
     # render the formants and graph them out onto a separate graph
     #formants_y=librosa.hz_to_mel(audio_data["formants"]).astype(int)
     #formants_y[:] = max(2, min(formants_y[:], spectrogram_pixel_height - 2))
-    bitmap[-5:,formants_y[0]:formants_y[0]+2]=formant_colors[0]
-    bitmap[-5:,formants_y[1]:formants_y[1]+2]=formant_colors[1]
-    bitmap[-5:,formants_y[2]:formants_y[2]+2]=formant_colors[2]
-    bitmap[-5:,formants_y[3]:formants_y[3]+2]=formant_colors[3]
+    #bitmap[-5:,formants_y[0]:formants_y[0]+2]=formant_colors[0]
+    #bitmap[-5:,formants_y[1]:formants_y[1]+2]=formant_colors[1]
+    #bitmap[-5:,formants_y[2]:formants_y[2]+2]=formant_colors[2]
+    #bitmap[-5:,formants_y[3]:formants_y[3]+2]=formant_colors[3]
     #[0,255,0]
     #[0,255,127]
     #[255,0,0]
@@ -548,9 +576,11 @@ def update_dashboard():
         weight_history[-1] = weight_percent
 
     # 1. Create true/false masks for the 3 color thresholds from the HTML file
-    green_mask = (weight_history < 16.5)
-    red_mask = (weight_history >= 16.5) & (weight_history < 27.5)
-    blue_mask = (weight_history >= 27.5)
+    green_level=16.5
+    red_level=27.5
+    green_mask = (weight_history < green_level)
+    red_mask = (weight_history >= green_level) & (weight_history < red_level)
+    blue_mask = (weight_history >= red_level)
 
     # 2. To prevent visual gaps where colors change, we use a NumPy shift trick 
     # to stretch the masks forward by 1 point so the lines perfectly bridge together!
