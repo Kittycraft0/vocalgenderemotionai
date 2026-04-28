@@ -424,7 +424,9 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     bbb+=1
     
     return spectrogram_data, actual_new_cols
-
+max_mel=-1000000000
+f12pos=[0,0]
+f34pos=[0,0]
 def update_dashboard():
     global pitch_history, formant_history
 
@@ -448,6 +450,7 @@ def update_dashboard():
     #print(f"Audio data: {audio_data}")
     #print(f"Audio pitch: {pitch_hz}")
     #print(librosa.hz_to_mel(pitch_hz))
+    global max_mel
     pitch_hz=audio_data["pitch"]
     if pitch_hz > 0: # If a pitch is actually detected
         # Let Librosa calculate the closest musical note!

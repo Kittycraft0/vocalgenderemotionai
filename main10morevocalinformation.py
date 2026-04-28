@@ -79,12 +79,27 @@ def get_pitch(audio_buffer,sample_rate):
     """
     Analyzes an audio buffer and returns the median F0 (pitch) in Hertz.
     """
+    
+    # most recent 50ms of audio
+    recent_audio = audio_buffer[-int(sample_rate*0.050):]
+    # --- 1. VOICE ACTIVITY DETECTION (VAD) VIA LIBROSA ---
+    # Check if the audio is loud enough (RMS Energy)
+    rms_energy = np.mean(librosa.feature.rms(y=recent_audio))
+    if rms_energy < 0.001: # Tweak this threshold based on your mic's noise floor
+        return -1
+        
+    # Check if it's unvoiced/hissy noise (Zero-Crossing Rate)
+    # Voiced speech (vowels) has a low ZCR. Static and "S" sounds have high ZCR.
+    zcr = np.mean(librosa.feature.zero_crossing_rate(y=recent_audio))
+    if zcr > 0.15: # Tweak this. Usually, > 0.15 to 0.20 means it's unvoiced.
+        return -1
+    
     # 1. Run the pYIN algorithm
     # fmin and fmax bound the human vocal range to prevent false tracking from room noise.
     # 75Hz to 600Hz captures almost all human speech.
     #print(f"length of used data: {len(audio_buffer[-int(sample_rate*0.050):])}")
     f0 = librosa.yin( # algorithm that gets f0, use yin instead of pyin because probabilistic is slow
-        y=audio_buffer[-int(sample_rate*0.050):], # most recent 50ms of audio
+        y=recent_audio, # most recent 50ms of audio
         fmin=75, # lowest human speech
         fmax=600, # highest human speech f0 plus some because i go higher sometimes to 1000-2000, was 600 now 6000 not anymore neither is it 3515
         sr=sample_rate 
@@ -94,6 +109,7 @@ def get_pitch(audio_buffer,sample_rate):
     # 2. Filter out the unvoiced/silent frames (the NaNs)
     valid_pitch_frames = f0[~np.isnan(f0)]
 
+    
     # 3. Calculate the average pitch for this specific buffer
     if len(valid_pitch_frames) > 0: #gotta make sure it's not empty!!!
         # We use median instead of mean to ignore sudden mic pops or glitches
@@ -101,14 +117,11 @@ def get_pitch(audio_buffer,sample_rate):
         return current_pitch
     else:
         # Returns 0 if you are whispering or totally silent
-        return 0.0
+        return -1
 
 
-    #return -1
-
-
-def get_formants(audio_buffer):
-    return []
+#def get_formants(audio_buffer):
+#    return []
 
 import parselmouth
 
