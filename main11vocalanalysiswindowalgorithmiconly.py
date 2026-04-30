@@ -17,99 +17,6 @@ import warnings
 # ai made pyqtgraph setup
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore
-# --- PYQTGRAPH UI SETUP ---
-# Create the application
-app = pg.mkQApp("Live Audio Dashboard")
-
-# Create the main window
-win = pg.GraphicsLayoutWidget(show=True, title="Live Audio Information")
-win.resize(1000, 600)
-win.setBackground('#886688')
-
-
-
-# Add a plot for the spectrogram
-p1 = win.addPlot(title="Spectrogram",colspan=2)
-p1.hideAxis('bottom')
-p1.hideAxis('left')
-
-# Create the ImageItem and add it to the plot
-img = pg.ImageItem()
-p1.addItem(img)
-
-# --- NEW: Setup the Pitch Plot ---
-win.nextRow() # This tells PyQtGraph to go to the line below the spectrogram
-p2 = win.addPlot(title="Pitch Tracker (Hz)",colspan=2)
-p2.setYRange(0, 1000) # Locks the Y-axis to standard human voice range
-p2.showGrid(x=True, y=True, alpha=0.3)
-
-# Create a green line graph to hold our data
-pitch_curve = p2.plot(pen=pg.mkPen('g', width=2))
-
-# --- NEW: Setup the Formant Plot ---
-win.nextRow() # Drop down to a new row
-p3 = win.addPlot(title="Formant Tracker (Hz)",colspan=2)
-p3.setYRange(0, 5500) # Praat searches up to 5500Hz by default
-p3.showGrid(x=True, y=True, alpha=0.3)
-
-# Tell the UI to drop down to the next row before drawing the graphs!
-win.nextRow()
-# --- NEW: Create the Text Readout ---
-# size='20pt' makes it nice and big, color='w' makes it white
-readout_label = win.addLabel(text="Pitch: -- Hz | Note: --", size='20pt', bold=True, color='w',colspan=2)
-
-
-# --- NEW: Setup the Thickness / Weight Plot ---
-win.nextRow() # Drop down to a new row
-p4 = win.addPlot(title="Thickness / Weight (%)",colspan=2)
-p4.setYRange(0, 100) # Match the HTML 0-100% scale
-p4.showGrid(x=True, y=True, alpha=0.3)
-
-win.nextRow() # Drop down to a new row
-# 1. F1 vs F2 Plot (The Vowel Space)
-p_f12 = win.addPlot(title="Vowel Space (F1 vs F2)")
-p_f12.setLabel('bottom', "F1 (Hz)")
-p_f12.setLabel('left', "F2 (Hz)")
-# We lock the ranges to standard human vowel limits so the dot actually moves around the screen
-p_f12.setXRange(200, 1200) # F1 range
-p_f12.setYRange(600, 3000) # F2 range
-p_f12.disableAutoRange() # Locks the axes permanently
-p_f12.showGrid(x=True, y=True, alpha=0.3)
-
-# Create the dot! pen=None means no lines, symbol='o' means circle.
-dot_f12 = p_f12.plot(pen=None, symbol='o', symbolBrush='y', symbolSize=15)
-
-# 2. F3 vs F4 Plot
-# By NOT calling win.nextRow() here, PyQtGraph puts this right next to the F1/F2 plot!
-p_f34 = win.addPlot(title="F3 vs F4 Space")
-p_f34.setLabel('bottom', "F3 (Hz)")
-p_f34.setLabel('left', "F4 (Hz)")
-p_f34.setXRange(1500, 4000) # F3 range
-p_f34.setYRange(2500, 5000) # F4 range
-p_f34.disableAutoRange() # Locks the axes permanently
-p_f34.showGrid(x=True, y=True, alpha=0.3)
-
-# Create a cyan dot for this one
-dot_f34 = p_f34.plot(pen=None, symbol='o', symbolBrush='c', symbolSize=15)
-
-# Create 3 differently colored curves to match the HTML color bands!
-weight_green_curve = p4.plot(pen=pg.mkPen(color=(0, 255, 0), width=2), connect='finite')
-weight_red_curve = p4.plot(pen=pg.mkPen(color=(255, 0, 0), width=2), connect='finite')
-weight_blue_curve = p4.plot(pen=pg.mkPen(color=(0, 127, 255), width=2), connect='finite')
-
-# Create 5 differently colored lines for F1 through F5
-f1_curve = p3.plot(pen=pg.mkPen(color=(0, 255, 0), width=2))
-f2_curve = p3.plot(pen=pg.mkPen(color=(0, 255, 127), width=2))
-f3_curve = p3.plot(pen=pg.mkPen(color=(255, 0, 0), width=2))
-f4_curve = p3.plot(pen=pg.mkPen(color=(255, 0, 255), width=2))
-f5_curve = p3.plot(pen=pg.mkPen(color=(255, 255, 255), width=2))
-
-# Set up the Colormap (Magma)
-#colormap = pg.colormap.get('magma')
-#img.setLookupTable(colormap.getLookupTable())
-#img.setLevels([-80, 0]) # Maps -80dB to black, 0dB to bright/white
-
-
 
 # --- CONFIGURATION ---
 #SAMPLE_RATE = 22050
@@ -154,6 +61,112 @@ def prompt_for_device():
 
 # Set the DEVICE_INDEX using our new menu!
 DEVICE_INDEX = prompt_for_device()
+
+# ask before window initialization
+
+# --- PYQTGRAPH UI SETUP ---
+# Create the application
+app = pg.mkQApp("Live Audio Dashboard")
+
+# Create the main window
+win = pg.GraphicsLayoutWidget(show=True, title="Live Audio Information")
+win.resize(1000, 600)
+win.setBackground('#886688')
+
+left_col = win.addLayout()
+right_col = win.addLayout()
+
+# Add a plot for the spectrogram
+p1 = left_col.addPlot(title="Spectrogram")
+p1.hideAxis('bottom')
+p1.hideAxis('left')
+
+# Create the ImageItem and add it to the plot
+img = pg.ImageItem()
+p1.addItem(img)
+
+# --- NEW: Setup the Pitch Plot ---
+left_col.nextRow() # This tells PyQtGraph to go to the line below the spectrogram
+p2 = left_col.addPlot(title="Pitch Tracker (Hz)")
+p2.setYRange(0, 1000) # Locks the Y-axis to standard human voice range
+p2.showGrid(x=True, y=True, alpha=0.3)
+
+# Create a green line graph to hold our data
+pitch_curve = p2.plot(pen=pg.mkPen('g', width=2))
+
+# --- NEW: Setup the Formant Plot ---
+left_col.nextRow() # Drop down to a new row
+p3 = left_col.addPlot(title="Formant Tracker (Hz)")
+p3.setYRange(0, 5500) # Praat searches up to 5500Hz by default
+p3.showGrid(x=True, y=True, alpha=0.3)
+
+# Tell the UI to drop down to the next row before drawing the graphs!
+left_col.nextRow()
+# --- NEW: Create the Text Readout ---
+# size='20pt' makes it nice and big, color='w' makes it white
+readout_label = left_col.addLabel(text="Pitch: -- Hz | Note: --", size='20pt', bold=True, color='w')
+
+
+# --- NEW: Setup the Thickness / Weight Plot ---
+left_col.nextRow() # Drop down to a new row
+p4 = left_col.addPlot(title="Thickness / Weight (%)")
+p4.setYRange(0, 100) # Match the HTML 0-100% scale
+p4.showGrid(x=True, y=True, alpha=0.3)
+
+#right_col.nextRow() # Drop down to a new row
+# 1. F1 vs F2 Plot (The Vowel Space)
+p_f12 = right_col.addPlot(title="Vowel Space (F1 vs F2)")
+p_f12.setLabel('bottom', "F1 (Hz)")
+p_f12.setLabel('left', "F2 (Hz)")
+# We lock the ranges to standard human vowel limits so the dot actually moves around the screen
+p_f12.setXRange(200, 1200) # F1 range
+p_f12.setYRange(600, 3000) # F2 range
+p_f12.disableAutoRange() # Locks the axes permanently
+p_f12.showGrid(x=True, y=True, alpha=0.3)
+#p_f12.setAspectLocked(True, ratio=1)
+p_f12.setFixedWidth(300)
+p_f12.setFixedHeight(300)
+
+# Create the dot! pen=None means no lines, symbol='o' means circle.
+dot_f12 = p_f12.plot(pen=None, symbol='o', symbolBrush='y', symbolSize=15)
+
+# 2. F3 vs F4 Plot
+# By NOT calling right_col.nextRow() here, PyQtGraph puts this right next to the F1/F2 plot!
+right_col.nextRow()
+p_f34 = right_col.addPlot(title="F3 vs F4 Space")
+p_f34.setLabel('bottom', "F3 (Hz)")
+p_f34.setLabel('left', "F4 (Hz)")
+p_f34.setXRange(1500, 4000) # F3 range
+p_f34.setYRange(2500, 5000) # F4 range
+p_f34.disableAutoRange() # Locks the axes permanently
+p_f34.showGrid(x=True, y=True, alpha=0.3)
+#p_f34.setAspectLocked(True, ratio=1)
+p_f34.setFixedWidth(300)
+p_f34.setFixedHeight(300)
+
+# Create a cyan dot for this one
+dot_f34 = p_f34.plot(pen=None, symbol='o', symbolBrush='c', symbolSize=15)
+
+# Create 3 differently colored curves to match the HTML color bands!
+weight_green_curve = p4.plot(pen=pg.mkPen(color=(0, 255, 0), width=2), connect='finite')
+weight_red_curve = p4.plot(pen=pg.mkPen(color=(255, 0, 0), width=2), connect='finite')
+weight_blue_curve = p4.plot(pen=pg.mkPen(color=(0, 127, 255), width=2), connect='finite')
+
+# Create 5 differently colored lines for F1 through F5
+f1_curve = p3.plot(pen=pg.mkPen(color=(0, 255, 0), width=2))
+f2_curve = p3.plot(pen=pg.mkPen(color=(0, 255, 127), width=2))
+f3_curve = p3.plot(pen=pg.mkPen(color=(255, 0, 0), width=2))
+f4_curve = p3.plot(pen=pg.mkPen(color=(255, 0, 255), width=2))
+f5_curve = p3.plot(pen=pg.mkPen(color=(255, 255, 255), width=2))
+
+# Set up the Colormap (Magma)
+#colormap = pg.colormap.get('magma')
+#img.setLookupTable(colormap.getLookupTable())
+#img.setLevels([-80, 0]) # Maps -80dB to black, 0dB to bright/white
+
+
+
+
 
 # Ask the computer for the stats of this specific microphone
 device_info = sd.query_devices(DEVICE_INDEX, 'input')
@@ -650,8 +663,8 @@ def update_dashboard():
         weight_history[-1] = weight_percent
 
     # 1. Create true/false masks for the 3 color thresholds from the HTML file
-    green_level=16.5
-    red_level=27.5
+    green_level=30#16.5
+    red_level=50#27.5
     green_mask = (weight_history < green_level)
     red_mask = (weight_history >= green_level) & (weight_history < red_level)
     blue_mask = (weight_history >= red_level)
