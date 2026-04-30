@@ -17,6 +17,53 @@ import warnings
 # ai made pyqtgraph setup
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore
+
+# --- CONFIGURATION ---
+#SAMPLE_RATE = 22050
+TOTAL_WINDOW_SECONDS=10.0
+BUFFER_SECONDS = 2.0    
+UPDATE_INTERVAL_MS = 30    # 30ms = ~33 FPS (Smoother) #changed to 250 cuz laggy on non gpu device
+DEVICE_INDEX = None
+
+# --- DEVICE SELECTION MENU ---
+def prompt_for_device():
+    print("\n" + "="*40)
+    print("      AVAILABLE AUDIO INPUTS")
+    print("="*40)
+    
+    # Get the raw list of every audio device on the computer
+    devices = sd.query_devices()
+    valid_indices = []
+    
+    # Loop through and only print the ones that have input channels (microphones)
+    for i, dev in enumerate(devices):
+        if dev['max_input_channels'] > 0:
+            # We print the hostapi name too so you know if you are picking WASAPI or MME
+            api_name = sd.query_hostapis(dev['hostapi'])['name']
+            print(f"[{i}] {dev['name']}  ({api_name})")
+            valid_indices.append(i)
+            
+    print("="*40)
+    
+    # Trap the user in a loop until they give us a valid number
+    while True:
+        try:
+            user_input = input("\nEnter the number of the microphone to use: ")
+            selected_index = int(user_input)
+            
+            if selected_index in valid_indices:
+                print(f"\n--> Selected: {devices[selected_index]['name']}\n")
+                return selected_index
+            else:
+                print("Invalid number. Please pick a number from the list above.")
+        except ValueError:
+            print("Please type a number.")
+
+# Set the DEVICE_INDEX using our new menu!
+DEVICE_INDEX = prompt_for_device()
+
+# ask before window initialization
+
 # --- PYQTGRAPH UI SETUP ---
 # Create the application
 app = pg.mkQApp("Live Audio Dashboard")
@@ -26,10 +73,11 @@ win = pg.GraphicsLayoutWidget(show=True, title="Live Audio Information")
 win.resize(1000, 600)
 win.setBackground('#886688')
 
-
+left_col = win.addLayout()
+right_col = win.addLayout()
 
 # Add a plot for the spectrogram
-p1 = win.addPlot(title="Spectrogram",colspan=2)
+p1 = left_col.addPlot(title="Spectrogram")
 p1.hideAxis('bottom')
 p1.hideAxis('left')
 
@@ -38,8 +86,8 @@ img = pg.ImageItem()
 p1.addItem(img)
 
 # --- NEW: Setup the Pitch Plot ---
-win.nextRow() # This tells PyQtGraph to go to the line below the spectrogram
-p2 = win.addPlot(title="Pitch Tracker (Hz)",colspan=2)
+left_col.nextRow() # This tells PyQtGraph to go to the line below the spectrogram
+p2 = left_col.addPlot(title="Pitch Tracker (Hz)")
 p2.setYRange(0, 1000) # Locks the Y-axis to standard human voice range
 p2.showGrid(x=True, y=True, alpha=0.3)
 
@@ -47,27 +95,27 @@ p2.showGrid(x=True, y=True, alpha=0.3)
 pitch_curve = p2.plot(pen=pg.mkPen('g', width=2))
 
 # --- NEW: Setup the Formant Plot ---
-win.nextRow() # Drop down to a new row
-p3 = win.addPlot(title="Formant Tracker (Hz)",colspan=2)
+left_col.nextRow() # Drop down to a new row
+p3 = left_col.addPlot(title="Formant Tracker (Hz)")
 p3.setYRange(0, 5500) # Praat searches up to 5500Hz by default
 p3.showGrid(x=True, y=True, alpha=0.3)
 
 # Tell the UI to drop down to the next row before drawing the graphs!
-win.nextRow()
+left_col.nextRow()
 # --- NEW: Create the Text Readout ---
 # size='20pt' makes it nice and big, color='w' makes it white
-readout_label = win.addLabel(text="Pitch: -- Hz | Note: --", size='20pt', bold=True, color='w', colspan=2)
+readout_label = left_col.addLabel(text="Pitch: -- Hz | Note: --", size='20pt', bold=True, color='w')
 
 
 # --- NEW: Setup the Thickness / Weight Plot ---
-win.nextRow() # Drop down to a new row
-p4 = win.addPlot(title="Thickness / Weight (%)",colspan=2)
+left_col.nextRow() # Drop down to a new row
+p4 = left_col.addPlot(title="Thickness / Weight (%)")
 p4.setYRange(0, 100) # Match the HTML 0-100% scale
 p4.showGrid(x=True, y=True, alpha=0.3)
 
-win.nextRow() # Drop down to a new row
+#right_col.nextRow() # Drop down to a new row
 # 1. F1 vs F2 Plot (The Vowel Space)
-p_f12 = win.addPlot(title="Vowel Space (F1 vs F2)")
+p_f12 = right_col.addPlot(title="Vowel Space (F1 vs F2)")
 p_f12.setLabel('bottom', "F1 (Hz)")
 p_f12.setLabel('left', "F2 (Hz)")
 # We lock the ranges to standard human vowel limits so the dot actually moves around the screen
@@ -76,13 +124,17 @@ p_f12.setXRange(200, 1200) # F1 range
 p_f12.setYRange(600, 3000) # F2 range
 p_f12.disableAutoRange() # Locks the axes permanently
 p_f12.showGrid(x=True, y=True, alpha=0.3)
+#p_f12.setAspectLocked(True, ratio=1)
+p_f12.setFixedWidth(300)
+p_f12.setFixedHeight(300)
 
 # Create the dot! pen=None means no lines, symbol='o' means circle.
 dot_f12 = p_f12.plot(pen=None, symbol='o', symbolBrush='y', symbolSize=15)
 
 # 2. F3 vs F4 Plot
-# By NOT calling win.nextRow() here, PyQtGraph puts this right next to the F1/F2 plot!
-p_f34 = win.addPlot(title="F3 vs F4 Space")
+# By NOT calling right_col.nextRow() here, PyQtGraph puts this right next to the F1/F2 plot!
+right_col.nextRow()
+p_f34 = right_col.addPlot(title="F3 vs F4 Space")
 p_f34.setLabel('bottom', "F3 (Hz)")
 p_f34.setLabel('left', "F4 (Hz)")
 p_f34.getAxis('left').setWidth(50) # Prevents text-width jitter
@@ -90,6 +142,9 @@ p_f34.setXRange(1500, 4000) # F3 range
 p_f34.setYRange(2500, 5000) # F4 range
 p_f34.disableAutoRange() # Locks the axes permanently
 p_f34.showGrid(x=True, y=True, alpha=0.3)
+#p_f34.setAspectLocked(True, ratio=1)
+p_f34.setFixedWidth(300)
+p_f34.setFixedHeight(300)
 
 # Create a cyan dot for this one
 dot_f34 = p_f34.plot(pen=None, symbol='o', symbolBrush='c', symbolSize=15)
@@ -112,13 +167,6 @@ f5_curve = p3.plot(pen=pg.mkPen(color=(255, 255, 255), width=2))
 #img.setLevels([-80, 0]) # Maps -80dB to black, 0dB to bright/white
 
 
-
-# --- CONFIGURATION ---
-#SAMPLE_RATE = 22050
-TOTAL_WINDOW_SECONDS=10.0
-BUFFER_SECONDS = 2.0    
-UPDATE_INTERVAL_MS = 30    # 30ms = ~33 FPS (Smoother) #changed to 250 cuz laggy on non gpu device
-DEVICE_INDEX = None
 
 
 
@@ -617,8 +665,8 @@ def update_dashboard():
         weight_history[-1] = weight_percent
 
     # 1. Create true/false masks for the 3 color thresholds from the HTML file
-    green_level=16.5
-    red_level=27.5
+    green_level=30#16.5
+    red_level=50#27.5
     green_mask = (weight_history < green_level)
     red_mask = (weight_history >= green_level) & (weight_history < red_level)
     blue_mask = (weight_history >= red_level)
@@ -674,71 +722,103 @@ timer.start(UPDATE_INTERVAL_MS)
 
 # direct hardware microphone data?
 directmicrophonedatatoggle=True
+#def run():
+#    if not directmicrophonedatatoggle:
+#        stream = sd.InputStream(
+#            device=DEVICE_INDEX,
+#            channels=1,
+#            samplerate=SAMPLE_RATE,
+#            callback=audio_callback,
+#            blocksize=int(SAMPLE_RATE * 0.03) 
+#        )
+#
+#        with stream:
+#            print("Microphone Active. Starting Dashboard...")
+#            #ani = animation.FuncAnimation(fig, update_dashboard, interval=UPDATE_INTERVAL_MS, blit=True) 
+#            #plt.show()
+#            # Start the audio stream and the GUI event loop
+#            pg.exec() # Keeps the application running
+#    else:
+#
+#        # 1. Look for WASAPI (The Windows Audio API that allows raw hardware access)
+#        wasapi_info = sd.query_hostapis()
+#        wasapi_index = None
+#        for i, api in enumerate(wasapi_info):
+#            if 'WASAPI' in api['name']:
+#                wasapi_index = i
+#                break
+#
+#        # 2. Setup the stream parameters
+#        stream_kwargs = {
+#            'channels': 1,
+#            'samplerate': SAMPLE_RATE,
+#            'callback': audio_callback,
+#            'blocksize': int(SAMPLE_RATE * 0.03) 
+#        }
+#
+#        # 3. If WASAPI is found, apply the Exclusive Mode bypass trick!
+#        if wasapi_index is not None:
+#            print("WASAPI detected. Engaging Exclusive Mode to bypass Windows noise gates...")
+#
+#            # We have to find the specific device index for the WASAPI version of your mic
+#            # (Since device indices change depending on the API you use)
+#            devices = sd.query_devices()
+#            for i, dev in enumerate(devices):
+#                if dev['hostapi'] == wasapi_index and dev['max_input_channels'] > 0:
+#                    # Grab the first available WASAPI input device
+#                    stream_kwargs['device'] = i
+#                    print(f"--> GRABBED WASAPI DEVICE: {dev['name']}")
+#                    break
+#
+#            # Apply the magic flag that blocks Windows from modifying the audio
+#            stream_kwargs['extra_settings'] = sd.WasapiSettings(exclusive=True)
+#
+#        else:
+#            # Fallback for Mac/Linux users (Mac uses CoreAudio which doesn't have aggressive AGC by default)
+#            print("Standard audio API detected...")
+#            stream_kwargs['device'] = DEVICE_INDEX
+#
+#        # 4. Start the Stream!
+#        try:
+#            stream = sd.InputStream(**stream_kwargs)
+#            with stream:
+#                print("Microphone Active. Starting Dashboard...")
+#                pg.exec() # Keeps the application running
+#        except Exception as e:
+#            print(f"\nCRITICAL AUDIO ERROR: {e}")
+#            print("Note: Exclusive Mode requires your SAMPLE_RATE to perfectly match your hardware's native rate.")
 def run():
-    if not directmicrophonedatatoggle:
-        stream = sd.InputStream(
-            device=DEVICE_INDEX,
-            channels=1,
-            samplerate=SAMPLE_RATE,
-            callback=audio_callback,
-            blocksize=int(SAMPLE_RATE * 0.03) 
-        )
+    # 1. Setup the stream parameters using the exact device you picked!
+    stream_kwargs = {
+        'device': DEVICE_INDEX,
+        'channels': 1,
+        'samplerate': SAMPLE_RATE,
+        'callback': audio_callback,
+        'blocksize': int(SAMPLE_RATE * 0.03) 
+    }
 
+    # 2. Check if the device you picked is a WASAPI device
+    devices = sd.query_devices()
+    selected_device = devices[DEVICE_INDEX]
+    hostapi_name = sd.query_hostapis(selected_device['hostapi'])['name']
+
+    if 'WASAPI' in hostapi_name:
+        print("WASAPI selected. Engaging Exclusive Mode to bypass Windows noise gates...")
+        # Apply the magic flag that blocks Windows from modifying the audio
+        stream_kwargs['extra_settings'] = sd.WasapiSettings(exclusive=True)
+    else:
+        print(f"Standard audio API detected ({hostapi_name})...")
+
+    # 3. Start the Stream!
+    try:
+        stream = sd.InputStream(**stream_kwargs)
         with stream:
             print("Microphone Active. Starting Dashboard...")
-            #ani = animation.FuncAnimation(fig, update_dashboard, interval=UPDATE_INTERVAL_MS, blit=True) 
-            #plt.show()
-            # Start the audio stream and the GUI event loop
             pg.exec() # Keeps the application running
-    else:
-
-        # 1. Look for WASAPI (The Windows Audio API that allows raw hardware access)
-        wasapi_info = sd.query_hostapis()
-        wasapi_index = None
-        for i, api in enumerate(wasapi_info):
-            if 'WASAPI' in api['name']:
-                wasapi_index = i
-                break
-
-        # 2. Setup the stream parameters
-        stream_kwargs = {
-            'channels': 1,
-            'samplerate': SAMPLE_RATE,
-            'callback': audio_callback,
-            'blocksize': int(SAMPLE_RATE * 0.03) 
-        }
-
-        # 3. If WASAPI is found, apply the Exclusive Mode bypass trick!
-        if wasapi_index is not None:
-            print("WASAPI detected. Engaging Exclusive Mode to bypass Windows noise gates...")
-
-            # We have to find the specific device index for the WASAPI version of your mic
-            # (Since device indices change depending on the API you use)
-            devices = sd.query_devices()
-            for i, dev in enumerate(devices):
-                if dev['hostapi'] == wasapi_index and dev['max_input_channels'] > 0:
-                    # Grab the first available WASAPI input device
-                    stream_kwargs['device'] = i
-                    break
-
-            # Apply the magic flag that blocks Windows from modifying the audio
-            stream_kwargs['extra_settings'] = sd.WasapiSettings(exclusive=True)
-
-        else:
-            # Fallback for Mac/Linux users (Mac uses CoreAudio which doesn't have aggressive AGC by default)
-            print("Standard audio API detected...")
-            stream_kwargs['device'] = DEVICE_INDEX
-
-        # 4. Start the Stream!
-        try:
-            stream = sd.InputStream(**stream_kwargs)
-            with stream:
-                print("Microphone Active. Starting Dashboard...")
-                pg.exec() # Keeps the application running
-        except Exception as e:
-            print(f"\nCRITICAL AUDIO ERROR: {e}")
-            print("Note: Exclusive Mode requires your SAMPLE_RATE to perfectly match your hardware's native rate.")
-
+            
+    except Exception as e:
+        print(f"\nCRITICAL AUDIO ERROR: {e}")
+        print("Note: Exclusive Mode requires your SAMPLE_RATE to perfectly match your hardware's native rate.")
 
 if __name__ == "__main__":
     run()
