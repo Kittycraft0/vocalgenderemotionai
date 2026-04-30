@@ -56,7 +56,7 @@ p3.showGrid(x=True, y=True, alpha=0.3)
 win.nextRow()
 # --- NEW: Create the Text Readout ---
 # size='20pt' makes it nice and big, color='w' makes it white
-readout_label = win.addLabel(text="Pitch: -- Hz | Note: --", size='20pt', bold=True, color='w')
+readout_label = win.addLabel(text="Pitch: -- Hz | Note: --", size='20pt', bold=True, color='w', colspan=2)
 
 
 # --- NEW: Setup the Thickness / Weight Plot ---
@@ -71,6 +71,7 @@ p_f12 = win.addPlot(title="Vowel Space (F1 vs F2)")
 p_f12.setLabel('bottom', "F1 (Hz)")
 p_f12.setLabel('left', "F2 (Hz)")
 # We lock the ranges to standard human vowel limits so the dot actually moves around the screen
+p_f12.getAxis('left').setWidth(50) # Prevents text-width jitter
 p_f12.setXRange(200, 1200) # F1 range
 p_f12.setYRange(600, 3000) # F2 range
 p_f12.disableAutoRange() # Locks the axes permanently
@@ -84,6 +85,7 @@ dot_f12 = p_f12.plot(pen=None, symbol='o', symbolBrush='y', symbolSize=15)
 p_f34 = win.addPlot(title="F3 vs F4 Space")
 p_f34.setLabel('bottom', "F3 (Hz)")
 p_f34.setLabel('left', "F4 (Hz)")
+p_f34.getAxis('left').setWidth(50) # Prevents text-width jitter
 p_f34.setXRange(1500, 4000) # F3 range
 p_f34.setYRange(2500, 5000) # F4 range
 p_f34.disableAutoRange() # Locks the axes permanently
@@ -214,7 +216,7 @@ MAX_COLUMNS = int(TOTAL_WINDOW_SECONDS * SAMPLE_RATE / window_step)
 #full_spectrogram_bitmap_array = np.zeros((spectrogram_pixel_height, MAX_COLUMNS, 3), dtype=np.uint8)
 #spectrogram_data = np.zeros((spectrogram_pixel_height, MAX_COLUMNS, 3), dtype=np.uint8)
 spectrogram_data = np.zeros((MAX_COLUMNS, spectrogram_pixel_height, 3), dtype=np.uint8)
-
+#
 # Create an array of zeros to hold our pitch history.
 # Making it MAX_COLUMNS long means it perfectly matches the 2-second width of the spectrogram!
 #pitch_history = np.zeros(MAX_COLUMNS, dtype=np.float32)
