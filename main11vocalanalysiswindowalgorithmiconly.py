@@ -56,7 +56,7 @@ p3.showGrid(x=True, y=True, alpha=0.3)
 win.nextRow()
 # --- NEW: Create the Text Readout ---
 # size='20pt' makes it nice and big, color='w' makes it white
-readout_label = win.addLabel(text="Pitch: -- Hz | Note: --", size='20pt', bold=True, color='w')
+readout_label = win.addLabel(text="Pitch: -- Hz | Note: --", size='20pt', bold=True, color='w',colspan=2)
 
 
 # --- NEW: Setup the Thickness / Weight Plot ---
@@ -118,7 +118,42 @@ BUFFER_SECONDS = 2.0
 UPDATE_INTERVAL_MS = 30    # 30ms = ~33 FPS (Smoother) #changed to 250 cuz laggy on non gpu device
 DEVICE_INDEX = None
 
+# --- DEVICE SELECTION MENU ---
+def prompt_for_device():
+    print("\n" + "="*40)
+    print("      AVAILABLE AUDIO INPUTS")
+    print("="*40)
+    
+    # Get the raw list of every audio device on the computer
+    devices = sd.query_devices()
+    valid_indices = []
+    
+    # Loop through and only print the ones that have input channels (microphones)
+    for i, dev in enumerate(devices):
+        if dev['max_input_channels'] > 0:
+            # We print the hostapi name too so you know if you are picking WASAPI or MME
+            api_name = sd.query_hostapis(dev['hostapi'])['name']
+            print(f"[{i}] {dev['name']}  ({api_name})")
+            valid_indices.append(i)
+            
+    print("="*40)
+    
+    # Trap the user in a loop until they give us a valid number
+    while True:
+        try:
+            user_input = input("\nEnter the number of the microphone to use: ")
+            selected_index = int(user_input)
+            
+            if selected_index in valid_indices:
+                print(f"\n--> Selected: {devices[selected_index]['name']}\n")
+                return selected_index
+            else:
+                print("Invalid number. Please pick a number from the list above.")
+        except ValueError:
+            print("Please type a number.")
 
+# Set the DEVICE_INDEX using our new menu!
+DEVICE_INDEX = prompt_for_device()
 
 # Ask the computer for the stats of this specific microphone
 device_info = sd.query_devices(DEVICE_INDEX, 'input')
@@ -672,71 +707,103 @@ timer.start(UPDATE_INTERVAL_MS)
 
 # direct hardware microphone data?
 directmicrophonedatatoggle=True
+#def run():
+#    if not directmicrophonedatatoggle:
+#        stream = sd.InputStream(
+#            device=DEVICE_INDEX,
+#            channels=1,
+#            samplerate=SAMPLE_RATE,
+#            callback=audio_callback,
+#            blocksize=int(SAMPLE_RATE * 0.03) 
+#        )
+#
+#        with stream:
+#            print("Microphone Active. Starting Dashboard...")
+#            #ani = animation.FuncAnimation(fig, update_dashboard, interval=UPDATE_INTERVAL_MS, blit=True) 
+#            #plt.show()
+#            # Start the audio stream and the GUI event loop
+#            pg.exec() # Keeps the application running
+#    else:
+#
+#        # 1. Look for WASAPI (The Windows Audio API that allows raw hardware access)
+#        wasapi_info = sd.query_hostapis()
+#        wasapi_index = None
+#        for i, api in enumerate(wasapi_info):
+#            if 'WASAPI' in api['name']:
+#                wasapi_index = i
+#                break
+#
+#        # 2. Setup the stream parameters
+#        stream_kwargs = {
+#            'channels': 1,
+#            'samplerate': SAMPLE_RATE,
+#            'callback': audio_callback,
+#            'blocksize': int(SAMPLE_RATE * 0.03) 
+#        }
+#
+#        # 3. If WASAPI is found, apply the Exclusive Mode bypass trick!
+#        if wasapi_index is not None:
+#            print("WASAPI detected. Engaging Exclusive Mode to bypass Windows noise gates...")
+#
+#            # We have to find the specific device index for the WASAPI version of your mic
+#            # (Since device indices change depending on the API you use)
+#            devices = sd.query_devices()
+#            for i, dev in enumerate(devices):
+#                if dev['hostapi'] == wasapi_index and dev['max_input_channels'] > 0:
+#                    # Grab the first available WASAPI input device
+#                    stream_kwargs['device'] = i
+#                    print(f"--> GRABBED WASAPI DEVICE: {dev['name']}")
+#                    break
+#
+#            # Apply the magic flag that blocks Windows from modifying the audio
+#            stream_kwargs['extra_settings'] = sd.WasapiSettings(exclusive=True)
+#
+#        else:
+#            # Fallback for Mac/Linux users (Mac uses CoreAudio which doesn't have aggressive AGC by default)
+#            print("Standard audio API detected...")
+#            stream_kwargs['device'] = DEVICE_INDEX
+#
+#        # 4. Start the Stream!
+#        try:
+#            stream = sd.InputStream(**stream_kwargs)
+#            with stream:
+#                print("Microphone Active. Starting Dashboard...")
+#                pg.exec() # Keeps the application running
+#        except Exception as e:
+#            print(f"\nCRITICAL AUDIO ERROR: {e}")
+#            print("Note: Exclusive Mode requires your SAMPLE_RATE to perfectly match your hardware's native rate.")
 def run():
-    if not directmicrophonedatatoggle:
-        stream = sd.InputStream(
-            device=DEVICE_INDEX,
-            channels=1,
-            samplerate=SAMPLE_RATE,
-            callback=audio_callback,
-            blocksize=int(SAMPLE_RATE * 0.03) 
-        )
+    # 1. Setup the stream parameters using the exact device you picked!
+    stream_kwargs = {
+        'device': DEVICE_INDEX,
+        'channels': 1,
+        'samplerate': SAMPLE_RATE,
+        'callback': audio_callback,
+        'blocksize': int(SAMPLE_RATE * 0.03) 
+    }
 
+    # 2. Check if the device you picked is a WASAPI device
+    devices = sd.query_devices()
+    selected_device = devices[DEVICE_INDEX]
+    hostapi_name = sd.query_hostapis(selected_device['hostapi'])['name']
+
+    if 'WASAPI' in hostapi_name:
+        print("WASAPI selected. Engaging Exclusive Mode to bypass Windows noise gates...")
+        # Apply the magic flag that blocks Windows from modifying the audio
+        stream_kwargs['extra_settings'] = sd.WasapiSettings(exclusive=True)
+    else:
+        print(f"Standard audio API detected ({hostapi_name})...")
+
+    # 3. Start the Stream!
+    try:
+        stream = sd.InputStream(**stream_kwargs)
         with stream:
             print("Microphone Active. Starting Dashboard...")
-            #ani = animation.FuncAnimation(fig, update_dashboard, interval=UPDATE_INTERVAL_MS, blit=True) 
-            #plt.show()
-            # Start the audio stream and the GUI event loop
             pg.exec() # Keeps the application running
-    else:
-
-        # 1. Look for WASAPI (The Windows Audio API that allows raw hardware access)
-        wasapi_info = sd.query_hostapis()
-        wasapi_index = None
-        for i, api in enumerate(wasapi_info):
-            if 'WASAPI' in api['name']:
-                wasapi_index = i
-                break
-
-        # 2. Setup the stream parameters
-        stream_kwargs = {
-            'channels': 1,
-            'samplerate': SAMPLE_RATE,
-            'callback': audio_callback,
-            'blocksize': int(SAMPLE_RATE * 0.03) 
-        }
-
-        # 3. If WASAPI is found, apply the Exclusive Mode bypass trick!
-        if wasapi_index is not None:
-            print("WASAPI detected. Engaging Exclusive Mode to bypass Windows noise gates...")
-
-            # We have to find the specific device index for the WASAPI version of your mic
-            # (Since device indices change depending on the API you use)
-            devices = sd.query_devices()
-            for i, dev in enumerate(devices):
-                if dev['hostapi'] == wasapi_index and dev['max_input_channels'] > 0:
-                    # Grab the first available WASAPI input device
-                    stream_kwargs['device'] = i
-                    break
-
-            # Apply the magic flag that blocks Windows from modifying the audio
-            stream_kwargs['extra_settings'] = sd.WasapiSettings(exclusive=True)
-
-        else:
-            # Fallback for Mac/Linux users (Mac uses CoreAudio which doesn't have aggressive AGC by default)
-            print("Standard audio API detected...")
-            stream_kwargs['device'] = DEVICE_INDEX
-
-        # 4. Start the Stream!
-        try:
-            stream = sd.InputStream(**stream_kwargs)
-            with stream:
-                print("Microphone Active. Starting Dashboard...")
-                pg.exec() # Keeps the application running
-        except Exception as e:
-            print(f"\nCRITICAL AUDIO ERROR: {e}")
-            print("Note: Exclusive Mode requires your SAMPLE_RATE to perfectly match your hardware's native rate.")
-
+            
+    except Exception as e:
+        print(f"\nCRITICAL AUDIO ERROR: {e}")
+        print("Note: Exclusive Mode requires your SAMPLE_RATE to perfectly match your hardware's native rate.")
 
 if __name__ == "__main__":
     run()
