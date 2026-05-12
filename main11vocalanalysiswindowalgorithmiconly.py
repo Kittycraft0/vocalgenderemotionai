@@ -138,7 +138,7 @@ readout_label = left_col.addLabel(text="Pitch: -- Hz | Note: --", size='20pt', b
 
 # --- NEW: Setup the Thickness / Weight Plot ---
 left_col.nextRow() # Drop down to a new row
-p4 = left_col.addPlot(title="Thickness / Weight (%)")
+p4 = left_col.addPlot(title="Thickness / Weight (%) (green/red/blue); Spectral slope: Base (Magenta), Derived (Yellow)")
 p4.setYRange(0, 100) # Match the HTML 0-100% scale
 p4.showGrid(x=True, y=True, alpha=0.3)
 
@@ -183,6 +183,10 @@ weight_green_curve = p4.plot(pen=pg.mkPen(color=(0, 255, 0), width=2), connect='
 weight_red_curve = p4.plot(pen=pg.mkPen(color=(255, 0, 0), width=2), connect='finite')
 weight_blue_curve = p4.plot(pen=pg.mkPen(color=(0, 127, 255), width=2), connect='finite')
 
+# Add spectrol slope to weight curve
+spectral_slope_base_curve = p4.plot(pen=pg.mkPen('m', width=2),connect='finite')
+spectral_slope_derived_curve = p4.plot(pen=pg.mkPen('y', width=2),connect='finite')
+
 # Create 5 differently colored lines for F1 through F5
 f1_curve = p3.plot(pen=pg.mkPen(color=(0, 255, 0), width=2))
 f2_curve = p3.plot(pen=pg.mkPen(color=(0, 255, 127), width=2))
@@ -194,7 +198,7 @@ f5_curve = p3.plot(pen=pg.mkPen(color=(255, 255, 255), width=2))
 
 # --- Setup the Dual Rolloff Plot ---
 left_col.nextRow() 
-p5 = left_col.addPlot(title="Spectral Rolloff: Tone (Cyan) & Breath (Gray)")
+p5 = left_col.addPlot(title="Spectral Cutoff: Tone (Cyan) & Breath (Gray); Spectral Center of Mass: Base (Magenta), Derived (Yellow)")
 p5.setYRange(0, 100) # 0 to 100% scale
 p5.showGrid(x=True, y=True, alpha=0.3)
 
@@ -203,10 +207,17 @@ harmonic_curve = p5.plot(pen=pg.mkPen('c', width=2))
 #noise_curve = p5.plot(pen=pg.mkPen(color=(150, 150, 150), width=2, style=QtCore.Qt.DashLine))
 #noise_curve = p5.plot(pen=pg.mkPen(color=(150, 150, 150), width=2, style=2))
 noise_curve = p5.plot(pen=pg.mkPen(color=(150, 150, 150), width=2, style=QtCore.Qt.PenStyle.DashLine))
+#create more lines spectral slope and spectal center of gravity
+spectral_center_of_gravity_base_curve = p5.plot(pen=pg.mkPen('m', width=2))
+spectral_center_of_gravity_derived_curve = p5.plot(pen=pg.mkPen('y', width=2))
 
 # Setup history arrays for both
 harmonic_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
 noise_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
+spectral_slope_base_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
+spectral_slope_derived_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
+spectral_center_of_gravity_base_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
+spectral_center_of_gravity_derived_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
 
 # --- NEW: Setup the Live Harmonic Spectrum Plot ---
 right_col.nextRow()
@@ -717,13 +728,21 @@ def update_dashboard():
     
     # --- 4. UPDATE TEXT READOUT ---
     weight_percent = audio_data.get("vocalweight", 0.0)
-    
+    centroid_base = audio_data.get("spectral_centroid_base", 0.0)
+    slope_base = audio_data.get("spectral_slope_base", 0.0)
+
     if pitch_hz > 0:
         closest_note = librosa.hz_to_note(pitch_hz)
-        readout_label.setText(f"Pitch: {pitch_hz:.1f} Hz  |  Note: {closest_note}  |  Weight: {weight_percent:.1f}%")
+        #readout_label.setText(f"Pitch: {pitch_hz:.1f} Hz  |  Note: {closest_note}  |  Weight: {weight_percent:.1f}%")
+        readout_text = (
+            f"Pitch: {pitch_hz:.1f} Hz  |  Note: {closest_note}  |  Weight: {weight_percent:.1f}%\n"
+            f"Center of Gravity: {centroid_base:.0f} Hz  |  Spectral Slope: {slope_base:.1f} dB/kHz"
+        )
+        readout_label.setText(readout_text)
     else:
         # The HTML app considers unvoiced sounds (S, Sh, F) as thick/heavy
-        readout_label.setText(f"Pitch: -- Hz  |  Note: --  |  Weight: {weight_percent:.1f}% (Unvoiced)")
+        #readout_label.setText(f"Pitch: -- Hz  |  Note: --  |  Weight: {weight_percent:.1f}% (Unvoiced)")
+        readout_label.setText(f"Pitch: -- Hz  |  Note: --  |  Weight: {weight_percent:.1f}% (Unvoiced)\nCenter of Gravity: -- Hz  |  Spectral Slope: -- dB/kHz")
     
     # ... (existing Formant Graph update code) ...
 
@@ -731,11 +750,63 @@ def update_dashboard():
     global weight_history
     weight_history = np.roll(weight_history, -1)
     
+    global spectral_slope_base_history, spectral_slope_derived_history
+    spectral_slope_base_history = np.roll(spectral_slope_base_history,-1)
+    spectral_slope_derived_history = np.roll(spectral_slope_derived_history,-1)
+
+    
     # Check for absolute silence using the raw audio buffer to hide the line
+    # also put spectral slope here
     if np.max(np.abs(current_audio)) < 0.001:
         weight_history[-1] = np.nan
+        spectral_slope_base_history[-1]=np.nan
+        spectral_slope_derived_history[-1]=np.nan #because THIS one specificalyl flatlines on silence. oh wait no the other sorta does sometimes too.
     else:
         weight_history[-1] = weight_percent
+        #ssb_percent=np.clip(((ssb_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
+        #ssd_percent=np.clip(((ssd_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
+        # 3. Update Derived Slope (ONLY draws if a voice/pitch is actively detected)
+        
+        ssb_hz=audio_data.get("spectral_slope_base")
+        ssd_hz=audio_data.get("spectral_slope_derived")
+        #ssb_percent=ssb_hz*10+80
+        #ssd_percent=ssd_hz*10+80
+        #spectral_slope_base_history[-1]=ssb_percent
+        #spectral_slope_derived_history[-1]=ssd_percent
+        print(f"Base: {ssb_hz:.1f} | Derived: {ssd_hz:.1f}")
+        # function to make better visual for the spectral slope rolloff visualization
+        def slope_to_percent(slope):
+            option0=slope*5+80 #old bad way
+
+            # using a direct linear line:
+            # Define the acoustic boundaries of the human voice
+            min_slope = -35.0  # Very soft/breathy (maps to 0% at the bottom)
+            max_slope = -5.0   # Very harsh/brassy (maps to 100% at the top)
+
+            # Standard normalization formula: (value - min) / (max - min) * 100
+            # np.clip prevents it from flying off the top or bottom of the graph
+            #option1=np.clip(((slope - min_slope) / (max_slope - min_slope)) * 100.0, 0, 100)
+            option1=((slope - min_slope) / (max_slope - min_slope))*100
+
+            # using a sigmoid:
+            # 1. Choose your exact center point (50% on the graph)
+            center_slope = -20.0 
+
+            # 2. Choose how sensitive the line is to changes (0.15 to 0.3 is usually a good sweet spot)
+            steepness = 0.20 
+
+            # 3. The Sigmoid Math
+            option2 = 100.0 / (1.0 + np.exp(-steepness * (slope - center_slope)))
+            
+            return option2
+        
+        if pitch_hz > 0:
+            spectral_slope_base_history[-1] = slope_to_percent(ssb_hz)
+            spectral_slope_derived_history[-1] = slope_to_percent(ssd_hz)
+        else:
+            spectral_slope_derived_history[-1] = np.nan
+    
+    
 
     # 1. Create true/false masks for the 3 color thresholds from the HTML file
     green_level=30#16.5
@@ -754,6 +825,9 @@ def update_dashboard():
     weight_green_curve.setData(np.where(green_mask, weight_history, np.nan))
     weight_red_curve.setData(np.where(red_mask, weight_history, np.nan))
     weight_blue_curve.setData(np.where(blue_mask, weight_history, np.nan))
+    
+    spectral_slope_base_curve.setData(spectral_slope_base_history)
+    spectral_slope_derived_curve.setData(spectral_slope_derived_history)
 
 
 
@@ -835,15 +909,22 @@ def update_dashboard():
     # --- UPDATE DUAL ROLLOFF GRAPH ---
     h_hz = audio_data.get("harmonic_rolloff", -1.0)
     n_hz = audio_data.get("noise_rolloff", -1.0)
-    
+    scogb_hz=audio_data.get("spectral_centroid_base")
+    scogd_hz=audio_data.get("spectral_centroid_derived")
+
     global harmonic_history, noise_history
+    global spectral_center_of_gravity_base_history, spectral_center_of_gravity_derived_history
     harmonic_history = np.roll(harmonic_history, -1)
     noise_history = np.roll(noise_history, -1)
+    spectral_center_of_gravity_base_history = np.roll(spectral_center_of_gravity_base_history,-1)
+    spectral_center_of_gravity_derived_history = np.roll(spectral_center_of_gravity_derived_history,-1)
     
     # Check for absolute silence
-    if np.max(np.abs(current_audio)) < 0.001 or h_hz < 0:
+    if np.max(np.abs(current_audio)) < 0.001:# or h_hz < 0:
         harmonic_history[-1] = np.nan
         noise_history[-1] = np.nan
+        spectral_center_of_gravity_base_history[-1]=np.nan
+        spectral_center_of_gravity_derived_history[-1]=np.nan
     else:
         # THE FIX: Use your actual live pitch as the 0% floor! 
         # (With a fallback of 200Hz just in case it's unvoiced breath noise)
@@ -851,15 +932,26 @@ def update_dashboard():
         max_hz = 4000.0
         
         # Convert raw Hz to a 0-100% coefficient dynamically
-        h_percent = np.clip(((h_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
-        n_percent = np.clip(((n_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
+        #h_percent = np.clip(((h_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
+        #n_percent = np.clip(((n_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
+        h_percent = ((h_hz - min_hz) / (max_hz - min_hz)) * 100.0
+        n_percent = ((n_hz - min_hz) / (max_hz - min_hz)) * 100.0
+    
+        #scogb_percent=np.clip(((scogb_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
+        #scogd_percent=np.clip(((scogd_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
+        scogb_percent=((scogb_hz - min_hz) / (max_hz - min_hz)) * 100.0
+        scogd_percent=((scogd_hz - min_hz) / (max_hz - min_hz)) * 100.0
 
         harmonic_history[-1] = h_percent
         noise_history[-1] = n_percent
+        spectral_center_of_gravity_base_history[-1]=scogb_percent
+        spectral_center_of_gravity_derived_history[-1]=scogd_percent
 
     # Render lines
     harmonic_curve.setData(harmonic_history)
     noise_curve.setData(noise_history)
+    spectral_center_of_gravity_base_curve.setData(spectral_center_of_gravity_base_history)
+    spectral_center_of_gravity_derived_curve.setData(spectral_center_of_gravity_derived_history)
 
 
 # --- START THE LOOP ---

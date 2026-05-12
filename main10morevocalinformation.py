@@ -58,7 +58,9 @@ def get_audio_data(audio_buffer,time,sample_rate,noise_power_profile):
         "vocalweight":-1,
         "harmonic_series":{"freqs":[],"mags":[]},
         "harmonic_rolloff": -1, # NEW
-        "noise_rolloff": -1     # NEW
+        "noise_rolloff": -1,     # NEW
+        "spectral_centroid": 0.0,  # NEW
+        "spectral_slope": 0.0      # NEW
     }
     data["pitch"]=get_pitch(audio_buffer,sample_rate)
     
@@ -75,11 +77,22 @@ def get_audio_data(audio_buffer,time,sample_rate,noise_power_profile):
     #harmonic_freqs, harmonic_mags=get_harmonic_series(recent_audio, sample_rate, data["pitch"])
     #data["harmonic_series"]["freqs"]=harmonic_freqs
     #data["harmonic_series"]["mags"]=harmonic_mags
-    harmonic_freqs, harmonic_mags = get_harmonic_series_denoised(
-        recent_audio, sample_rate, data["pitch"], noise_power_profile
+    #harmonic_freqs, harmonic_mags = get_harmonic_series2( #get_harmonic_series_denoised(
+    #    recent_audio, sample_rate, data["pitch"], noise_power_profile
+    #)
+    harmonic_freqs, harmonic_mags = get_harmonic_series2(
+        recent_audio, sample_rate, data["pitch"]
     )
     data["harmonic_series"]["freqs"]=harmonic_freqs
     data["harmonic_series"]["mags"]=harmonic_mags
+    
+    # --- GET THE NEW INDICATORS HERE ---
+    centroid_derived, slope_derived = get_spectral_indicators(harmonic_freqs, harmonic_mags)
+    data["spectral_centroid_derived"] = centroid_derived
+    data["spectral_slope_derived"] = slope_derived
+    centroid_base, slope_base = get_base_spectral_indicators(recent_audio, sample_rate) 
+    data["spectral_centroid_base"] = centroid_base
+    data["spectral_slope_base"] = slope_base
 
     # Calculate both rolloffs instantly using the pitch we just found
     h_roll, n_roll = get_dual_rolloffs(audio_buffer, sample_rate, data["pitch"])
@@ -128,12 +141,14 @@ def get_pitch(audio_buffer,sample_rate):
     # 3. Calculate the average pitch for this specific buffer
     if len(valid_pitch_frames) > 0: #gotta make sure it's not empty!!!
         # We use median instead of mean to ignore sudden mic pops or glitches
-        current_pitch = np.median(valid_pitch_frames)
+        # Force it to be a raw Python float to prevent NumPy array crashes downstream!
+        current_pitch = float(np.median(valid_pitch_frames))
+        #current_pitch = np.median(valid_pitch_frames)
         return current_pitch
     else:
         # Returns 0 if you are whispering or totally silent
-        return -1
-
+        return -1.0
+    
 
 #def get_formants(audio_buffer):
 #    return []
@@ -367,6 +382,8 @@ def get_harmonic_series_denoised(recent_audio, sample_rate, pitch_hz, noise_powe
     harmonic_freqs = []
     harmonic_mags = []
 
+    minbin=10000
+    maxbin=0
     n = 1 # Start at n=1 (F0), then n=2 (H2), n=3 (H3)...
     while (n * pitch_hz) <= max_hz:
         target_hz = n * pitch_hz
@@ -374,10 +391,19 @@ def get_harmonic_series_denoised(recent_audio, sample_rate, pitch_hz, noise_powe
         # Find the FFT bin that is closest to our target frequency
         closest_bin = np.argmin(np.abs(freqs - target_hz))
         
+        # ok so this is just a bad system. 
+        # first off it should probably check every bin of equally spaced sizings, background noise too bad. 
+        # and second off, ... idk it's just too far from a working state. not work it maybe.
         # F0 naturally wavers slightly, so we search a tiny 3-bin window 
         # around the target to grab the absolute peak of that specific harmonic
         start_bin = max(0, closest_bin - 1)
         end_bin = min(len(spectrum_db) - 1, closest_bin + 1)
+        
+        #lengthh=len(spectrum_db[start_bin:end_bin+1])
+        #if lengthh<minbin:
+        #    minbin=lengthh
+        #if lengthh>maxbin:
+        #    maxbin=lengthh
         
         local_peak_mag = np.max(spectrum_db[start_bin:end_bin+1])
 
@@ -385,6 +411,8 @@ def get_harmonic_series_denoised(recent_audio, sample_rate, pitch_hz, noise_powe
         harmonic_mags.append(local_peak_mag)
         
         n += 1
+
+    #print(minbin,maxbin)
 
     return harmonic_freqs, harmonic_mags
 
@@ -435,3 +463,150 @@ def get_dual_rolloffs(audio_buffer, sample_rate, pitch_hz):
 
     # Return both!
     return calc_85_percent_rolloff(harmonic_power), calc_85_percent_rolloff(noise_power)
+
+
+def get_harmonic_series2(recent_audio, sample_rate, pitch_hz, max_hz=4500):
+    pitch_hz = float(pitch_hz) # <--- ADD THIS LINE
+    if pitch_hz <= 0 or np.max(np.abs(recent_audio)) < 0.001:
+        return [], []
+    window = np.hanning(len(recent_audio))
+    windowed_audio = recent_audio * window
+    spectrum_complex = np.fft.rfft(windowed_audio)
+    spectrum_mag = np.abs(spectrum_complex)
+    
+    # 1. Standard dB conversion with the digital safety net
+    spectrum_db = 20 * np.log10(np.clip(spectrum_mag, 1e-10, None))
+
+    # Normalize peak to 0 dB
+    max_db = np.max(spectrum_db)
+    if max_db > -80:
+        spectrum_db = spectrum_db - max_db
+
+    # 2. THE FIX: The Organic Floor
+    # Prevent the math from plunging to -200 dB. 
+    # We force the absolute lowest point to "rest" at -60 dB, 
+    # which mimics the natural ambient noise of a standard room.
+    #spectrum_db = np.maximum(spectrum_db, -60.0)
+
+    freqs = np.fft.rfftfreq(len(recent_audio), d=1.0/sample_rate)
+
+    harmonic_freqs = []
+    harmonic_mags = []
+
+    n = 1 
+    while (n * pitch_hz) <= max_hz:
+        target_hz = n * pitch_hz
+        closest_bin = np.argmin(np.abs(freqs - target_hz))
+        
+        # Widen the search net slightly for higher harmonics 
+        # so it doesn't accidentally miss a wobbling pitch and grab the floor
+        window_radius = max(1, int(n * 0.3)) 
+        
+        start_bin = max(0, closest_bin - window_radius)
+        end_bin = min(len(spectrum_db) - 1, closest_bin + window_radius)
+        
+        local_peak_mag = np.max(spectrum_db[start_bin:end_bin+1])
+
+        harmonic_freqs.append(target_hz)
+        harmonic_mags.append(local_peak_mag)
+        
+        n += 1
+
+    return harmonic_freqs, harmonic_mags
+
+# spectral center of gravity!!!
+# spectral slope!!!
+
+
+
+
+# calculate it from our buggy data, such that it only works if the visual is working. and then it will also be calculated from all data.
+#def get_spectral_indicators(freqs, mags, max_hz=5000, noise_floor=-58.0):
+#    """
+#    Calculates Spectral Center of Gravity (Centroid) and Spectral Slope 
+#    based exclusively on the clean harmonic series.
+#    """
+#    
+#    f_arr = np.array(freqs)
+#    m_arr = np.array(mags)
+#
+#    # THE FIX: Only calculate math for frequencies below 5000Hz AND louder than the noise floor
+#    valid_mask = (f_arr <= max_hz) & (m_arr > noise_floor)
+#    f_valid = f_arr[valid_mask]
+#    m_valid = m_arr[valid_mask]
+#
+#    # If the voice is so quiet it didn't trigger at least 2 data points, return 0
+#    if len(f_valid) < 2:
+#        return 0.0, 0.0
+#
+#    # 1. Spectral Center of Gravity (Centroid)
+#    # We convert dB back to linear energy for accurate physical center-of-mass
+#    linear_energy = 10 ** (m_valid / 10.0)
+#    total_energy = np.sum(linear_energy)
+#    
+#    if total_energy > 0:
+#        centroid_hz = np.sum(f_valid * linear_energy) / total_energy
+#    else:
+#        centroid_hz = 0.0
+#
+#    # 2. Spectral Slope (Calculated via Linear Regression)
+#    # We fit a straight line (y = mx + b) through the harmonic peaks.
+#    # np.polyfit returns the slope (m) and intercept (b).
+#    slope_db_per_hz, intercept = np.polyfit(f_valid, m_valid, 1)
+#    
+#    # Convert to dB per kHz so the number is human-readable (e.g., -15.2 instead of -0.0152)
+#    slope_db_per_khz = slope_db_per_hz * 1000.0
+#
+#    return centroid_hz, slope_db_per_khz
+
+def get_spectral_indicators(freqs, mags, max_hz=5000):
+    f_arr = np.array(freqs)
+    m_arr = np.array(mags)
+
+    # Filter out ultrasonic noise above 5000Hz. 
+    # Also filter out 0 Hz (DC offset) because log10(0) will crash the math.
+    valid_mask = (f_arr > 0) & (f_arr <= max_hz)
+    f_valid = f_arr[valid_mask]
+    m_valid = m_arr[valid_mask]
+
+    if len(f_valid) < 2:
+        return 0.0, 0.0
+
+    # 1. Spectral Center of Gravity (Centroid)
+    linear_energy = 10 ** (m_valid / 10.0)
+    total_energy = np.sum(linear_energy)
+    centroid_hz = np.sum(f_valid * linear_energy) / total_energy if total_energy > 0 else 0.0
+
+    # 2. Logarithmic Spectral Slope (dB per decade)
+    # We take the log10 of the frequencies before calculating the line of best fit
+    slope_db_per_decade, _ = np.polyfit(np.log10(f_valid), (m_valid), 1)
+
+    return centroid_hz, slope_db_per_decade
+
+# calculate from all data:
+def get_base_spectral_indicators(recent_audio, sample_rate, max_hz=4500):
+    if np.max(np.abs(recent_audio)) < 0.001:
+        return 0.0, 0.0
+
+    # 1. Calculate the raw FFT of the recent audio chunk
+    window = np.hanning(len(recent_audio))
+    spectrum_complex = np.fft.rfft(recent_audio * window)
+    spectrum_mag = np.abs(spectrum_complex)
+    
+    # 2. Convert to Decibels with the exact same safety net as your harmonic function
+    spectrum_db = 20 * np.log10(np.clip(spectrum_mag, 1e-10, None))
+    max_db = np.max(spectrum_db)
+    if max_db > -80:
+        spectrum_db = spectrum_db - max_db
+    spectrum_db = np.maximum(spectrum_db, -60.0)
+    
+    # 3. Get the frequencies
+    freqs = np.fft.rfftfreq(len(recent_audio), d=1.0/sample_rate)
+
+    # 4. Filter out anything above max_hz so ultrasonic mic hiss doesn't ruin the math
+    valid_mask = freqs <= max_hz
+    f_valid = freqs[valid_mask]
+    m_valid = spectrum_db[valid_mask]
+
+    # 5. Pass this dense raw data into your existing math function!
+    return get_spectral_indicators(f_valid, m_valid)
