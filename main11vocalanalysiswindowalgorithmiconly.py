@@ -25,6 +25,7 @@ BUFFER_SECONDS = 2.0
 UPDATE_INTERVAL_MS = 30    # 30ms = ~33 FPS (Smoother) #changed to 250 cuz laggy on non gpu device
 DEVICE_INDEX = None
 
+
 # --- DEVICE SELECTION MENU ---
 def prompt_for_device():
     print("\n" + "="*40)
@@ -61,6 +62,34 @@ def prompt_for_device():
 
 # Set the DEVICE_INDEX using our new menu!
 DEVICE_INDEX = prompt_for_device()
+
+# 1. get vertical resolution
+n_fft=1024
+#n_fft=4096
+# 2. get window
+#window_width=512
+# 3. window step
+resolutionfactor=16
+#window_step=int(65536/resolutionfactor) #was 256 # i don't understand why this is the magic number that makes each pixel a square
+window_step=int(4096*4/resolutionfactor) #was 256 # i don't understand why this is the magic number that makes each pixel a square
+
+# Ask the computer for the stats of this specific microphone
+device_info = sd.query_devices(DEVICE_INDEX, 'input')
+# Pull out the sample rate and convert it to an integer
+SAMPLE_RATE = int(device_info['default_samplerate'])
+print(f"Microphone detected! Running at {SAMPLE_RATE} Hz")
+
+MAX_COLUMNS = int(TOTAL_WINDOW_SECONDS * SAMPLE_RATE / window_step)
+
+#window_step=int(SAMPLE_RATE/resolutionfactor) #was 256
+#window_max_pos=window_width+1
+#parse_width=64
+#parse_interval=32
+spectrogram_pixel_height=16*resolutionfactor
+# 5. find top and bottom 5% energies from the distribution (???)
+#top_5_percent_energy = 0.05 * np.percentile(rms, 95)
+#bottom_5_percent_energy = 0.05 * np.percentile(rms, 5)
+cmap_name="magma"
 
 # ask before window initialization
 
@@ -161,6 +190,44 @@ f3_curve = p3.plot(pen=pg.mkPen(color=(255, 0, 0), width=2))
 f4_curve = p3.plot(pen=pg.mkPen(color=(255, 0, 255), width=2))
 f5_curve = p3.plot(pen=pg.mkPen(color=(255, 255, 255), width=2))
 
+
+
+# --- Setup the Dual Rolloff Plot ---
+left_col.nextRow() 
+p5 = left_col.addPlot(title="Spectral Rolloff: Tone (Cyan) & Breath (Gray)")
+p5.setYRange(0, 100) # 0 to 100% scale
+p5.showGrid(x=True, y=True, alpha=0.3)
+
+# Create two curves: Solid Cyan for Harmonics (Tone), Dashed Gray for Noise (Breath)
+harmonic_curve = p5.plot(pen=pg.mkPen('c', width=2))
+#noise_curve = p5.plot(pen=pg.mkPen(color=(150, 150, 150), width=2, style=QtCore.Qt.DashLine))
+#noise_curve = p5.plot(pen=pg.mkPen(color=(150, 150, 150), width=2, style=2))
+noise_curve = p5.plot(pen=pg.mkPen(color=(150, 150, 150), width=2, style=QtCore.Qt.PenStyle.DashLine))
+
+# Setup history arrays for both
+harmonic_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
+noise_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
+
+# --- NEW: Setup the Live Harmonic Spectrum Plot ---
+right_col.nextRow()
+p_spectrum = right_col.addPlot(title="Live Harmonic Spectrum")
+p_spectrum.setLabel('bottom', "Frequency (Hz)")
+p_spectrum.setLabel('left', "Magnitude (dB)")
+p_spectrum.setXRange(0, 4500) # 4500Hz captures the most defining vocal harmonics
+p_spectrum.setYRange(-60, 0)  # Standard dB visibility range
+p_spectrum.showGrid(x=True, y=True, alpha=0.3)
+p_spectrum.setFixedWidth(300)
+p_spectrum.setFixedHeight(200)
+
+## Create a bright yellow curve for the raw audio spectrum
+#spectrum_curve = p_spectrum.plot(pen=pg.mkPen('y', width=1.5))
+## Create discrete yellow dots instead of a continuous line
+#spectrum_curve = p_spectrum.plot(pen=None, symbol='o', symbolBrush='y', symbolSize=8)
+## Create a solid yellow line
+#spectrum_curve = p_spectrum.plot(pen=pg.mkPen('y', width=2))
+# Create a solid yellow line with dots at the exact harmonic frequencies
+spectrum_curve = p_spectrum.plot(pen=pg.mkPen('y', width=2), symbol='o', symbolBrush='y', symbolSize=6)
+
 # Set up the Colormap (Magma)
 #colormap = pg.colormap.get('magma')
 #img.setLookupTable(colormap.getLookupTable())
@@ -168,33 +235,37 @@ f5_curve = p3.plot(pen=pg.mkPen(color=(255, 255, 255), width=2))
 
 
 
+#print("Shhh... Calibrating room noise for 2 seconds...")
+#noise_buffer = audio_buffer[-int(SAMPLE_RATE * 2.0):] # Grab 2 seconds of silence
+#
+## Get the linear power spectrum of the noise
+#window = np.hanning(len(noise_buffer))
+#noise_complex = np.fft.rfft(noise_buffer * window)
+## We store the raw linear power, NOT decibels!
+#noise_power_profile = np.abs(noise_complex) ** 2 
+#
+#print("Calibration complete. Starting dashboard.")
 
+print("Shhh... Calibrating room noise for 2 seconds...")
+# 1. Synchronously record 2 seconds of real audio
+calibration_audio = sd.rec(int(SAMPLE_RATE * 2.0), samplerate=SAMPLE_RATE, channels=1, device=DEVICE_INDEX)
+sd.wait() # Freeze the program until the 2 seconds are up
+calibration_audio = calibration_audio.flatten()
 
-# Ask the computer for the stats of this specific microphone
-device_info = sd.query_devices(DEVICE_INDEX, 'input')
-# Pull out the sample rate and convert it to an integer
-SAMPLE_RATE = int(device_info['default_samplerate'])
-print(f"Microphone detected! Running at {SAMPLE_RATE} Hz")
+# 2. We process in 100ms chunks live, so our noise profile must also be 100ms long!
+chunk_size = int(SAMPLE_RATE * 0.100)
+window = np.hanning(chunk_size)
+noise_power_profile = np.zeros(chunk_size // 2 + 1)
 
+# 3. Average the FFT power over the 2 seconds to get a solid baseline
+num_chunks = len(calibration_audio) // chunk_size
+for i in range(num_chunks):
+    chunk = calibration_audio[i*chunk_size : (i+1)*chunk_size]
+    complex_spec = np.fft.rfft(chunk * window)
+    noise_power_profile += np.abs(complex_spec) ** 2
 
-# 1. get vertical resolution
-n_fft=1024
-#n_fft=4096
-# 2. get window
-#window_width=512
-# 3. window step
-resolutionfactor=16
-#window_step=int(65536/resolutionfactor) #was 256 # i don't understand why this is the magic number that makes each pixel a square
-window_step=int(4096*4/resolutionfactor) #was 256 # i don't understand why this is the magic number that makes each pixel a square
-#window_step=int(SAMPLE_RATE/resolutionfactor) #was 256
-#window_max_pos=window_width+1
-#parse_width=64
-#parse_interval=32
-spectrogram_pixel_height=16*resolutionfactor
-# 5. find top and bottom 5% energies from the distribution (???)
-#top_5_percent_energy = 0.05 * np.percentile(rms, 95)
-#bottom_5_percent_energy = 0.05 * np.percentile(rms, 5)
-cmap_name="magma"
+noise_power_profile /= num_chunks # Average it out
+print("Calibration complete. Starting dashboard.")
 
 
 
@@ -259,7 +330,7 @@ cmap = plt.get_cmap(cmap_name)
 
 # 1. Pre-calculate the exact maximum width of our visual buffer
 # e.g., 10 seconds of history to display on screen
-MAX_COLUMNS = int(TOTAL_WINDOW_SECONDS * SAMPLE_RATE / window_step)
+# MAX_COLUMNS = int(TOTAL_WINDOW_SECONDS * SAMPLE_RATE / window_step) # already calculated
 #spectrogram_data = np.full((MAX_COLUMNS, spectrogram_pixel_height), -80.0, dtype=np.float32)
 #full_spectrogram_bitmap_array = np.zeros((spectrogram_pixel_height, MAX_COLUMNS, 3), dtype=np.uint8)
 #spectrogram_data = np.zeros((spectrogram_pixel_height, MAX_COLUMNS, 3), dtype=np.uint8)
@@ -532,7 +603,9 @@ def update_dashboard():
     bitmap, actual_new_cols= process_live_audio(current_audio, SAMPLE_RATE)
 
     # run the math to get audio data
-    audio_data=get_audio_data(audio_buffer,BUFFER_SECONDS,SAMPLE_RATE)
+    #audio_data=get_audio_data(audio_buffer,BUFFER_SECONDS,SAMPLE_RATE)
+    ## Pass the noise_power_profile as the 4th argument!
+    audio_data=get_audio_data(audio_buffer, BUFFER_SECONDS, SAMPLE_RATE, noise_power_profile)
     #print(f"Audio data: {audio_data}")
     #print(f"Audio pitch: {pitch_hz}")
     #print(librosa.hz_to_mel(pitch_hz))
@@ -712,6 +785,81 @@ def update_dashboard():
         smooth_f1 = None 
         dot_f12.setData([], [])
         dot_f34.setData([], [])
+    
+    # Extract the raw Hz from your audio data dictionary
+    raw_rolloff_hz = audio_data.get("rolloff", -1.0)
+    
+    # Convert to percentage
+    buzz_coeff = 20#calculate_buzz_coefficient(raw_rolloff_hz)
+
+    
+    ## ---------------------------------------------------------
+    ## 1. UPDATE SPECTRAL ROLLOFF GRAPH
+    ## ---------------------------------------------------------
+    #raw_rolloff_hz = audio_data.get("rolloff", -1.0)
+    #
+    ## Assuming you added the calculate_buzz_coefficient function to map Hz to 0-100%
+    #if raw_rolloff_hz > 0:
+    #    # E.g., baseline un-buzzed = 500Hz, highly buzzed = 4000Hz
+    #    buzz_percent = np.clip(((raw_rolloff_hz - 500.0) / (4000.0 - 500.0)) * 100.0, 0, 100)
+    #else:
+    #    buzz_percent = np.nan
+#
+    #global rolloff_history
+    #rolloff_history = np.roll(rolloff_history, -1)
+    #
+    ## Hide the line during total silence
+    #if np.max(np.abs(current_audio)) < 0.001 or raw_rolloff_hz < 0:
+    #    rolloff_history[-1] = np.nan
+    #else:
+    #    rolloff_history[-1] = buzz_percent
+        
+    #rolloff_curve.setData(rolloff_history)
+
+    # ---------------------------------------------------------
+    # 2. UPDATE HARMONIC SPECTRUM GRAPH (OPTIMIZED)
+    # ---------------------------------------------------------
+    ## We only need the most recent 100ms for this
+    #recent_audio = current_audio[-int(SAMPLE_RATE * 0.100):]
+    
+    # We pass the pitch_hz we already calculated earlier in the loop!
+    harmonics = audio_data.get("harmonic_series")
+    
+    if len(harmonics["freqs"]) > 0:
+        # Give the exact harmonic coordinates to the graph
+        spectrum_curve.setData(harmonics["freqs"], harmonics["mags"])
+    else:
+        # If silent or unvoiced, clear the dots
+        spectrum_curve.setData([], [])
+    
+    # --- UPDATE DUAL ROLLOFF GRAPH ---
+    h_hz = audio_data.get("harmonic_rolloff", -1.0)
+    n_hz = audio_data.get("noise_rolloff", -1.0)
+    
+    global harmonic_history, noise_history
+    harmonic_history = np.roll(harmonic_history, -1)
+    noise_history = np.roll(noise_history, -1)
+    
+    # Check for absolute silence
+    if np.max(np.abs(current_audio)) < 0.001 or h_hz < 0:
+        harmonic_history[-1] = np.nan
+        noise_history[-1] = np.nan
+    else:
+        # THE FIX: Use your actual live pitch as the 0% floor! 
+        # (With a fallback of 200Hz just in case it's unvoiced breath noise)
+        min_hz = pitch_hz if pitch_hz > 0 else 200.0
+        max_hz = 4000.0
+        
+        # Convert raw Hz to a 0-100% coefficient dynamically
+        h_percent = np.clip(((h_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
+        n_percent = np.clip(((n_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
+
+        harmonic_history[-1] = h_percent
+        noise_history[-1] = n_percent
+
+    # Render lines
+    harmonic_curve.setData(harmonic_history)
+    noise_curve.setData(noise_history)
 
 
 # --- START THE LOOP ---
@@ -787,6 +935,8 @@ directmicrophonedatatoggle=True
 #        except Exception as e:
 #            print(f"\nCRITICAL AUDIO ERROR: {e}")
 #            print("Note: Exclusive Mode requires your SAMPLE_RATE to perfectly match your hardware's native rate.")
+
+
 def run():
     # 1. Setup the stream parameters using the exact device you picked!
     stream_kwargs = {
