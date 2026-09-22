@@ -69,6 +69,7 @@ TOTAL_WINDOW_SECONDS=10.0
 BUFFER_SECONDS = 2.0    
 UPDATE_INTERVAL_MS = 30    # 30ms = ~33 FPS (Smoother) #changed to 250 cuz laggy on non gpu device
 DEVICE_INDEX = None
+ENABLE_LOGGING = True
 
 
 # --- DEVICE SELECTION MENU ---
@@ -666,7 +667,8 @@ def update_dashboard():
     #print(f"Audio pitch: {pitch_hz}")
     
     # --- NEW: Log the data for this timestep ---
-    data_logger.log_timestep(audio_data)
+    if ENABLE_LOGGING and data_logger is not None:
+        data_logger.log_timestep(audio_data)
 
     #print(librosa.hz_to_mel(pitch_hz))
     global max_mel
@@ -1004,8 +1006,11 @@ def update_dashboard():
 
 
 # --- START THE LOOP ---
-# Initialize the logger before starting the dashboard timer
-data_logger = AudioSessionLogger()
+# Initialize the logger only if the flag is True
+if ENABLE_LOGGING:
+    data_logger = AudioSessionLogger()
+else:
+    data_logger = None
 
 # PyQtGraph uses QTimer instead of Matplotlib's FuncAnimation
 timer = QtCore.QTimer()
