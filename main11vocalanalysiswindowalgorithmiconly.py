@@ -35,23 +35,29 @@ class NumpyEncoder(json.JSONEncoder):
         return super(NumpyEncoder, self).default(obj)
 
 class AudioSessionLogger:
-    def __init__(self, base_folder="audio_logs"):
+    def __init__(self, base_folder="audio_logs", source_name="live_mic"):
         os.makedirs(base_folder, exist_ok=True)
         # Single log file named with the absolute date and time
         session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.filepath = os.path.join(base_folder, f"session_{session_id}.jsonl")
+
+        # Extract just the filename without the path or extension (e.g., "test_audio")
+        safe_name = os.path.splitext(os.path.basename(source_name))[0]
         
+        self.filepath = os.path.join(base_folder, f"{safe_name}_{session_id}.jsonl")
+
         # Lock in the initialization time
         self.start_time = time.time()
         print(f"Logging all audio data to: {self.filepath}")
 
-    def log_timestep(self, audio_data):
-        # Calculate time since initialization
-        relative_time = time.time() - self.start_time
-        
-        # Bundle the relative time with the data
+    def log_timestep(self, audio_data, acoustic_time=None):
+        # If no time is provided (live mic mode), calculate it based on the real-world clock
+        if acoustic_time is None:
+            acoustic_time = time.time() - self.start_time
+
+        # Bundle the exact acoustic time with the data
         log_entry = {
-            "time_since_start": relative_time,
+            "audio_timestamp": acoustic_time,
             "data": audio_data
         }
         
@@ -72,42 +78,50 @@ DEVICE_INDEX = None
 ENABLE_LOGGING = True
 
 
-# --- DEVICE SELECTION MENU ---
-def prompt_for_device():
+# --- INPUT SELECTION MENU ---
+def prompt_for_input():
     print("\n" + "="*40)
     print("      AVAILABLE AUDIO INPUTS")
     print("="*40)
     
-    # Get the raw list of every audio device on the computer
     devices = sd.query_devices()
     valid_indices = []
-    
-    # Loop through and only print the ones that have input channels (microphones)
     for i, dev in enumerate(devices):
         if dev['max_input_channels'] > 0:
-            # We print the hostapi name too so you know if you are picking WASAPI or MME
             api_name = sd.query_hostapis(dev['hostapi'])['name']
             print(f"[{i}] {dev['name']}  ({api_name})")
             valid_indices.append(i)
             
     print("="*40)
+    print("OPTION 1: Type a number from the list above for Live Microphone.")
+    print("OPTION 2: Drag and drop an audio file (.wav, .flac, .mp3) here and press Enter.")
     
-    # Trap the user in a loop until they give us a valid number
     while True:
+        user_input = input("\nEnter choice: ").strip()
+        
+        # Remove invisible quotes if the user dragged and dropped a file with spaces
+        user_input = user_input.strip('"').strip("'")
+        
+        # 1. Check if the user dropped a valid file
+        if os.path.isfile(user_input):
+            print(f"\n--> Selected File: {user_input}\n")
+            return None, user_input
+        
+        # 2. Check if the user typed a microphone number
         try:
-            user_input = input("\nEnter the number of the microphone to use: ")
             selected_index = int(user_input)
-            
             if selected_index in valid_indices:
-                print(f"\n--> Selected: {devices[selected_index]['name']}\n")
-                return selected_index
+                print(f"\n--> Selected Mic: {devices[selected_index]['name']}\n")
+                return selected_index, None
             else:
-                print("Invalid number. Please pick a number from the list above.")
+                print("Invalid microphone number. Please pick a number from the list.")
         except ValueError:
-            print("Please type a number.")
+            print("File not found, or invalid number. Please try again.")
 
 # Set the DEVICE_INDEX using our new menu!
-DEVICE_INDEX = prompt_for_device()
+# Set both variables simultaneously 
+DEVICE_INDEX, INPUT_FILE_PATH = prompt_for_input()
+
 
 # 1. get vertical resolution
 n_fft=1024
@@ -119,11 +133,18 @@ resolutionfactor=16
 #window_step=int(65536/resolutionfactor) #was 256 # i don't understand why this is the magic number that makes each pixel a square
 window_step=int(4096*4/resolutionfactor) #was 256 # i don't understand why this is the magic number that makes each pixel a square
 
-# Ask the computer for the stats of this specific microphone
-device_info = sd.query_devices(DEVICE_INDEX, 'input')
-# Pull out the sample rate and convert it to an integer
-SAMPLE_RATE = int(device_info['default_samplerate'])
-print(f"Microphone detected! Running at {SAMPLE_RATE} Hz")
+# --- INITIALIZE AUDIO SOURCE ---
+FILE_AUDIO_DATA = None
+if INPUT_FILE_PATH:
+    print("Loading audio file (this may take a moment)...")
+    FILE_AUDIO_DATA, SAMPLE_RATE = librosa.load(INPUT_FILE_PATH, sr=None, mono=True)
+    print(f"File loaded! Native Sample Rate: {SAMPLE_RATE} Hz")
+else:
+    # Ask the computer for the stats of this specific microphone
+    device_info = sd.query_devices(DEVICE_INDEX, 'input')
+    # Pull out the sample rate and convert it to an integer
+    SAMPLE_RATE = int(device_info['default_samplerate'])
+    print(f"Microphone detected! Running at {SAMPLE_RATE} Hz")
 
 MAX_COLUMNS = int(TOTAL_WINDOW_SECONDS * SAMPLE_RATE / window_step)
 
@@ -304,10 +325,15 @@ spectrum_curve = p_spectrum.plot(pen=pg.mkPen('y', width=2), symbol='o', symbolB
 #print("Calibration complete. Starting dashboard.")
 
 print("Shhh... Calibrating room noise for 2 seconds...")
-# 1. Synchronously record 2 seconds of real audio
-calibration_audio = sd.rec(int(SAMPLE_RATE * 2.0), samplerate=SAMPLE_RATE, channels=1, device=DEVICE_INDEX)
-sd.wait() # Freeze the program until the 2 seconds are up
-calibration_audio = calibration_audio.flatten()
+if INPUT_FILE_PATH:
+    # Pull the first 2 seconds from the file itself for the noise profile
+    calib_samples = min(int(SAMPLE_RATE * 2.0), len(FILE_AUDIO_DATA))
+    calibration_audio = FILE_AUDIO_DATA[:calib_samples]
+else:
+    # 1. Synchronously record 2 seconds of real audio
+    calibration_audio = sd.rec(int(SAMPLE_RATE * 2.0), samplerate=SAMPLE_RATE, channels=1, device=DEVICE_INDEX)
+    sd.wait() # Freeze the program until the 2 seconds are up
+    calibration_audio = calibration_audio.flatten()
 
 # 2. We process in 100ms chunks live, so our noise profile must also be 100ms long!
 chunk_size = int(SAMPLE_RATE * 0.100)
@@ -1008,7 +1034,10 @@ def update_dashboard():
 # --- START THE LOOP ---
 # Initialize the logger only if the flag is True
 if ENABLE_LOGGING:
-    data_logger = AudioSessionLogger()
+    if INPUT_FILE_PATH:
+        data_logger = AudioSessionLogger(source_name=INPUT_FILE_PATH)
+    else:
+        data_logger = AudioSessionLogger(source_name="live_mic")
 else:
     data_logger = None
 
@@ -1087,37 +1116,92 @@ directmicrophonedatatoggle=True
 
 
 def run():
-    # 1. Setup the stream parameters using the exact device you picked!
-    stream_kwargs = {
-        'device': DEVICE_INDEX,
-        'channels': 1,
-        'samplerate': SAMPLE_RATE,
-        'callback': audio_callback,
-        'blocksize': int(SAMPLE_RATE * 0.03) 
-    }
-
-    # 2. Check if the device you picked is a WASAPI device
-    devices = sd.query_devices()
-    selected_device = devices[DEVICE_INDEX]
-    hostapi_name = sd.query_hostapis(selected_device['hostapi'])['name']
-
-    if 'WASAPI' in hostapi_name:
-        print("WASAPI selected. Engaging Exclusive Mode to bypass Windows noise gates...")
-        # Apply the magic flag that blocks Windows from modifying the audio
-        stream_kwargs['extra_settings'] = sd.WasapiSettings(exclusive=True)
+    if INPUT_FILE_PATH:
+        # File Mode: Run the deterministic, non-live loop
+        process_file_offline(INPUT_FILE_PATH)
     else:
-        print(f"Standard audio API detected ({hostapi_name})...")
+        # Live Mic Mode: Use the hardware stream and QTimer
+        timer.start(UPDATE_INTERVAL_MS)
+        # 1. Setup the stream parameters using the exact device you picked!
+        stream_kwargs = {
+            'device': DEVICE_INDEX,
+            'channels': 1,
+            'samplerate': SAMPLE_RATE,
+            'callback': audio_callback,
+            'blocksize': int(SAMPLE_RATE * 0.03) 
+        }
 
-    # 3. Start the Stream!
-    try:
-        stream = sd.InputStream(**stream_kwargs)
-        with stream:
-            print("Microphone Active. Starting Dashboard...")
-            pg.exec() # Keeps the application running
+        # 2. Check if the device you picked is a WASAPI device
+        devices = sd.query_devices()
+        selected_device = devices[DEVICE_INDEX]
+        hostapi_name = sd.query_hostapis(selected_device['hostapi'])['name']
+
+        if 'WASAPI' in hostapi_name:
+            print("WASAPI selected. Engaging Exclusive Mode to bypass Windows noise gates...")
+            # Apply the magic flag that blocks Windows from modifying the audio
+            stream_kwargs['extra_settings'] = sd.WasapiSettings(exclusive=True)
+        else:
+            print(f"Standard audio API detected ({hostapi_name})...")
+
+        # 3. Start the Stream!
+        try:
+            stream = sd.InputStream(**stream_kwargs)
+            with stream:
+                print("Microphone Active. Starting Dashboard...")
+                pg.exec() # Keeps the application running
+
+        except Exception as e:
+            print(f"\nCRITICAL AUDIO ERROR: {e}")
+            print("Note: Exclusive Mode requires your SAMPLE_RATE to perfectly match your hardware's native rate.")
+
+def process_file_offline(file_path):
+    print(f"Loading offline file for dataset alignment: {file_path}")
+    file_audio, sr = librosa.load(file_path, sr=None, mono=True)
+    
+    # Define a strict hop length (e.g., 30ms steps, typical for datasets)
+    step_duration_sec = UPDATE_INTERVAL_MS / 1000.0
+    hop_length_samples = int(sr * step_duration_sec)
+    
+    # We need a rolling buffer equal to BUFFER_SECONDS (2.0s) to feed the math
+    buffer_samples = int(sr * BUFFER_SECONDS)
+    
+    # Pad the beginning of the audio with silence so the very first 
+    # timeframe has enough "history" to fill the 2-second buffer
+    padded_audio = np.pad(file_audio, (buffer_samples, 0), mode='constant')
+    
+    print(f"Processing {len(file_audio) // hop_length_samples} total frames...")
+    
+    # March through the file using a strict, fixed step size
+    global audio_buffer, total_samples_received, samples_processed
+    
+    for current_head in range(buffer_samples, len(padded_audio), hop_length_samples):
+        # 1. Calculate the exact timestamp from the file array index
+        # (Subtracting the buffer padding so time starts exactly at 0.000s)
+        acoustic_time = (current_head - buffer_samples) / sr
+        
+        # 2. Extract the exact window
+        audio_buffer = padded_audio[current_head - buffer_samples : current_head]
+        
+        # Mimic the live variables so the UI math doesn't break
+        total_samples_received += hop_length_samples
+        
+        # 3. Analyze data
+        audio_data = get_audio_data(audio_buffer, BUFFER_SECONDS, sr, noise_power_profile)
+        
+        # 4. Log data with the mathematically perfect timestamp
+        if ENABLE_LOGGING and data_logger is not None:
+            data_logger.log_timestep(audio_data, acoustic_time)
             
-    except Exception as e:
-        print(f"\nCRITICAL AUDIO ERROR: {e}")
-        print("Note: Exclusive Mode requires your SAMPLE_RATE to perfectly match your hardware's native rate.")
+        # 5. Update the UI
+        # We manually call process_live_audio to update the spectrogram bitmap
+        bitmap, actual_new_cols = process_live_audio(audio_buffer, sr)
+        if actual_new_cols >= 1:
+            img.setImage(bitmap, autoLevels=False)
+            
+        # 6. Force PyQtGraph to render this exact frame before continuing the loop
+        app.processEvents()
+
+    print("\n--- Offline Processing Complete ---")
 
 if __name__ == "__main__":
     run()
