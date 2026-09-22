@@ -23,6 +23,7 @@ import json
 from datetime import datetime
 import time
 import threading  # --- NEW: Required for non-blocking terminal input ---
+import argparse  # --- NEW: For processing terminal commands ---
 
 class NumpyEncoder(json.JSONEncoder):
     """Custom encoder to convert NumPy data types into standard Python types for JSON."""
@@ -121,7 +122,21 @@ def prompt_for_input():
 
 # Set the DEVICE_INDEX using our new menu!
 # Set both variables simultaneously 
-DEVICE_INDEX, INPUT_FILE_PATH = prompt_for_input()
+# --- CLI ARGUMENT PARSING ---
+parser = argparse.ArgumentParser(description="Vocal Analysis GUI & Headless Batch Tool")
+parser.add_argument('--input', type=str, help='Direct path to input audio file', default=None)
+parser.add_argument('--output', type=str, help='Directory to save the log file', default='audio_logs')
+args = parser.parse_args()
+
+HEADLESS_MODE = args.input is not None
+OUTPUT_FOLDER = args.output
+
+if HEADLESS_MODE:
+    INPUT_FILE_PATH = args.input
+    DEVICE_INDEX = None
+    print(f"Starting in HEADLESS BATCH MODE.\nInput: {INPUT_FILE_PATH}\nOutput: {OUTPUT_FOLDER}")
+else:
+    DEVICE_INDEX, INPUT_FILE_PATH = prompt_for_input()
 
 
 # 1. get vertical resolution
@@ -162,150 +177,151 @@ cmap_name="magma"
 # ask before window initialization
 
 # --- PYQTGRAPH UI SETUP ---
-# Create the application
-app = pg.mkQApp("Live Audio Dashboard")
+if not HEADLESS_MODE:
+    # Create the application
+    app = pg.mkQApp("Live Audio Dashboard")
 
-# Create the main window
-win = pg.GraphicsLayoutWidget(show=True, title="Live Audio Information")
-win.resize(1000, 600)
-win.setBackground('#886688')
+    # Create the main window
+    win = pg.GraphicsLayoutWidget(show=True, title="Live Audio Information")
+    win.resize(1000, 600)
+    win.setBackground('#886688')
 
-left_col = win.addLayout()
-right_col = win.addLayout()
+    left_col = win.addLayout()
+    right_col = win.addLayout()
 
-# Add a plot for the spectrogram
-p1 = left_col.addPlot(title="Spectrogram")
-p1.hideAxis('bottom')
-p1.hideAxis('left')
+    # Add a plot for the spectrogram
+    p1 = left_col.addPlot(title="Spectrogram")
+    p1.hideAxis('bottom')
+    p1.hideAxis('left')
 
-# Create the ImageItem and add it to the plot
-img = pg.ImageItem()
-p1.addItem(img)
+    # Create the ImageItem and add it to the plot
+    img = pg.ImageItem()
+    p1.addItem(img)
 
-# --- NEW: Setup the Pitch Plot ---
-left_col.nextRow() # This tells PyQtGraph to go to the line below the spectrogram
-p2 = left_col.addPlot(title="Pitch Tracker (Hz)")
-p2.setYRange(0, 1000) # Locks the Y-axis to standard human voice range
-p2.showGrid(x=True, y=True, alpha=0.3)
+    # --- NEW: Setup the Pitch Plot ---
+    left_col.nextRow() # This tells PyQtGraph to go to the line below the spectrogram
+    p2 = left_col.addPlot(title="Pitch Tracker (Hz)")
+    p2.setYRange(0, 1000) # Locks the Y-axis to standard human voice range
+    p2.showGrid(x=True, y=True, alpha=0.3)
 
-# Create a green line graph to hold our data
-pitch_curve = p2.plot(pen=pg.mkPen('g', width=2))
+    # Create a green line graph to hold our data
+    pitch_curve = p2.plot(pen=pg.mkPen('g', width=2))
 
-# --- NEW: Setup the Formant Plot ---
-left_col.nextRow() # Drop down to a new row
-p3 = left_col.addPlot(title="Formant Tracker (Hz)")
-p3.setYRange(0, 5500) # Praat searches up to 5500Hz by default
-p3.showGrid(x=True, y=True, alpha=0.3)
+    # --- NEW: Setup the Formant Plot ---
+    left_col.nextRow() # Drop down to a new row
+    p3 = left_col.addPlot(title="Formant Tracker (Hz)")
+    p3.setYRange(0, 5500) # Praat searches up to 5500Hz by default
+    p3.showGrid(x=True, y=True, alpha=0.3)
 
-# Tell the UI to drop down to the next row before drawing the graphs!
-left_col.nextRow()
-# --- NEW: Create the Text Readout ---
-# size='20pt' makes it nice and big, color='w' makes it white
-readout_label = left_col.addLabel(text="Pitch: -- Hz | Note: --", size='20pt', bold=True, color='w')
-
-
-# --- NEW: Setup the Thickness / Weight Plot ---
-left_col.nextRow() # Drop down to a new row
-p4 = left_col.addPlot(title="Thickness / Weight (%) (green/red/blue); Spectral slope: Base (Magenta), Derived (Yellow)")
-p4.setYRange(0, 100) # Match the HTML 0-100% scale
-p4.showGrid(x=True, y=True, alpha=0.3)
-
-#right_col.nextRow() # Drop down to a new row
-# 1. F1 vs F2 Plot (The Vowel Space)
-p_f12 = right_col.addPlot(title="Vowel Space (F1 vs F2)")
-p_f12.setLabel('bottom', "F1 (Hz)")
-p_f12.setLabel('left', "F2 (Hz)")
-# We lock the ranges to standard human vowel limits so the dot actually moves around the screen
-p_f12.getAxis('left').setWidth(50) # Prevents text-width jitter
-p_f12.setXRange(200, 1200) # F1 range
-p_f12.setYRange(600, 3000) # F2 range
-p_f12.disableAutoRange() # Locks the axes permanently
-p_f12.showGrid(x=True, y=True, alpha=0.3)
-#p_f12.setAspectLocked(True, ratio=1)
-p_f12.setFixedWidth(300)
-p_f12.setFixedHeight(300)
-
-# Create the dot! pen=None means no lines, symbol='o' means circle.
-dot_f12 = p_f12.plot(pen=None, symbol='o', symbolBrush='y', symbolSize=15)
-
-# 2. F3 vs F4 Plot
-# By NOT calling right_col.nextRow() here, PyQtGraph puts this right next to the F1/F2 plot!
-right_col.nextRow()
-p_f34 = right_col.addPlot(title="F3 vs F4 Space")
-p_f34.setLabel('bottom', "F3 (Hz)")
-p_f34.setLabel('left', "F4 (Hz)")
-p_f34.getAxis('left').setWidth(50) # Prevents text-width jitter
-p_f34.setXRange(1500, 4000) # F3 range
-p_f34.setYRange(2500, 5000) # F4 range
-p_f34.disableAutoRange() # Locks the axes permanently
-p_f34.showGrid(x=True, y=True, alpha=0.3)
-#p_f34.setAspectLocked(True, ratio=1)
-p_f34.setFixedWidth(300)
-p_f34.setFixedHeight(300)
-
-# Create a cyan dot for this one
-dot_f34 = p_f34.plot(pen=None, symbol='o', symbolBrush='c', symbolSize=15)
-
-# Create 3 differently colored curves to match the HTML color bands!
-weight_green_curve = p4.plot(pen=pg.mkPen(color=(0, 255, 0), width=2), connect='finite')
-weight_red_curve = p4.plot(pen=pg.mkPen(color=(255, 0, 0), width=2), connect='finite')
-weight_blue_curve = p4.plot(pen=pg.mkPen(color=(0, 127, 255), width=2), connect='finite')
-
-# Add spectrol slope to weight curve
-spectral_slope_base_curve = p4.plot(pen=pg.mkPen('m', width=2),connect='finite')
-spectral_slope_derived_curve = p4.plot(pen=pg.mkPen('y', width=2),connect='finite')
-
-# Create 5 differently colored lines for F1 through F5
-f1_curve = p3.plot(pen=pg.mkPen(color=(0, 255, 0), width=2))
-f2_curve = p3.plot(pen=pg.mkPen(color=(0, 255, 127), width=2))
-f3_curve = p3.plot(pen=pg.mkPen(color=(255, 0, 0), width=2))
-f4_curve = p3.plot(pen=pg.mkPen(color=(255, 0, 255), width=2))
-f5_curve = p3.plot(pen=pg.mkPen(color=(255, 255, 255), width=2))
+    # Tell the UI to drop down to the next row before drawing the graphs!
+    left_col.nextRow()
+    # --- NEW: Create the Text Readout ---
+    # size='20pt' makes it nice and big, color='w' makes it white
+    readout_label = left_col.addLabel(text="Pitch: -- Hz | Note: --", size='20pt', bold=True, color='w')
 
 
+    # --- NEW: Setup the Thickness / Weight Plot ---
+    left_col.nextRow() # Drop down to a new row
+    p4 = left_col.addPlot(title="Thickness / Weight (%) (green/red/blue); Spectral slope: Base (Magenta), Derived (Yellow)")
+    p4.setYRange(0, 100) # Match the HTML 0-100% scale
+    p4.showGrid(x=True, y=True, alpha=0.3)
 
-# --- Setup the Dual Rolloff Plot ---
-left_col.nextRow() 
-p5 = left_col.addPlot(title="Spectral Cutoff: Tone (Cyan) & Breath (Gray); Spectral Center of Mass: Base (Magenta), Derived (Yellow)")
-p5.setYRange(0, 100) # 0 to 100% scale
-p5.showGrid(x=True, y=True, alpha=0.3)
+    #right_col.nextRow() # Drop down to a new row
+    # 1. F1 vs F2 Plot (The Vowel Space)
+    p_f12 = right_col.addPlot(title="Vowel Space (F1 vs F2)")
+    p_f12.setLabel('bottom', "F1 (Hz)")
+    p_f12.setLabel('left', "F2 (Hz)")
+    # We lock the ranges to standard human vowel limits so the dot actually moves around the screen
+    p_f12.getAxis('left').setWidth(50) # Prevents text-width jitter
+    p_f12.setXRange(200, 1200) # F1 range
+    p_f12.setYRange(600, 3000) # F2 range
+    p_f12.disableAutoRange() # Locks the axes permanently
+    p_f12.showGrid(x=True, y=True, alpha=0.3)
+    #p_f12.setAspectLocked(True, ratio=1)
+    p_f12.setFixedWidth(300)
+    p_f12.setFixedHeight(300)
 
-# Create two curves: Solid Cyan for Harmonics (Tone), Dashed Gray for Noise (Breath)
-harmonic_curve = p5.plot(pen=pg.mkPen('c', width=2))
-#noise_curve = p5.plot(pen=pg.mkPen(color=(150, 150, 150), width=2, style=QtCore.Qt.DashLine))
-#noise_curve = p5.plot(pen=pg.mkPen(color=(150, 150, 150), width=2, style=2))
-noise_curve = p5.plot(pen=pg.mkPen(color=(150, 150, 150), width=2, style=QtCore.Qt.PenStyle.DashLine))
-#create more lines spectral slope and spectal center of gravity
-spectral_center_of_gravity_base_curve = p5.plot(pen=pg.mkPen('m', width=2))
-spectral_center_of_gravity_derived_curve = p5.plot(pen=pg.mkPen('y', width=2))
+    # Create the dot! pen=None means no lines, symbol='o' means circle.
+    dot_f12 = p_f12.plot(pen=None, symbol='o', symbolBrush='y', symbolSize=15)
 
-# Setup history arrays for both
-harmonic_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
-noise_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
-spectral_slope_base_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
-spectral_slope_derived_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
-spectral_center_of_gravity_base_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
-spectral_center_of_gravity_derived_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
+    # 2. F3 vs F4 Plot
+    # By NOT calling right_col.nextRow() here, PyQtGraph puts this right next to the F1/F2 plot!
+    right_col.nextRow()
+    p_f34 = right_col.addPlot(title="F3 vs F4 Space")
+    p_f34.setLabel('bottom', "F3 (Hz)")
+    p_f34.setLabel('left', "F4 (Hz)")
+    p_f34.getAxis('left').setWidth(50) # Prevents text-width jitter
+    p_f34.setXRange(1500, 4000) # F3 range
+    p_f34.setYRange(2500, 5000) # F4 range
+    p_f34.disableAutoRange() # Locks the axes permanently
+    p_f34.showGrid(x=True, y=True, alpha=0.3)
+    #p_f34.setAspectLocked(True, ratio=1)
+    p_f34.setFixedWidth(300)
+    p_f34.setFixedHeight(300)
 
-# --- NEW: Setup the Live Harmonic Spectrum Plot ---
-right_col.nextRow()
-p_spectrum = right_col.addPlot(title="Live Harmonic Spectrum")
-p_spectrum.setLabel('bottom', "Frequency (Hz)")
-p_spectrum.setLabel('left', "Magnitude (dB)")
-p_spectrum.setXRange(0, 4500) # 4500Hz captures the most defining vocal harmonics
-p_spectrum.setYRange(-60, 0)  # Standard dB visibility range
-p_spectrum.showGrid(x=True, y=True, alpha=0.3)
-p_spectrum.setFixedWidth(300)
-p_spectrum.setFixedHeight(200)
+    # Create a cyan dot for this one
+    dot_f34 = p_f34.plot(pen=None, symbol='o', symbolBrush='c', symbolSize=15)
 
-## Create a bright yellow curve for the raw audio spectrum
-#spectrum_curve = p_spectrum.plot(pen=pg.mkPen('y', width=1.5))
-## Create discrete yellow dots instead of a continuous line
-#spectrum_curve = p_spectrum.plot(pen=None, symbol='o', symbolBrush='y', symbolSize=8)
-## Create a solid yellow line
-#spectrum_curve = p_spectrum.plot(pen=pg.mkPen('y', width=2))
-# Create a solid yellow line with dots at the exact harmonic frequencies
-spectrum_curve = p_spectrum.plot(pen=pg.mkPen('y', width=2), symbol='o', symbolBrush='y', symbolSize=6)
+    # Create 3 differently colored curves to match the HTML color bands!
+    weight_green_curve = p4.plot(pen=pg.mkPen(color=(0, 255, 0), width=2), connect='finite')
+    weight_red_curve = p4.plot(pen=pg.mkPen(color=(255, 0, 0), width=2), connect='finite')
+    weight_blue_curve = p4.plot(pen=pg.mkPen(color=(0, 127, 255), width=2), connect='finite')
+
+    # Add spectrol slope to weight curve
+    spectral_slope_base_curve = p4.plot(pen=pg.mkPen('m', width=2),connect='finite')
+    spectral_slope_derived_curve = p4.plot(pen=pg.mkPen('y', width=2),connect='finite')
+
+    # Create 5 differently colored lines for F1 through F5
+    f1_curve = p3.plot(pen=pg.mkPen(color=(0, 255, 0), width=2))
+    f2_curve = p3.plot(pen=pg.mkPen(color=(0, 255, 127), width=2))
+    f3_curve = p3.plot(pen=pg.mkPen(color=(255, 0, 0), width=2))
+    f4_curve = p3.plot(pen=pg.mkPen(color=(255, 0, 255), width=2))
+    f5_curve = p3.plot(pen=pg.mkPen(color=(255, 255, 255), width=2))
+
+
+
+    # --- Setup the Dual Rolloff Plot ---
+    left_col.nextRow() 
+    p5 = left_col.addPlot(title="Spectral Cutoff: Tone (Cyan) & Breath (Gray); Spectral Center of Mass: Base (Magenta), Derived (Yellow)")
+    p5.setYRange(0, 100) # 0 to 100% scale
+    p5.showGrid(x=True, y=True, alpha=0.3)
+
+    # Create two curves: Solid Cyan for Harmonics (Tone), Dashed Gray for Noise (Breath)
+    harmonic_curve = p5.plot(pen=pg.mkPen('c', width=2))
+    #noise_curve = p5.plot(pen=pg.mkPen(color=(150, 150, 150), width=2, style=QtCore.Qt.DashLine))
+    #noise_curve = p5.plot(pen=pg.mkPen(color=(150, 150, 150), width=2, style=2))
+    noise_curve = p5.plot(pen=pg.mkPen(color=(150, 150, 150), width=2, style=QtCore.Qt.PenStyle.DashLine))
+    #create more lines spectral slope and spectal center of gravity
+    spectral_center_of_gravity_base_curve = p5.plot(pen=pg.mkPen('m', width=2))
+    spectral_center_of_gravity_derived_curve = p5.plot(pen=pg.mkPen('y', width=2))
+
+    # Setup history arrays for both
+    harmonic_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
+    noise_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
+    spectral_slope_base_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
+    spectral_slope_derived_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
+    spectral_center_of_gravity_base_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
+    spectral_center_of_gravity_derived_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
+
+    # --- NEW: Setup the Live Harmonic Spectrum Plot ---
+    right_col.nextRow()
+    p_spectrum = right_col.addPlot(title="Live Harmonic Spectrum")
+    p_spectrum.setLabel('bottom', "Frequency (Hz)")
+    p_spectrum.setLabel('left', "Magnitude (dB)")
+    p_spectrum.setXRange(0, 4500) # 4500Hz captures the most defining vocal harmonics
+    p_spectrum.setYRange(-60, 0)  # Standard dB visibility range
+    p_spectrum.showGrid(x=True, y=True, alpha=0.3)
+    p_spectrum.setFixedWidth(300)
+    p_spectrum.setFixedHeight(200)
+
+    ## Create a bright yellow curve for the raw audio spectrum
+    #spectrum_curve = p_spectrum.plot(pen=pg.mkPen('y', width=1.5))
+    ## Create discrete yellow dots instead of a continuous line
+    #spectrum_curve = p_spectrum.plot(pen=None, symbol='o', symbolBrush='y', symbolSize=8)
+    ## Create a solid yellow line
+    #spectrum_curve = p_spectrum.plot(pen=pg.mkPen('y', width=2))
+    # Create a solid yellow line with dots at the exact harmonic frequencies
+    spectrum_curve = p_spectrum.plot(pen=pg.mkPen('y', width=2), symbol='o', symbolBrush='y', symbolSize=6)
 
 # Set up the Colormap (Magma)
 #colormap = pg.colormap.get('magma')
@@ -1055,9 +1071,9 @@ def update_dashboard(acoustic_time=None):
 # Initialize the logger only if the flag is True
 if ENABLE_LOGGING:
     if INPUT_FILE_PATH:
-        data_logger = AudioSessionLogger(source_name=INPUT_FILE_PATH)
+        data_logger = AudioSessionLogger(base_folder=OUTPUT_FOLDER, source_name=INPUT_FILE_PATH)
     else:
-        data_logger = AudioSessionLogger(source_name="live_mic")
+        data_logger = AudioSessionLogger(base_folder=OUTPUT_FOLDER, source_name="live_mic")
 else:
     data_logger = None
 
@@ -1202,28 +1218,37 @@ def process_file_offline(file_path):
         
         # 2. Extract the exact window
         audio_buffer = padded_audio[current_head - buffer_samples : current_head]
-        
-        # Mimic the live variables so the UI math doesn't break
-        total_samples_received += hop_length_samples
 
-        # 3. THE FIX: Let the main dashboard handle EVERYTHING (math, logging, and ALL 1D graphs)
-        update_dashboard(acoustic_time=acoustic_time)
-
-        ## 3. Analyze data
-        #audio_data = get_audio_data(audio_buffer, BUFFER_SECONDS, sr, noise_power_profile)
-        #
-        ## 4. Log data with the mathematically perfect timestamp
-        #if ENABLE_LOGGING and data_logger is not None:
-        #    data_logger.log_timestep(audio_data, acoustic_time)
-        #    
-        ## 5. Update the UI
-        ## We manually call process_live_audio to update the spectrogram bitmap
-        #bitmap, actual_new_cols = process_live_audio(audio_buffer, sr)
-        #if actual_new_cols >= 1:
-        #    img.setImage(bitmap, autoLevels=False)
+        if HEADLESS_MODE:
+            # FAST BATCH PROCESSING: No graphics, just raw math and logging
+            audio_data = get_audio_data(audio_buffer, BUFFER_SECONDS, sr, noise_power_profile)
+            if ENABLE_LOGGING and data_logger is not None:
+                data_logger.log_timestep(audio_data, acoustic_time)
             
-        # 6. Force PyQtGraph to render this exact frame before continuing the loop
-        app.processEvents()
+            # Print a progress indicator that overwrites itself on the same console line
+            print(f"Processed {acoustic_time:.2f}s...", end='\r')
+        else:
+            # Mimic the live variables so the UI math doesn't break
+            total_samples_received += hop_length_samples
+    
+            # 3. THE FIX: Let the main dashboard handle EVERYTHING (math, logging, and ALL 1D graphs)
+            update_dashboard(acoustic_time=acoustic_time)
+    
+            ## 3. Analyze data
+            #audio_data = get_audio_data(audio_buffer, BUFFER_SECONDS, sr, noise_power_profile)
+            #
+            ## 4. Log data with the mathematically perfect timestamp
+            #if ENABLE_LOGGING and data_logger is not None:
+            #    data_logger.log_timestep(audio_data, acoustic_time)
+            #    
+            ## 5. Update the UI
+            ## We manually call process_live_audio to update the spectrogram bitmap
+            #bitmap, actual_new_cols = process_live_audio(audio_buffer, sr)
+            #if actual_new_cols >= 1:
+            #    img.setImage(bitmap, autoLevels=False)
+                
+            # 6. Force PyQtGraph to render this exact frame before continuing the loop
+            app.processEvents()
 
     print("\n--- Offline Processing Complete ---")
     print("Press Enter in this terminal to close the window and exit...")
