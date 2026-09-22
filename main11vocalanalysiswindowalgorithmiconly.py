@@ -668,7 +668,7 @@ smooth_f4 = None
 # 1.0 is instant teleporting (jittery). 0.05 is extremely slow/laggy. 
 # 0.2 is usually the sweet spot for a snappy but smooth visual.
 SMOOTHING_FACTOR = 0.2
-def update_dashboard():
+def update_dashboard(acoustic_time=None):
     global pitch_history, formant_history
 
     # 1. Bring in all our globals properly!
@@ -695,7 +695,9 @@ def update_dashboard():
     
     # --- NEW: Log the data for this timestep ---
     if ENABLE_LOGGING and data_logger is not None and actual_new_cols > 0:
-        data_logger.log_timestep(audio_data)
+        # THE FIX: Pass acoustic_time (it will be None during Live Mic mode, which is handled gracefully)
+        data_logger.log_timestep(audio_data, acoustic_time)
+        #data_logger.log_timestep(audio_data)
 
     #print(librosa.hz_to_mel(pitch_hz))
     global max_mel
@@ -1025,18 +1027,18 @@ def update_dashboard():
             # (With a fallback of 200Hz just in case it's unvoiced breath noise)
             min_hz = pitch_hz if pitch_hz > 0 else 200.0
             max_hz = 4000.0
-            
+
             # Convert raw Hz to a 0-100% coefficient dynamically
             #h_percent = np.clip(((h_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
             #n_percent = np.clip(((n_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
             h_percent = ((h_hz - min_hz) / (max_hz - min_hz)) * 100.0
             n_percent = ((n_hz - min_hz) / (max_hz - min_hz)) * 100.0
-        
+
             #scogb_percent=np.clip(((scogb_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
             #scogd_percent=np.clip(((scogd_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
             scogb_percent=((scogb_hz - min_hz) / (max_hz - min_hz)) * 100.0
             scogd_percent=((scogd_hz - min_hz) / (max_hz - min_hz)) * 100.0
-    
+
             harmonic_history[-actual_new_cols:] = h_percent
             noise_history[-actual_new_cols:] = n_percent
             spectral_center_of_gravity_base_history[-actual_new_cols:]=scogb_percent
@@ -1203,19 +1205,22 @@ def process_file_offline(file_path):
         
         # Mimic the live variables so the UI math doesn't break
         total_samples_received += hop_length_samples
-        
-        # 3. Analyze data
-        audio_data = get_audio_data(audio_buffer, BUFFER_SECONDS, sr, noise_power_profile)
-        
-        # 4. Log data with the mathematically perfect timestamp
-        if ENABLE_LOGGING and data_logger is not None:
-            data_logger.log_timestep(audio_data, acoustic_time)
-            
-        # 5. Update the UI
-        # We manually call process_live_audio to update the spectrogram bitmap
-        bitmap, actual_new_cols = process_live_audio(audio_buffer, sr)
-        if actual_new_cols >= 1:
-            img.setImage(bitmap, autoLevels=False)
+
+        # 3. THE FIX: Let the main dashboard handle EVERYTHING (math, logging, and ALL 1D graphs)
+        update_dashboard(acoustic_time=acoustic_time)
+
+        ## 3. Analyze data
+        #audio_data = get_audio_data(audio_buffer, BUFFER_SECONDS, sr, noise_power_profile)
+        #
+        ## 4. Log data with the mathematically perfect timestamp
+        #if ENABLE_LOGGING and data_logger is not None:
+        #    data_logger.log_timestep(audio_data, acoustic_time)
+        #    
+        ## 5. Update the UI
+        ## We manually call process_live_audio to update the spectrogram bitmap
+        #bitmap, actual_new_cols = process_live_audio(audio_buffer, sr)
+        #if actual_new_cols >= 1:
+        #    img.setImage(bitmap, autoLevels=False)
             
         # 6. Force PyQtGraph to render this exact frame before continuing the loop
         app.processEvents()
