@@ -18,6 +18,51 @@ import warnings
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore
 
+import os
+import json
+from datetime import datetime
+import time
+
+class NumpyEncoder(json.JSONEncoder):
+    """Custom encoder to convert NumPy data types into standard Python types for JSON."""
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NumpyEncoder, self).default(obj)
+
+class AudioSessionLogger:
+    def __init__(self, base_folder="audio_logs"):
+        os.makedirs(base_folder, exist_ok=True)
+        # Single log file named with the absolute date and time
+        session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.filepath = os.path.join(base_folder, f"session_{session_id}.jsonl")
+        
+        # Lock in the initialization time
+        self.start_time = time.time()
+        print(f"Logging all audio data to: {self.filepath}")
+
+    def log_timestep(self, audio_data):
+        # Calculate time since initialization
+        relative_time = time.time() - self.start_time
+        
+        # Bundle the relative time with the data
+        log_entry = {
+            "time_since_start": relative_time,
+            "data": audio_data
+        }
+        
+        # Append as a single JSON line to the file
+        try:
+            with open(self.filepath, 'a') as f:
+                json.dump(log_entry, f, cls=NumpyEncoder)
+                f.write('\n')
+        except Exception as e:
+            print(f"Failed to log data: {e}")
+
 # --- CONFIGURATION ---
 #SAMPLE_RATE = 22050
 TOTAL_WINDOW_SECONDS=10.0
@@ -619,6 +664,10 @@ def update_dashboard():
     audio_data=get_audio_data(audio_buffer, BUFFER_SECONDS, SAMPLE_RATE, noise_power_profile)
     #print(f"Audio data: {audio_data}")
     #print(f"Audio pitch: {pitch_hz}")
+    
+    # --- NEW: Log the data for this timestep ---
+    data_logger.log_timestep(audio_data)
+
     #print(librosa.hz_to_mel(pitch_hz))
     global max_mel
     pitch_hz=audio_data["pitch"]
@@ -955,6 +1004,9 @@ def update_dashboard():
 
 
 # --- START THE LOOP ---
+# Initialize the logger before starting the dashboard timer
+data_logger = AudioSessionLogger()
+
 # PyQtGraph uses QTimer instead of Matplotlib's FuncAnimation
 timer = QtCore.QTimer()
 timer.timeout.connect(update_dashboard)

@@ -22,3 +22,6 @@ main8neuralnetwork.cpython-313.pyc
 sounds/
 *.pyc
 *.cpython
+audio_logs/
+audio_logs
+audio_logs/*
