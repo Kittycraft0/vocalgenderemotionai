@@ -1231,7 +1231,8 @@ def process_file_offline(file_path):
     # --- NEW: Create a background thread to wait for terminal input ---
     def wait_for_exit():
         input()       # Waits for the user to press Enter
-        app.quit()    # Cleanly shuts down the PyQtGraph application
+        #app.quit()    # Cleanly shuts down the PyQtGraph application
+        os._exit(0)   # THE FIX: Safely and instantly terminates the entire program from the background thread
         
     threading.Thread(target=wait_for_exit, daemon=True).start()
     
