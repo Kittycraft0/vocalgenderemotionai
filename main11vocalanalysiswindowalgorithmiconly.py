@@ -22,6 +22,7 @@ import os
 import json
 from datetime import datetime
 import time
+import threading  # --- NEW: Required for non-blocking terminal input ---
 
 class NumpyEncoder(json.JSONEncoder):
     """Custom encoder to convert NumPy data types into standard Python types for JSON."""
@@ -693,7 +694,7 @@ def update_dashboard():
     #print(f"Audio pitch: {pitch_hz}")
     
     # --- NEW: Log the data for this timestep ---
-    if ENABLE_LOGGING and data_logger is not None:
+    if ENABLE_LOGGING and data_logger is not None and actual_new_cols > 0:
         data_logger.log_timestep(audio_data)
 
     #print(librosa.hz_to_mel(pitch_hz))
@@ -757,31 +758,36 @@ def update_dashboard():
     img.setImage(bitmap, autoLevels=False)
 
 
-    # --- 3. NEW: UPDATE PITCH GRAPH ---
-    # Shift the history array to the left by 1
-    pitch_history = np.roll(pitch_history, -1)
-    
-    # Put the newest pitch on the far right edge
-    pitch_history[-1] = pitch_hz
-
-    # np.where is an inline vectorized if/else statement
-    pitch_history[-1] = np.where(pitch_hz > 0, pitch_hz, np.nan)
-    
-    # Give the array to the curve to draw it!
-    pitch_curve.setData(pitch_history)
-    
-    # --- 5. UPDATE FORMANT GRAPH (VECTORIZED) ---
+    # --- 3. & 5. UPDATE PITCH AND FORMANT GRAPHS ---
     global formant_history
-    formant_history = np.roll(formant_history, -1, axis=1)
-    
-    # Vectorized assignment: If formant > 0, use the value, otherwise insert NaN
-    formant_history[:, -1] = np.where(formants_arr > 0, formants_arr, np.nan)
+    if actual_new_cols > 0:
+        # --- 3. NEW: UPDATE PITCH GRAPH ---
+        # Shift the history array to the left by 1
+        pitch_history = np.roll(pitch_history, -actual_new_cols)
+        
+        # Put the newest pitch on the far right edge
+        pitch_history[-actual_new_cols:] = np.where(pitch_hz > 0, pitch_hz, np.nan) #pitch_hz
+        
+        # np.where is an inline vectorized if/else statement
+        pitch_history[-1] = np.where(pitch_hz > 0, pitch_hz, np.nan)
+        
+        # Give the array to the curve to draw it!
+        pitch_curve.setData(pitch_history)
 
-    f1_curve.setData(formant_history[0])
-    f2_curve.setData(formant_history[1])
-    f3_curve.setData(formant_history[2])
-    f4_curve.setData(formant_history[3])
-    f5_curve.setData(formant_history[4])
+
+        # --- 5. UPDATE FORMANT GRAPH (VECTORIZED) ---
+        formant_history = np.roll(formant_history, -actual_new_cols, axis=1)
+        # Vectorized assignment: If formant > 0, use the value, otherwise insert NaN
+        new_formants = np.where(formants_arr > 0, formants_arr, np.nan)
+        # np.newaxis duplicates the formants across all skipped UI columns to match the spectrogram
+        #formant_history[:, -1] = np.where(formants_arr > 0, formants_arr, np.nan)
+        formant_history[:, -actual_new_cols:] = new_formants[:, np.newaxis]
+
+        f1_curve.setData(formant_history[0])
+        f2_curve.setData(formant_history[1])
+        f3_curve.setData(formant_history[2])
+        f4_curve.setData(formant_history[3])
+        f5_curve.setData(formant_history[4])
 
     
     #bitmap[bitmap.shape[0],np.floor(63-librosa.hz_to_mel(pitch_hz))]=0
@@ -824,37 +830,19 @@ def update_dashboard():
     # ... (existing Formant Graph update code) ...
 
     # --- 10. UPDATE WEIGHT GRAPH (Vectorized Color Bridging) ---
-    global weight_history
-    weight_history = np.roll(weight_history, -1)
-    
-    global spectral_slope_base_history, spectral_slope_derived_history
-    spectral_slope_base_history = np.roll(spectral_slope_base_history,-1)
-    spectral_slope_derived_history = np.roll(spectral_slope_derived_history,-1)
+    global weight_history, spectral_slope_base_history, spectral_slope_derived_history
 
-    
-    # Check for absolute silence using the raw audio buffer to hide the line
-    # also put spectral slope here
-    if np.max(np.abs(current_audio)) < 0.001:
-        weight_history[-1] = np.nan
-        spectral_slope_base_history[-1]=np.nan
-        spectral_slope_derived_history[-1]=np.nan #because THIS one specificalyl flatlines on silence. oh wait no the other sorta does sometimes too.
-    else:
-        weight_history[-1] = weight_percent
-        #ssb_percent=np.clip(((ssb_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
-        #ssd_percent=np.clip(((ssd_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
-        # 3. Update Derived Slope (ONLY draws if a voice/pitch is actively detected)
-        
-        ssb_hz=audio_data.get("spectral_slope_base")
-        ssd_hz=audio_data.get("spectral_slope_derived")
-        #ssb_percent=ssb_hz*10+80
-        #ssd_percent=ssd_hz*10+80
-        #spectral_slope_base_history[-1]=ssb_percent
-        #spectral_slope_derived_history[-1]=ssd_percent
-        print(f"Base: {ssb_hz:.1f} | Derived: {ssd_hz:.1f}")
-        # function to make better visual for the spectral slope rolloff visualization
-        def slope_to_percent(slope):
+    # function to make better visual for the spectral slope rolloff visualization
+    #def slope_to_percent(slope):
+    #    min_slope, max_slope = -35.0, -5.0
+    #    return 100.0 / (1.0 + np.exp(-0.20 * (slope - (-20.0))))
+    #            # function to make better visual for the spectral slope rolloff visualization
+    def slope_to_percent(slope):
+        option=2
+        if option==0:
             option0=slope*5+80 #old bad way
-
+            return option0
+        if option==1:
             # using a direct linear line:
             # Define the acoustic boundaries of the human voice
             min_slope = -35.0  # Very soft/breathy (maps to 0% at the bottom)
@@ -864,7 +852,8 @@ def update_dashboard():
             # np.clip prevents it from flying off the top or bottom of the graph
             #option1=np.clip(((slope - min_slope) / (max_slope - min_slope)) * 100.0, 0, 100)
             option1=((slope - min_slope) / (max_slope - min_slope))*100
-
+            return option1
+        if option==2:
             # using a sigmoid:
             # 1. Choose your exact center point (50% on the graph)
             center_slope = -20.0 
@@ -874,16 +863,43 @@ def update_dashboard():
 
             # 3. The Sigmoid Math
             option2 = 100.0 / (1.0 + np.exp(-steepness * (slope - center_slope)))
-            
+
             return option2
+        print("OPTION NOT SELECTED")
         
-        if pitch_hz > 0:
-            spectral_slope_base_history[-1] = slope_to_percent(ssb_hz)
-            spectral_slope_derived_history[-1] = slope_to_percent(ssd_hz)
+    ssb_hz=audio_data.get("spectral_slope_base")
+    ssd_hz=audio_data.get("spectral_slope_derived")
+
+    if actual_new_cols>0:
+        weight_history = np.roll(weight_history, -actual_new_cols)
+
+        spectral_slope_base_history = np.roll(spectral_slope_base_history,-actual_new_cols)
+        spectral_slope_derived_history = np.roll(spectral_slope_derived_history,-actual_new_cols)
+
+    
+        # Check for absolute silence using the raw audio buffer to hide the line
+        # also put spectral slope here
+        if np.max(np.abs(current_audio)) < 0.001:
+            weight_history[-actual_new_cols:] = np.nan
+            spectral_slope_base_history[-actual_new_cols:]=np.nan
+            spectral_slope_derived_history[-actual_new_cols:]=np.nan #because THIS one specificalyl flatlines on silence. oh wait no the other sorta does sometimes too.
         else:
-            spectral_slope_derived_history[-1] = np.nan
-    
-    
+            weight_history[-actual_new_cols:] = weight_percent
+            #ssb_percent=np.clip(((ssb_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
+            #ssd_percent=np.clip(((ssd_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
+            # 3. Update Derived Slope (ONLY draws if a voice/pitch is actively detected)
+
+            #ssb_percent=ssb_hz*10+80
+            #ssd_percent=ssd_hz*10+80
+            #spectral_slope_base_history[-1]=ssb_percent
+            #spectral_slope_derived_history[-1]=ssd_percent
+            #print(f"Base: {ssb_hz:.1f} | Derived: {ssd_hz:.1f}")
+            spectral_slope_base_history[-actual_new_cols:] = slope_to_percent(ssb_hz)
+            if pitch_hz > 0:
+                spectral_slope_derived_history[-actual_new_cols:] = slope_to_percent(ssd_hz)
+            else:
+                spectral_slope_derived_history[-actual_new_cols:] = np.nan
+
 
     # 1. Create true/false masks for the 3 color thresholds from the HTML file
     green_level=30#16.5
@@ -991,38 +1007,40 @@ def update_dashboard():
 
     global harmonic_history, noise_history
     global spectral_center_of_gravity_base_history, spectral_center_of_gravity_derived_history
-    harmonic_history = np.roll(harmonic_history, -1)
-    noise_history = np.roll(noise_history, -1)
-    spectral_center_of_gravity_base_history = np.roll(spectral_center_of_gravity_base_history,-1)
-    spectral_center_of_gravity_derived_history = np.roll(spectral_center_of_gravity_derived_history,-1)
-    
-    # Check for absolute silence
-    if np.max(np.abs(current_audio)) < 0.001:# or h_hz < 0:
-        harmonic_history[-1] = np.nan
-        noise_history[-1] = np.nan
-        spectral_center_of_gravity_base_history[-1]=np.nan
-        spectral_center_of_gravity_derived_history[-1]=np.nan
-    else:
-        # THE FIX: Use your actual live pitch as the 0% floor! 
-        # (With a fallback of 200Hz just in case it's unvoiced breath noise)
-        min_hz = pitch_hz if pitch_hz > 0 else 200.0
-        max_hz = 4000.0
-        
-        # Convert raw Hz to a 0-100% coefficient dynamically
-        #h_percent = np.clip(((h_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
-        #n_percent = np.clip(((n_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
-        h_percent = ((h_hz - min_hz) / (max_hz - min_hz)) * 100.0
-        n_percent = ((n_hz - min_hz) / (max_hz - min_hz)) * 100.0
-    
-        #scogb_percent=np.clip(((scogb_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
-        #scogd_percent=np.clip(((scogd_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
-        scogb_percent=((scogb_hz - min_hz) / (max_hz - min_hz)) * 100.0
-        scogd_percent=((scogd_hz - min_hz) / (max_hz - min_hz)) * 100.0
 
-        harmonic_history[-1] = h_percent
-        noise_history[-1] = n_percent
-        spectral_center_of_gravity_base_history[-1]=scogb_percent
-        spectral_center_of_gravity_derived_history[-1]=scogd_percent
+    if actual_new_cols>0:
+        harmonic_history = np.roll(harmonic_history, -actual_new_cols)
+        noise_history = np.roll(noise_history, -actual_new_cols)
+        spectral_center_of_gravity_base_history = np.roll(spectral_center_of_gravity_base_history,-actual_new_cols)
+        spectral_center_of_gravity_derived_history = np.roll(spectral_center_of_gravity_derived_history,-actual_new_cols)
+    
+        # Check for absolute silence
+        if np.max(np.abs(current_audio)) < 0.001:# or h_hz < 0:
+            harmonic_history[-actual_new_cols:] = np.nan
+            noise_history[-actual_new_cols:] = np.nan
+            spectral_center_of_gravity_base_history[-actual_new_cols:]=np.nan
+            spectral_center_of_gravity_derived_history[-actual_new_cols:]=np.nan
+        else:
+            # THE FIX: Use your actual live pitch as the 0% floor! 
+            # (With a fallback of 200Hz just in case it's unvoiced breath noise)
+            min_hz = pitch_hz if pitch_hz > 0 else 200.0
+            max_hz = 4000.0
+            
+            # Convert raw Hz to a 0-100% coefficient dynamically
+            #h_percent = np.clip(((h_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
+            #n_percent = np.clip(((n_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
+            h_percent = ((h_hz - min_hz) / (max_hz - min_hz)) * 100.0
+            n_percent = ((n_hz - min_hz) / (max_hz - min_hz)) * 100.0
+        
+            #scogb_percent=np.clip(((scogb_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
+            #scogd_percent=np.clip(((scogd_hz - min_hz) / (max_hz - min_hz)) * 100.0, 0, 100)
+            scogb_percent=((scogb_hz - min_hz) / (max_hz - min_hz)) * 100.0
+            scogd_percent=((scogd_hz - min_hz) / (max_hz - min_hz)) * 100.0
+    
+            harmonic_history[-actual_new_cols:] = h_percent
+            noise_history[-actual_new_cols:] = n_percent
+            spectral_center_of_gravity_base_history[-actual_new_cols:]=scogb_percent
+            spectral_center_of_gravity_derived_history[-actual_new_cols:]=scogd_percent
 
     # Render lines
     harmonic_curve.setData(harmonic_history)
@@ -1044,7 +1062,8 @@ else:
 # PyQtGraph uses QTimer instead of Matplotlib's FuncAnimation
 timer = QtCore.QTimer()
 timer.timeout.connect(update_dashboard)
-timer.start(UPDATE_INTERVAL_MS)
+# CRITICAL FIX: Removed global timer.start() here so it doesn't ghost-log in offline mode!
+# timer.start(UPDATE_INTERVAL_MS)
 
 # direct hardware microphone data?
 directmicrophonedatatoggle=True
@@ -1202,6 +1221,17 @@ def process_file_offline(file_path):
         app.processEvents()
 
     print("\n--- Offline Processing Complete ---")
+    print("Press Enter in this terminal to close the window and exit...")
+    
+    # --- NEW: Create a background thread to wait for terminal input ---
+    def wait_for_exit():
+        input()       # Waits for the user to press Enter
+        app.quit()    # Cleanly shuts down the PyQtGraph application
+        
+    threading.Thread(target=wait_for_exit, daemon=True).start()
+    
+    # --- NEW: Hand control back to PyQtGraph so the window doesn't freeze ---
+    pg.exec()
 
 if __name__ == "__main__":
     run()
