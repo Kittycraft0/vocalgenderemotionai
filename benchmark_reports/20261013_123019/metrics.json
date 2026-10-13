@@ -1,0 +1,4152 @@
+{
+ "meta": {
+  "run": "2026-10-13T12:19:08",
+  "code_version": "a35ac9844865",
+  "settings": {
+   "quick": false,
+   "ptdb_per_speaker": 8,
+   "hillenbrand_limit": null,
+   "noise_per_speaker": 3,
+   "workers": 11,
+   "skip": [],
+   "out": "D:\\Users\\iwbmo\\Desktop\\college\\fall 2025\\machine learning research\\python\\vocalgenderemotionai\\benchmark_reports"
+  },
+  "seconds": 670.6
+ },
+ "ptdb": {
+  "files": 160,
+  "speakers": 20,
+  "dataset_offset_frames": 2,
+  "latency_ms": {
+   "yours": 30,
+   "candidate": 30,
+   "praat": 0,
+   "pyin": 10
+  },
+  "lag_curves": {
+   "yours": {
+    "-70": 16.3701,
+    "-60": 17.9632,
+    "-50": 20.1221,
+    "-40": 22.8877,
+    "-30": 26.5466,
+    "-20": 31.471,
+    "-10": 38.532,
+    "0": 48.5297,
+    "10": 61.9668,
+    "20": 76.7662,
+    "30": 84.981,
+    "40": 79.4238,
+    "50": 63.7572,
+    "60": 49.1588,
+    "70": 39.4439,
+    "80": 32.77,
+    "90": 28.0019,
+    "100": 24.3021,
+    "110": 21.1159,
+    "120": 18.9533,
+    "130": 17.4942,
+    "140": 16.1915,
+    "150": 15.2833,
+    "160": 14.2113,
+    "170": 13.6046,
+    "180": 12.7931,
+    "190": 12.6256,
+    "200": 12.4953,
+    "210": 12.138,
+    "220": 12.0189,
+    "230": 11.8924
+   },
+   "candidate": {
+    "-70": 14.71,
+    "-60": 16.0314,
+    "-50": 17.9223,
+    "-40": 20.1444,
+    "-30": 23.2003,
+    "-20": 27.3059,
+    "-10": 33.0976,
+    "0": 41.4427,
+    "10": 53.8636,
+    "20": 71.3541,
+    "30": 84.1659,
+    "40": 80.1161,
+    "50": 65.6369,
+    "60": 54.9058,
+    "70": 45.82,
+    "80": 37.3074,
+    "90": 31.11,
+    "100": 26.528,
+    "110": 22.9584,
+    "120": 20.2375,
+    "130": 18.2312,
+    "140": 16.7014,
+    "150": 15.3428,
+    "160": 14.174,
+    "170": 13.2882,
+    "180": 12.6182,
+    "190": 12.0822,
+    "200": 11.5909,
+    "210": 11.5127,
+    "220": 11.2186,
+    "230": 11.0549
+   },
+   "praat": {
+    "-120": 11.5313,
+    "-110": 12.6554,
+    "-100": 13.8465,
+    "-90": 15.4694,
+    "-80": 17.3342,
+    "-70": 19.8876,
+    "-60": 23.178,
+    "-50": 27.5962,
+    "-40": 33.6634,
+    "-30": 42.0569,
+    "-20": 54.9319,
+    "-10": 72.4261,
+    "0": 82.1075,
+    "10": 74.2872,
+    "20": 56.3724,
+    "30": 43.1586,
+    "40": 34.4636,
+    "50": 28.4858,
+    "60": 23.9634,
+    "70": 20.5204,
+    "80": 17.7473
+   },
+   "pyin": {
+    "-120": 14.0698,
+    "-110": 15.2684,
+    "-100": 16.694,
+    "-90": 18.4359,
+    "-80": 20.6395,
+    "-70": 23.4609,
+    "-60": 27.1347,
+    "-50": 32.4648,
+    "-40": 39.9315,
+    "-30": 49.7469,
+    "-20": 61.736,
+    "-10": 70.7065,
+    "0": 75.0577,
+    "10": 76.1855,
+    "20": 70.8256,
+    "30": 58.3712,
+    "40": 45.82,
+    "50": 37.1659,
+    "60": 31.2626,
+    "70": 26.729,
+    "80": 23.2822
+   }
+  },
+  "table": {
+   "yours": {
+    "all": {
+     "frames": 116774,
+     "voicing_recall": 97.897,
+     "false_alarm": 18.6346,
+     "VDE": 14.8312,
+     "RPA": 84.981,
+     "GPE": 4.7375,
+     "octave": 1.7338,
+     "fine_cents": 9.9625
+    },
+    "male": {
+     "frames": 57746,
+     "voicing_recall": 97.2663,
+     "false_alarm": 19.1399,
+     "VDE": 15.3985,
+     "RPA": 80.7882,
+     "GPE": 5.9724,
+     "octave": 0.4216,
+     "fine_cents": 12.312
+    },
+    "female": {
+     "frames": 59028,
+     "voicing_recall": 98.5033,
+     "false_alarm": 18.1377,
+     "VDE": 14.2763,
+     "RPA": 89.0122,
+     "GPE": 3.5651,
+     "octave": 2.9795,
+     "fine_cents": 8.4319
+    }
+   },
+   "candidate": {
+    "all": {
+     "frames": 116774,
+     "voicing_recall": 95.2579,
+     "false_alarm": 18.8103,
+     "VDE": 15.5737,
+     "RPA": 84.1659,
+     "GPE": 4.1146,
+     "octave": 2.829,
+     "fine_cents": 9.1709
+    },
+    "male": {
+     "frames": 57746,
+     "voicing_recall": 92.1786,
+     "false_alarm": 16.9325,
+     "VDE": 14.8547,
+     "RPA": 80.568,
+     "GPE": 2.562,
+     "octave": 0.4284,
+     "fine_cents": 11.5765
+    },
+    "female": {
+     "frames": 59028,
+     "voicing_recall": 98.2186,
+     "false_alarm": 20.6569,
+     "VDE": 16.277,
+     "RPA": 87.625,
+     "GPE": 5.5155,
+     "octave": 4.9952,
+     "fine_cents": 7.3564
+    }
+   },
+   "praat": {
+    "all": {
+     "frames": 116774,
+     "voicing_recall": 90.367,
+     "false_alarm": 3.3646,
+     "VDE": 4.8067,
+     "RPA": 82.1075,
+     "GPE": 2.1377,
+     "octave": 1.8288,
+     "fine_cents": 9.3186
+    },
+    "male": {
+     "frames": 57746,
+     "voicing_recall": 85.6329,
+     "false_alarm": 1.918,
+     "VDE": 4.757,
+     "RPA": 77.0598,
+     "GPE": 0.6739,
+     "octave": 0.1241,
+     "fine_cents": 11.5247
+    },
+    "female": {
+     "frames": 59028,
+     "voicing_recall": 94.9186,
+     "false_alarm": 4.787,
+     "VDE": 4.8553,
+     "RPA": 86.9606,
+     "GPE": 3.4074,
+     "octave": 3.3074,
+     "fine_cents": 7.7358
+    }
+   },
+   "pyin": {
+    "all": {
+     "frames": 116774,
+     "voicing_recall": 88.6325,
+     "false_alarm": 19.7302,
+     "VDE": 17.8062,
+     "RPA": 76.1855,
+     "GPE": 1.5454,
+     "octave": 1.2389,
+     "fine_cents": 13.2799
+    },
+    "male": {
+     "frames": 57746,
+     "voicing_recall": 81.8817,
+     "false_alarm": 16.0666,
+     "VDE": 16.5345,
+     "RPA": 68.9802,
+     "GPE": 0.3895,
+     "octave": 0.0742,
+     "fine_cents": 15.7594
+    },
+    "female": {
+     "frames": 59028,
+     "voicing_recall": 95.123,
+     "false_alarm": 23.3328,
+     "VDE": 19.0503,
+     "RPA": 83.1131,
+     "GPE": 2.5021,
+     "octave": 2.2028,
+     "fine_cents": 11.4962
+    }
+   },
+   "yours_as_logged": {
+    "all": {
+     "frames": 116774,
+     "voicing_recall": 97.8151,
+     "false_alarm": 18.6591,
+     "VDE": 14.8689,
+     "RPA": 48.5297,
+     "GPE": 9.4524,
+     "octave": 2.131,
+     "fine_cents": 43.7556
+    },
+    "male": {
+     "frames": 57746,
+     "voicing_recall": 97.2891,
+     "false_alarm": 19.1332,
+     "VDE": 15.3881,
+     "RPA": 40.3068,
+     "GPE": 12.2307,
+     "octave": 0.562,
+     "fine_cents": 54.5451
+    },
+    "female": {
+     "frames": 59028,
+     "voicing_recall": 98.3208,
+     "false_alarm": 18.1928,
+     "VDE": 14.361,
+     "RPA": 56.4357,
+     "GPE": 6.8092,
+     "octave": 3.6237,
+     "fine_cents": 36.8105
+    }
+   }
+  },
+  "f0_bins": {
+   "yours": [
+    [
+     0,
+     75,
+     482,
+     96.0581,
+     9.1286
+    ],
+    [
+     75,
+     100,
+     4412,
+     97.6655,
+     77.8558
+    ],
+    [
+     100,
+     150,
+     8202,
+     96.5618,
+     83.4187
+    ],
+    [
+     150,
+     200,
+     8173,
+     98.5073,
+     89.6978
+    ],
+    [
+     200,
+     300,
+     5513,
+     99.3107,
+     92.563
+    ],
+    [
+     300,
+     2000,
+     84,
+     98.8095,
+     90.4762
+    ]
+   ],
+   "candidate": [
+    [
+     0,
+     75,
+     482,
+     86.9295,
+     62.0332
+    ],
+    [
+     75,
+     100,
+     4412,
+     92.9964,
+     77.7425
+    ],
+    [
+     100,
+     150,
+     8202,
+     90.9412,
+     80.4438
+    ],
+    [
+     150,
+     200,
+     8173,
+     98.6296,
+     87.6789
+    ],
+    [
+     200,
+     300,
+     5513,
+     99.1475,
+     91.4747
+    ],
+    [
+     300,
+     2000,
+     84,
+     100.0,
+     90.4762
+    ]
+   ],
+   "praat": [
+    [
+     0,
+     75,
+     482,
+     13.278,
+     2.6971
+    ],
+    [
+     75,
+     100,
+     4412,
+     88.1233,
+     76.2919
+    ],
+    [
+     100,
+     150,
+     8202,
+     87.5884,
+     79.3587
+    ],
+    [
+     150,
+     200,
+     8173,
+     94.5552,
+     86.9448
+    ],
+    [
+     200,
+     300,
+     5513,
+     96.7713,
+     90.5133
+    ],
+    [
+     300,
+     2000,
+     84,
+     94.0476,
+     89.2857
+    ]
+   ],
+   "pyin": [
+    [
+     0,
+     75,
+     482,
+     59.3361,
+     46.0581
+    ],
+    [
+     75,
+     100,
+     4412,
+     75.884,
+     61.9674
+    ],
+    [
+     100,
+     150,
+     8202,
+     83.3333,
+     69.6659
+    ],
+    [
+     150,
+     200,
+     8173,
+     95.8155,
+     84.7914
+    ],
+    [
+     200,
+     300,
+     5513,
+     98.5852,
+     87.1032
+    ],
+    [
+     300,
+     2000,
+     84,
+     91.6667,
+     78.5714
+    ]
+   ],
+   "yours_as_logged": [
+    [
+     0,
+     75,
+     482,
+     97.5104,
+     3.9419
+    ],
+    [
+     75,
+     100,
+     4412,
+     97.8241,
+     41.1831
+    ],
+    [
+     100,
+     150,
+     8202,
+     96.2936,
+     41.2217
+    ],
+    [
+     150,
+     200,
+     8173,
+     99.0946,
+     57.4942
+    ],
+    [
+     200,
+     300,
+     5513,
+     98.168,
+     55.9405
+    ],
+    [
+     300,
+     2000,
+     84,
+     100.0,
+     45.2381
+    ]
+   ]
+  },
+  "gates": {
+   "missed_frames": 565,
+   "by_rms_gate": 303,
+   "by_zcr_gate": 262,
+   "other": 0,
+   "false_alarms": 16754,
+   "false_alarms_near_voicing": 9553,
+   "false_alarm_median_db_below_peak": 20.0305
+  },
+  "speed": {
+   "median_ms": 0.6357,
+   "p95_ms": 7.7317,
+   "max_ms": 118.4735,
+   "frames": 120934
+  },
+  "noise": {
+   "20": {
+    "yours": {
+     "frames": 44391,
+     "voicing_recall": 91.2954,
+     "false_alarm": 6.811,
+     "VDE": 7.2447,
+     "RPA": 80.8892,
+     "GPE": 4.5249,
+     "octave": 1.95,
+     "fine_cents": 9.3674
+    },
+    "candidate": {
+     "frames": 44391,
+     "voicing_recall": 93.5871,
+     "false_alarm": 8.4648,
+     "VDE": 7.9949,
+     "RPA": 82.8661,
+     "GPE": 4.0147,
+     "octave": 3.1739,
+     "fine_cents": 9.241
+    },
+    "praat": {
+     "frames": 44391,
+     "voicing_recall": 89.4167,
+     "false_alarm": 3.9563,
+     "VDE": 5.4741,
+     "RPA": 81.8531,
+     "GPE": 2.013,
+     "octave": 1.683,
+     "fine_cents": 9.4555
+    },
+    "pyin": {
+     "frames": 44391,
+     "voicing_recall": 88.1283,
+     "false_alarm": 10.3495,
+     "VDE": 10.6981,
+     "RPA": 75.8237,
+     "GPE": 1.3616,
+     "octave": 1.1719,
+     "fine_cents": 13.5629
+    }
+   },
+   "10": {
+    "yours": {
+     "frames": 44391,
+     "voicing_recall": 68.3683,
+     "false_alarm": 1.7152,
+     "VDE": 8.5671,
+     "RPA": 63.0176,
+     "GPE": 3.3233,
+     "octave": 1.1509,
+     "fine_cents": 8.4627
+    },
+    "candidate": {
+     "frames": 44391,
+     "voicing_recall": 88.984,
+     "false_alarm": 5.2858,
+     "VDE": 6.5982,
+     "RPA": 78.4794,
+     "GPE": 3.6587,
+     "octave": 2.9402,
+     "fine_cents": 9.9349
+    },
+    "praat": {
+     "frames": 44391,
+     "voicing_recall": 82.6006,
+     "false_alarm": 2.3054,
+     "VDE": 5.7624,
+     "RPA": 77.3089,
+     "GPE": 1.679,
+     "octave": 1.548,
+     "fine_cents": 9.6341
+    },
+    "pyin": {
+     "frames": 44391,
+     "voicing_recall": 84.8628,
+     "false_alarm": 9.0141,
+     "VDE": 10.4165,
+     "RPA": 73.2271,
+     "GPE": 1.1127,
+     "octave": 0.962,
+     "fine_cents": 13.5694
+    }
+   },
+   "5": {
+    "yours": {
+     "frames": 44391,
+     "voicing_recall": 38.3102,
+     "false_alarm": 0.6341,
+     "VDE": 14.6178,
+     "RPA": 35.5169,
+     "GPE": 3.389,
+     "octave": 0.7702,
+     "fine_cents": 8.5441
+    },
+    "candidate": {
+     "frames": 44391,
+     "voicing_recall": 80.3679,
+     "false_alarm": 3.1966,
+     "VDE": 6.9609,
+     "RPA": 70.7387,
+     "GPE": 3.39,
+     "octave": 2.6068,
+     "fine_cents": 10.5021
+    },
+    "praat": {
+     "frames": 44391,
+     "voicing_recall": 72.9124,
+     "false_alarm": 1.3587,
+     "VDE": 7.2515,
+     "RPA": 69.1354,
+     "GPE": 1.8481,
+     "octave": 1.7672,
+     "fine_cents": 9.5822
+    },
+    "pyin": {
+     "frames": 44391,
+     "voicing_recall": 79.4925,
+     "false_alarm": 8.3479,
+     "VDE": 11.1329,
+     "RPA": 68.6732,
+     "GPE": 1.1012,
+     "octave": 0.8661,
+     "fine_cents": 13.7254
+    }
+   },
+   "clean": {
+    "yours": {
+     "frames": 44391,
+     "voicing_recall": 97.4427,
+     "false_alarm": 19.612,
+     "VDE": 15.7059,
+     "RPA": 84.1546,
+     "GPE": 5.0066,
+     "octave": 1.9582,
+     "fine_cents": 9.9122
+    },
+    "candidate": {
+     "frames": 44391,
+     "voicing_recall": 94.4231,
+     "false_alarm": 19.3139,
+     "VDE": 16.1677,
+     "RPA": 83.4661,
+     "GPE": 4.2083,
+     "octave": 3.0833,
+     "fine_cents": 9.0871
+    },
+    "praat": {
+     "frames": 44391,
+     "voicing_recall": 89.3085,
+     "false_alarm": 4.0819,
+     "VDE": 5.5957,
+     "RPA": 81.5285,
+     "GPE": 2.0374,
+     "octave": 1.696,
+     "fine_cents": 9.33
+    },
+    "pyin": {
+     "frames": 44391,
+     "voicing_recall": 88.6594,
+     "false_alarm": 18.5776,
+     "VDE": 16.9201,
+     "RPA": 76.2762,
+     "GPE": 1.4422,
+     "octave": 1.1649,
+     "fine_cents": 13.5809
+    }
+   }
+  },
+  "noise_files": 60,
+  "noise_gates": {
+   "20": {
+    "missed_frames": 885,
+    "by_rms_gate": 0,
+    "by_zcr_gate": 885
+   },
+   "10": {
+    "missed_frames": 3216,
+    "by_rms_gate": 0,
+    "by_zcr_gate": 3216
+   },
+   "5": {
+    "missed_frames": 6272,
+    "by_rms_gate": 0,
+    "by_zcr_gate": 6272
+   }
+  },
+  "gate_whatif": {
+   "current: fixed 0.001": {
+    "frames": 116774,
+    "voicing_recall": 97.897,
+    "false_alarm": 18.6346,
+    "VDE": 14.8312,
+    "RPA": 84.981,
+    "GPE": 4.7375,
+    "octave": 1.7338,
+    "fine_cents": 9.9625
+   },
+   "2x noise floor": {
+    "frames": 116774,
+    "voicing_recall": 97.897,
+    "false_alarm": 18.6346,
+    "VDE": 14.8312,
+    "RPA": 84.981,
+    "GPE": 4.7375,
+    "octave": 1.7338,
+    "fine_cents": 9.9625
+   },
+   "3x noise floor": {
+    "frames": 116774,
+    "voicing_recall": 97.897,
+    "false_alarm": 18.6346,
+    "VDE": 14.8312,
+    "RPA": 84.981,
+    "GPE": 4.7375,
+    "octave": 1.7338,
+    "fine_cents": 9.9625
+   },
+   "5x noise floor": {
+    "frames": 116774,
+    "voicing_recall": 97.897,
+    "false_alarm": 18.5779,
+    "VDE": 14.7875,
+    "RPA": 84.981,
+    "GPE": 4.7375,
+    "octave": 1.7338,
+    "fine_cents": 9.9625
+   },
+   "8x noise floor": {
+    "frames": 116774,
+    "voicing_recall": 97.8895,
+    "false_alarm": 17.6458,
+    "VDE": 14.0716,
+    "RPA": 84.981,
+    "GPE": 4.7378,
+    "octave": 1.7339,
+    "fine_cents": 9.9621
+   }
+  }
+ },
+ "hillenbrand": {
+  "files": 1668,
+  "per_group": {
+   "men": 540,
+   "women": 576,
+   "boys": 324,
+   "girls": 228
+  },
+  "formants": {
+   "yours_as_logged": {
+    "F1": {
+     "men": {
+      "n": 540,
+      "coverage": 100.0,
+      "median_pct": 7.9252,
+      "median_hz": 39.8628,
+      "within_10": 55.3704
+     },
+     "women": {
+      "n": 576,
+      "coverage": 100.0,
+      "median_pct": 5.1013,
+      "median_hz": 32.1599,
+      "within_10": 69.6181
+     },
+     "boys": {
+      "n": 324,
+      "coverage": 100.0,
+      "median_pct": 6.7166,
+      "median_hz": 43.7061,
+      "within_10": 60.8025
+     },
+     "girls": {
+      "n": 228,
+      "coverage": 100.0,
+      "median_pct": 6.5042,
+      "median_hz": 41.8366,
+      "within_10": 65.7895
+     },
+     "all": {
+      "n": 1668,
+      "coverage": 100.0,
+      "median_pct": 6.5953,
+      "median_hz": 38.5707,
+      "within_10": 62.7698
+     }
+    },
+    "F2": {
+     "men": {
+      "n": 540,
+      "coverage": 100.0,
+      "median_pct": 3.9657,
+      "median_hz": 59.5526,
+      "within_10": 75.7407
+     },
+     "women": {
+      "n": 574,
+      "coverage": 100.0,
+      "median_pct": 3.7306,
+      "median_hz": 62.895,
+      "within_10": 82.7526
+     },
+     "boys": {
+      "n": 317,
+      "coverage": 100.0,
+      "median_pct": 4.0699,
+      "median_hz": 71.4345,
+      "within_10": 82.0189
+     },
+     "girls": {
+      "n": 227,
+      "coverage": 100.0,
+      "median_pct": 3.4362,
+      "median_hz": 63.127,
+      "within_10": 79.2952
+     },
+     "all": {
+      "n": 1658,
+      "coverage": 100.0,
+      "median_pct": 3.77,
+      "median_hz": 64.5383,
+      "within_10": 79.8552
+     }
+    },
+    "F3": {
+     "men": {
+      "n": 532,
+      "coverage": 100.0,
+      "median_pct": 2.9285,
+      "median_hz": 71.2466,
+      "within_10": 87.9699
+     },
+     "women": {
+      "n": 560,
+      "coverage": 100.0,
+      "median_pct": 2.1094,
+      "median_hz": 59.8507,
+      "within_10": 89.4643
+     },
+     "boys": {
+      "n": 312,
+      "coverage": 100.0,
+      "median_pct": 2.0803,
+      "median_hz": 65.1777,
+      "within_10": 88.7821
+     },
+     "girls": {
+      "n": 223,
+      "coverage": 100.0,
+      "median_pct": 2.63,
+      "median_hz": 78.711,
+      "within_10": 81.1659
+     },
+     "all": {
+      "n": 1627,
+      "coverage": 100.0,
+      "median_pct": 2.3837,
+      "median_hz": 67.6293,
+      "within_10": 87.7074
+     }
+    },
+    "F4": {
+     "men": {
+      "n": 446,
+      "coverage": 99.3274,
+      "median_pct": 4.0354,
+      "median_hz": 138.6567,
+      "within_10": 76.009
+     },
+     "women": {
+      "n": 508,
+      "coverage": 99.8031,
+      "median_pct": 2.4227,
+      "median_hz": 100.6451,
+      "within_10": 85.0394
+     },
+     "boys": {
+      "n": 282,
+      "coverage": 100.0,
+      "median_pct": 2.2729,
+      "median_hz": 94.4713,
+      "within_10": 86.8794
+     },
+     "girls": {
+      "n": 189,
+      "coverage": 100.0,
+      "median_pct": 2.3651,
+      "median_hz": 98.3127,
+      "within_10": 81.4815
+     },
+     "all": {
+      "n": 1425,
+      "coverage": 99.7193,
+      "median_pct": 2.7003,
+      "median_hz": 106.7661,
+      "within_10": 82.1053
+     }
+    }
+   },
+   "yours_centred": {
+    "F1": {
+     "men": {
+      "n": 540,
+      "coverage": 100.0,
+      "median_pct": 2.1655,
+      "median_hz": 11.3341,
+      "within_10": 94.6296
+     },
+     "women": {
+      "n": 576,
+      "coverage": 100.0,
+      "median_pct": 1.9246,
+      "median_hz": 11.3195,
+      "within_10": 96.5278
+     },
+     "boys": {
+      "n": 324,
+      "coverage": 100.0,
+      "median_pct": 1.8053,
+      "median_hz": 10.6751,
+      "within_10": 91.6667
+     },
+     "girls": {
+      "n": 228,
+      "coverage": 100.0,
+      "median_pct": 2.0948,
+      "median_hz": 13.6606,
+      "within_10": 90.7895
+     },
+     "all": {
+      "n": 1668,
+      "coverage": 100.0,
+      "median_pct": 2.0052,
+      "median_hz": 11.4746,
+      "within_10": 94.1847
+     }
+    },
+    "F2": {
+     "men": {
+      "n": 540,
+      "coverage": 100.0,
+      "median_pct": 1.8116,
+      "median_hz": 26.106,
+      "within_10": 94.4444
+     },
+     "women": {
+      "n": 574,
+      "coverage": 100.0,
+      "median_pct": 1.6911,
+      "median_hz": 25.357,
+      "within_10": 91.8118
+     },
+     "boys": {
+      "n": 317,
+      "coverage": 100.0,
+      "median_pct": 1.5553,
+      "median_hz": 28.6334,
+      "within_10": 89.9054
+     },
+     "girls": {
+      "n": 227,
+      "coverage": 100.0,
+      "median_pct": 1.7096,
+      "median_hz": 31.1895,
+      "within_10": 82.3789
+     },
+     "all": {
+      "n": 1658,
+      "coverage": 100.0,
+      "median_pct": 1.6904,
+      "median_hz": 26.4624,
+      "within_10": 91.0133
+     }
+    },
+    "F3": {
+     "men": {
+      "n": 532,
+      "coverage": 100.0,
+      "median_pct": 1.2079,
+      "median_hz": 30.8237,
+      "within_10": 94.7368
+     },
+     "women": {
+      "n": 560,
+      "coverage": 100.0,
+      "median_pct": 1.1868,
+      "median_hz": 32.4543,
+      "within_10": 90.0
+     },
+     "boys": {
+      "n": 312,
+      "coverage": 100.0,
+      "median_pct": 1.0971,
+      "median_hz": 33.0584,
+      "within_10": 92.6282
+     },
+     "girls": {
+      "n": 223,
+      "coverage": 100.0,
+      "median_pct": 1.7308,
+      "median_hz": 52.4369,
+      "within_10": 82.9596
+     },
+     "all": {
+      "n": 1627,
+      "coverage": 100.0,
+      "median_pct": 1.2384,
+      "median_hz": 34.3794,
+      "within_10": 91.0879
+     }
+    },
+    "F4": {
+     "men": {
+      "n": 446,
+      "coverage": 100.0,
+      "median_pct": 1.4599,
+      "median_hz": 51.2715,
+      "within_10": 93.4978
+     },
+     "women": {
+      "n": 508,
+      "coverage": 100.0,
+      "median_pct": 1.6778,
+      "median_hz": 67.5977,
+      "within_10": 83.4646
+     },
+     "boys": {
+      "n": 282,
+      "coverage": 100.0,
+      "median_pct": 1.6279,
+      "median_hz": 67.7485,
+      "within_10": 88.6525
+     },
+     "girls": {
+      "n": 189,
+      "coverage": 100.0,
+      "median_pct": 1.4829,
+      "median_hz": 64.8593,
+      "within_10": 85.1852
+     },
+     "all": {
+      "n": 1425,
+      "coverage": 100.0,
+      "median_pct": 1.5533,
+      "median_hz": 60.4561,
+      "within_10": 87.8596
+     }
+    }
+   },
+   "candidate": {
+    "F1": {
+     "men": {
+      "n": 540,
+      "coverage": 100.0,
+      "median_pct": 1.76,
+      "median_hz": 9.0615,
+      "within_10": 98.5185
+     },
+     "women": {
+      "n": 576,
+      "coverage": 100.0,
+      "median_pct": 2.0214,
+      "median_hz": 12.1647,
+      "within_10": 95.6597
+     },
+     "boys": {
+      "n": 324,
+      "coverage": 100.0,
+      "median_pct": 1.8723,
+      "median_hz": 12.0634,
+      "within_10": 91.358
+     },
+     "girls": {
+      "n": 228,
+      "coverage": 100.0,
+      "median_pct": 2.2856,
+      "median_hz": 14.0665,
+      "within_10": 89.9123
+     },
+     "all": {
+      "n": 1668,
+      "coverage": 100.0,
+      "median_pct": 1.9372,
+      "median_hz": 10.9854,
+      "within_10": 94.964
+     }
+    },
+    "F2": {
+     "men": {
+      "n": 540,
+      "coverage": 100.0,
+      "median_pct": 1.6225,
+      "median_hz": 23.6479,
+      "within_10": 96.6667
+     },
+     "women": {
+      "n": 574,
+      "coverage": 100.0,
+      "median_pct": 1.784,
+      "median_hz": 28.3677,
+      "within_10": 91.6376
+     },
+     "boys": {
+      "n": 317,
+      "coverage": 100.0,
+      "median_pct": 1.9285,
+      "median_hz": 31.7601,
+      "within_10": 89.5899
+     },
+     "girls": {
+      "n": 227,
+      "coverage": 100.0,
+      "median_pct": 2.125,
+      "median_hz": 37.0135,
+      "within_10": 86.7841
+     },
+     "all": {
+      "n": 1658,
+      "coverage": 100.0,
+      "median_pct": 1.7732,
+      "median_hz": 27.9249,
+      "within_10": 92.2195
+     }
+    },
+    "F3": {
+     "men": {
+      "n": 532,
+      "coverage": 100.0,
+      "median_pct": 1.0395,
+      "median_hz": 25.9509,
+      "within_10": 94.5489
+     },
+     "women": {
+      "n": 560,
+      "coverage": 100.0,
+      "median_pct": 1.4672,
+      "median_hz": 38.8998,
+      "within_10": 90.1786
+     },
+     "boys": {
+      "n": 312,
+      "coverage": 100.0,
+      "median_pct": 1.6666,
+      "median_hz": 52.1463,
+      "within_10": 91.0256
+     },
+     "girls": {
+      "n": 223,
+      "coverage": 100.0,
+      "median_pct": 2.1296,
+      "median_hz": 63.7481,
+      "within_10": 87.4439
+     },
+     "all": {
+      "n": 1627,
+      "coverage": 100.0,
+      "median_pct": 1.4278,
+      "median_hz": 39.1209,
+      "within_10": 91.3952
+     }
+    },
+    "F4": {
+     "men": {
+      "n": 446,
+      "coverage": 100.0,
+      "median_pct": 1.6388,
+      "median_hz": 57.6066,
+      "within_10": 86.7713
+     },
+     "women": {
+      "n": 508,
+      "coverage": 100.0,
+      "median_pct": 1.9096,
+      "median_hz": 77.7412,
+      "within_10": 84.0551
+     },
+     "boys": {
+      "n": 282,
+      "coverage": 100.0,
+      "median_pct": 2.3036,
+      "median_hz": 97.0478,
+      "within_10": 86.5248
+     },
+     "girls": {
+      "n": 189,
+      "coverage": 100.0,
+      "median_pct": 2.061,
+      "median_hz": 88.048,
+      "within_10": 86.7725
+     },
+     "all": {
+      "n": 1425,
+      "coverage": 100.0,
+      "median_pct": 1.9266,
+      "median_hz": 75.4232,
+      "within_10": 85.7544
+     }
+    }
+   },
+   "praat_5500": {
+    "F1": {
+     "men": {
+      "n": 540,
+      "coverage": 100.0,
+      "median_pct": 2.1786,
+      "median_hz": 11.1239,
+      "within_10": 94.8148
+     },
+     "women": {
+      "n": 576,
+      "coverage": 100.0,
+      "median_pct": 1.9093,
+      "median_hz": 11.3277,
+      "within_10": 96.5278
+     },
+     "boys": {
+      "n": 324,
+      "coverage": 100.0,
+      "median_pct": 1.7835,
+      "median_hz": 10.7137,
+      "within_10": 91.358
+     },
+     "girls": {
+      "n": 228,
+      "coverage": 100.0,
+      "median_pct": 2.0911,
+      "median_hz": 13.514,
+      "within_10": 90.7895
+     },
+     "all": {
+      "n": 1668,
+      "coverage": 100.0,
+      "median_pct": 2.0196,
+      "median_hz": 11.3954,
+      "within_10": 94.1847
+     }
+    },
+    "F2": {
+     "men": {
+      "n": 540,
+      "coverage": 100.0,
+      "median_pct": 1.795,
+      "median_hz": 26.7031,
+      "within_10": 94.6296
+     },
+     "women": {
+      "n": 574,
+      "coverage": 100.0,
+      "median_pct": 1.6751,
+      "median_hz": 25.4942,
+      "within_10": 91.9861
+     },
+     "boys": {
+      "n": 317,
+      "coverage": 100.0,
+      "median_pct": 1.5075,
+      "median_hz": 28.5491,
+      "within_10": 90.8517
+     },
+     "girls": {
+      "n": 227,
+      "coverage": 100.0,
+      "median_pct": 1.6601,
+      "median_hz": 32.1942,
+      "within_10": 82.3789
+     },
+     "all": {
+      "n": 1658,
+      "coverage": 100.0,
+      "median_pct": 1.6786,
+      "median_hz": 26.9945,
+      "within_10": 91.3148
+     }
+    },
+    "F3": {
+     "men": {
+      "n": 532,
+      "coverage": 100.0,
+      "median_pct": 1.2164,
+      "median_hz": 30.5401,
+      "within_10": 94.5489
+     },
+     "women": {
+      "n": 560,
+      "coverage": 100.0,
+      "median_pct": 1.2069,
+      "median_hz": 34.8336,
+      "within_10": 90.3571
+     },
+     "boys": {
+      "n": 312,
+      "coverage": 100.0,
+      "median_pct": 1.0804,
+      "median_hz": 32.1283,
+      "within_10": 91.9872
+     },
+     "girls": {
+      "n": 223,
+      "coverage": 100.0,
+      "median_pct": 1.6646,
+      "median_hz": 51.4015,
+      "within_10": 82.9596
+     },
+     "all": {
+      "n": 1627,
+      "coverage": 100.0,
+      "median_pct": 1.2348,
+      "median_hz": 34.8933,
+      "within_10": 91.0264
+     }
+    },
+    "F4": {
+     "men": {
+      "n": 446,
+      "coverage": 100.0,
+      "median_pct": 1.4659,
+      "median_hz": 51.4211,
+      "within_10": 93.9462
+     },
+     "women": {
+      "n": 508,
+      "coverage": 100.0,
+      "median_pct": 1.7128,
+      "median_hz": 71.0508,
+      "within_10": 83.2677
+     },
+     "boys": {
+      "n": 282,
+      "coverage": 99.6454,
+      "median_pct": 1.6469,
+      "median_hz": 68.4782,
+      "within_10": 88.2979
+     },
+     "girls": {
+      "n": 189,
+      "coverage": 100.0,
+      "median_pct": 1.4041,
+      "median_hz": 65.8022,
+      "within_10": 84.6561
+     },
+     "all": {
+      "n": 1425,
+      "coverage": 99.9298,
+      "median_pct": 1.5944,
+      "median_hz": 62.1754,
+      "within_10": 87.7895
+     }
+    }
+   },
+   "praat_best_ceiling": {
+    "F1": {
+     "men": {
+      "n": 540,
+      "coverage": 100.0,
+      "median_pct": 1.7202,
+      "median_hz": 8.8416,
+      "within_10": 98.8889
+     },
+     "women": {
+      "n": 576,
+      "coverage": 100.0,
+      "median_pct": 1.9093,
+      "median_hz": 11.3277,
+      "within_10": 96.5278
+     },
+     "boys": {
+      "n": 324,
+      "coverage": 100.0,
+      "median_pct": 1.7835,
+      "median_hz": 10.7137,
+      "within_10": 91.358
+     },
+     "girls": {
+      "n": 228,
+      "coverage": 100.0,
+      "median_pct": 2.0911,
+      "median_hz": 13.514,
+      "within_10": 90.7895
+     },
+     "all": {
+      "n": 1668,
+      "coverage": 100.0,
+      "median_pct": 1.8357,
+      "median_hz": 10.404,
+      "within_10": 95.5036
+     }
+    },
+    "F2": {
+     "men": {
+      "n": 540,
+      "coverage": 100.0,
+      "median_pct": 1.5424,
+      "median_hz": 22.7431,
+      "within_10": 97.037
+     },
+     "women": {
+      "n": 574,
+      "coverage": 100.0,
+      "median_pct": 1.6751,
+      "median_hz": 25.4942,
+      "within_10": 91.9861
+     },
+     "boys": {
+      "n": 317,
+      "coverage": 100.0,
+      "median_pct": 1.5075,
+      "median_hz": 28.5491,
+      "within_10": 90.8517
+     },
+     "girls": {
+      "n": 227,
+      "coverage": 100.0,
+      "median_pct": 1.6601,
+      "median_hz": 32.1942,
+      "within_10": 82.3789
+     },
+     "all": {
+      "n": 1658,
+      "coverage": 100.0,
+      "median_pct": 1.5974,
+      "median_hz": 25.3053,
+      "within_10": 92.0989
+     }
+    },
+    "F3": {
+     "men": {
+      "n": 532,
+      "coverage": 100.0,
+      "median_pct": 0.997,
+      "median_hz": 25.0252,
+      "within_10": 94.3609
+     },
+     "women": {
+      "n": 560,
+      "coverage": 100.0,
+      "median_pct": 1.2069,
+      "median_hz": 34.8336,
+      "within_10": 90.3571
+     },
+     "boys": {
+      "n": 312,
+      "coverage": 100.0,
+      "median_pct": 1.0804,
+      "median_hz": 32.1283,
+      "within_10": 91.9872
+     },
+     "girls": {
+      "n": 223,
+      "coverage": 100.0,
+      "median_pct": 1.6646,
+      "median_hz": 51.4015,
+      "within_10": 82.9596
+     },
+     "all": {
+      "n": 1627,
+      "coverage": 100.0,
+      "median_pct": 1.1639,
+      "median_hz": 31.9209,
+      "within_10": 90.965
+     }
+    },
+    "F4": {
+     "men": {
+      "n": 446,
+      "coverage": 100.0,
+      "median_pct": 1.7152,
+      "median_hz": 61.9691,
+      "within_10": 85.8744
+     },
+     "women": {
+      "n": 508,
+      "coverage": 100.0,
+      "median_pct": 1.7128,
+      "median_hz": 71.0508,
+      "within_10": 83.2677
+     },
+     "boys": {
+      "n": 282,
+      "coverage": 99.6454,
+      "median_pct": 1.6469,
+      "median_hz": 68.4782,
+      "within_10": 88.2979
+     },
+     "girls": {
+      "n": 189,
+      "coverage": 100.0,
+      "median_pct": 1.4041,
+      "median_hz": 65.8022,
+      "within_10": 84.6561
+     },
+     "all": {
+      "n": 1425,
+      "coverage": 99.9298,
+      "median_pct": 1.6475,
+      "median_hz": 66.626,
+      "within_10": 85.2632
+     }
+    }
+   }
+  },
+  "ceiling_sweep": {
+   "men": {
+    "5000": {
+     "F1": 1.7202,
+     "F2": 1.5424,
+     "F3": 0.997
+    },
+    "5500": {
+     "F1": 2.1786,
+     "F2": 1.795,
+     "F3": 1.2164
+    },
+    "6500": {
+     "F1": 6.5419,
+     "F2": 6.5563,
+     "F3": 8.4089
+    },
+    "8000": {
+     "F1": 14.5007,
+     "F2": 21.3145,
+     "F3": 34.0656
+    }
+   },
+   "women": {
+    "5000": {
+     "F1": 1.8918,
+     "F2": 2.9651,
+     "F3": 2.2153
+    },
+    "5500": {
+     "F1": 1.9093,
+     "F2": 1.6751,
+     "F3": 1.2069
+    },
+    "6500": {
+     "F1": 2.56,
+     "F2": 2.1384,
+     "F3": 2.484
+    },
+    "8000": {
+     "F1": 7.0812,
+     "F2": 7.1526,
+     "F3": 17.0372
+    }
+   },
+   "boys": {
+    "5000": {
+     "F1": 1.9269,
+     "F2": 4.0269,
+     "F3": 3.2347
+    },
+    "5500": {
+     "F1": 1.7835,
+     "F2": 1.5075,
+     "F3": 1.0804
+    },
+    "6500": {
+     "F1": 2.0398,
+     "F2": 2.0581,
+     "F3": 2.4633
+    },
+    "8000": {
+     "F1": 4.7885,
+     "F2": 4.9066,
+     "F3": 14.2767
+    }
+   },
+   "girls": {
+    "5000": {
+     "F1": 2.1703,
+     "F2": 10.7724,
+     "F3": 19.8101
+    },
+    "5500": {
+     "F1": 2.0911,
+     "F2": 1.6601,
+     "F3": 1.6646
+    },
+    "6500": {
+     "F1": 2.2074,
+     "F2": 2.2962,
+     "F3": 2.9435
+    },
+    "8000": {
+     "F1": 3.0945,
+     "F2": 4.0598,
+     "F3": 10.8562
+    }
+   }
+  },
+  "best_ceiling": {
+   "men": "5000",
+   "women": "5500",
+   "boys": "5500",
+   "girls": "5500"
+  },
+  "trajectory": {
+   "f_20": {
+    "yours": {
+     "F1": {
+      "n": 1668,
+      "coverage": 100.0,
+      "median_pct": 1.7789,
+      "median_hz": 10.1885,
+      "within_10": 94.6643
+     },
+     "F2": {
+      "n": 1658,
+      "coverage": 100.0,
+      "median_pct": 1.644,
+      "median_hz": 26.5484,
+      "within_10": 89.8673
+     },
+     "F3": {
+      "n": 1629,
+      "coverage": 100.0,
+      "median_pct": 1.2048,
+      "median_hz": 33.4118,
+      "within_10": 89.4414
+     }
+    },
+    "praat_5500": {
+     "F1": {
+      "n": 1668,
+      "coverage": 100.0,
+      "median_pct": 1.7666,
+      "median_hz": 10.2636,
+      "within_10": 94.964
+     },
+     "F2": {
+      "n": 1658,
+      "coverage": 100.0,
+      "median_pct": 1.6548,
+      "median_hz": 26.6417,
+      "within_10": 90.2292
+     },
+     "F3": {
+      "n": 1629,
+      "coverage": 100.0,
+      "median_pct": 1.2158,
+      "median_hz": 33.7585,
+      "within_10": 89.6869
+     }
+    }
+   },
+   "f_50": {
+    "yours": {
+     "F1": {
+      "n": 1668,
+      "coverage": 100.0,
+      "median_pct": 1.7652,
+      "median_hz": 9.8415,
+      "within_10": 96.0432
+     },
+     "F2": {
+      "n": 1655,
+      "coverage": 100.0,
+      "median_pct": 1.5355,
+      "median_hz": 23.8918,
+      "within_10": 92.7492
+     },
+     "F3": {
+      "n": 1622,
+      "coverage": 100.0,
+      "median_pct": 1.1765,
+      "median_hz": 32.8958,
+      "within_10": 90.9988
+     }
+    },
+    "praat_5500": {
+     "F1": {
+      "n": 1668,
+      "coverage": 100.0,
+      "median_pct": 1.7585,
+      "median_hz": 9.7548,
+      "within_10": 96.223
+     },
+     "F2": {
+      "n": 1655,
+      "coverage": 100.0,
+      "median_pct": 1.5426,
+      "median_hz": 24.3842,
+      "within_10": 93.0514
+     },
+     "F3": {
+      "n": 1622,
+      "coverage": 100.0,
+      "median_pct": 1.1669,
+      "median_hz": 32.3218,
+      "within_10": 91.6153
+     }
+    }
+   },
+   "f_80": {
+    "yours": {
+     "F1": {
+      "n": 1668,
+      "coverage": 100.0,
+      "median_pct": 1.8168,
+      "median_hz": 10.201,
+      "within_10": 96.4029
+     },
+     "F2": {
+      "n": 1665,
+      "coverage": 100.0,
+      "median_pct": 1.3696,
+      "median_hz": 24.1583,
+      "within_10": 92.4925
+     },
+     "F3": {
+      "n": 1627,
+      "coverage": 100.0,
+      "median_pct": 1.1987,
+      "median_hz": 33.3247,
+      "within_10": 90.842
+     }
+    },
+    "praat_5500": {
+     "F1": {
+      "n": 1668,
+      "coverage": 100.0,
+      "median_pct": 1.8128,
+      "median_hz": 10.1201,
+      "within_10": 96.3429
+     },
+     "F2": {
+      "n": 1665,
+      "coverage": 100.0,
+      "median_pct": 1.372,
+      "median_hz": 24.3127,
+      "within_10": 92.6126
+     },
+     "F3": {
+      "n": 1627,
+      "coverage": 100.0,
+      "median_pct": 1.1825,
+      "median_hz": 32.7436,
+      "within_10": 90.9035
+     }
+    }
+   }
+  },
+  "pitch": {
+   "yours_centred": {
+    "men": {
+     "frames": 540,
+     "voicing_recall": 100.0,
+     "false_alarm": null,
+     "VDE": 0.0,
+     "RPA": 87.4074,
+     "GPE": 7.4074,
+     "octave": 0.1852,
+     "fine_cents": 10.2325
+    },
+    "women": {
+     "frames": 576,
+     "voicing_recall": 100.0,
+     "false_alarm": null,
+     "VDE": 0.0,
+     "RPA": 91.4931,
+     "GPE": 3.8194,
+     "octave": 3.8194,
+     "fine_cents": 8.5971
+    },
+    "boys": {
+     "frames": 324,
+     "voicing_recall": 100.0,
+     "false_alarm": null,
+     "VDE": 0.0,
+     "RPA": 95.9877,
+     "GPE": 2.1605,
+     "octave": 2.1605,
+     "fine_cents": 5.9542
+    },
+    "girls": {
+     "frames": 228,
+     "voicing_recall": 100.0,
+     "false_alarm": null,
+     "VDE": 0.0,
+     "RPA": 92.1053,
+     "GPE": 2.6316,
+     "octave": 2.193,
+     "fine_cents": 8.8225
+    },
+    "all": {
+     "frames": 1668,
+     "voicing_recall": 100.0,
+     "false_alarm": null,
+     "VDE": 0.0,
+     "RPA": 91.1271,
+     "GPE": 4.4964,
+     "octave": 2.0983,
+     "fine_cents": 8.7647
+    }
+   },
+   "candidate": {
+    "men": {
+     "frames": 540,
+     "voicing_recall": 100.0,
+     "false_alarm": null,
+     "VDE": 0.0,
+     "RPA": 91.2963,
+     "GPE": 1.6667,
+     "octave": 1.1111,
+     "fine_cents": 11.4419
+    },
+    "women": {
+     "frames": 576,
+     "voicing_recall": 100.0,
+     "false_alarm": null,
+     "VDE": 0.0,
+     "RPA": 92.7083,
+     "GPE": 1.5625,
+     "octave": 1.5625,
+     "fine_cents": 9.7907
+    },
+    "boys": {
+     "frames": 324,
+     "voicing_recall": 100.0,
+     "false_alarm": null,
+     "VDE": 0.0,
+     "RPA": 95.3704,
+     "GPE": 2.1605,
+     "octave": 2.1605,
+     "fine_cents": 7.1589
+    },
+    "girls": {
+     "frames": 228,
+     "voicing_recall": 100.0,
+     "false_alarm": null,
+     "VDE": 0.0,
+     "RPA": 92.1053,
+     "GPE": 2.193,
+     "octave": 1.7544,
+     "fine_cents": 10.182
+    },
+    "all": {
+     "frames": 1668,
+     "voicing_recall": 100.0,
+     "false_alarm": null,
+     "VDE": 0.0,
+     "RPA": 92.6859,
+     "GPE": 1.7986,
+     "octave": 1.5588,
+     "fine_cents": 9.8494
+    }
+   },
+   "praat": {
+    "men": {
+     "frames": 540,
+     "voicing_recall": 99.8148,
+     "false_alarm": null,
+     "VDE": 0.1852,
+     "RPA": 89.6296,
+     "GPE": 0.0,
+     "octave": 0.0,
+     "fine_cents": 13.8751
+    },
+    "women": {
+     "frames": 576,
+     "voicing_recall": 99.8264,
+     "false_alarm": null,
+     "VDE": 0.1736,
+     "RPA": 93.2292,
+     "GPE": 0.8696,
+     "octave": 0.6957,
+     "fine_cents": 9.1654
+    },
+    "boys": {
+     "frames": 324,
+     "voicing_recall": 100.0,
+     "false_alarm": null,
+     "VDE": 0.0,
+     "RPA": 95.3704,
+     "GPE": 0.0,
+     "octave": 0.0,
+     "fine_cents": 10.2766
+    },
+    "girls": {
+     "frames": 228,
+     "voicing_recall": 100.0,
+     "false_alarm": null,
+     "VDE": 0.0,
+     "RPA": 90.7895,
+     "GPE": 1.3158,
+     "octave": 0.4386,
+     "fine_cents": 10.8362
+    },
+    "all": {
+     "frames": 1668,
+     "voicing_recall": 99.8801,
+     "false_alarm": null,
+     "VDE": 0.1199,
+     "RPA": 92.1463,
+     "GPE": 0.4802,
+     "octave": 0.3001,
+     "fine_cents": 11.0287
+    }
+   },
+   "pyin": {
+    "men": {
+     "frames": 540,
+     "voicing_recall": 95.0,
+     "false_alarm": null,
+     "VDE": 5.0,
+     "RPA": 85.7407,
+     "GPE": 2.924,
+     "octave": 0.1949,
+     "fine_cents": 11.8087
+    },
+    "women": {
+     "frames": 576,
+     "voicing_recall": 99.8264,
+     "false_alarm": null,
+     "VDE": 0.1736,
+     "RPA": 93.5764,
+     "GPE": 1.3913,
+     "octave": 1.3913,
+     "fine_cents": 8.6915
+    },
+    "boys": {
+     "frames": 324,
+     "voicing_recall": 99.6914,
+     "false_alarm": null,
+     "VDE": 0.3086,
+     "RPA": 96.6049,
+     "GPE": 0.3096,
+     "octave": 0.3096,
+     "fine_cents": 9.4029
+    },
+    "girls": {
+     "frames": 228,
+     "voicing_recall": 99.5614,
+     "false_alarm": null,
+     "VDE": 0.4386,
+     "RPA": 91.2281,
+     "GPE": 1.7621,
+     "octave": 0.8811,
+     "fine_cents": 8.7547
+    },
+    "all": {
+     "frames": 1668,
+     "voicing_recall": 98.2014,
+     "false_alarm": null,
+     "VDE": 1.7986,
+     "RPA": 91.307,
+     "GPE": 1.7094,
+     "octave": 0.7326,
+     "fine_cents": 9.772
+    }
+   }
+  }
+ },
+ "synthetic": {
+  "pitch_range": [
+   {
+    "f0": 70,
+    "sr": 16000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 114.0411,
+     "accuracy": 0.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0069,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 0.0,
+     "median_cents": null,
+     "accuracy": 0.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": 3.1291,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 85,
+    "sr": 16000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 2.4725,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0096,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -0.0007,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": -3.0004,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 100,
+    "sr": 16000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 1.0729,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": -0.0177,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -0.0586,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": 5.6413,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 130,
+    "sr": 16000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 1.5639,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": -0.0007,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": 0.0031,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": 1.4273,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 160,
+    "sr": 16000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 0.8427,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": -0.0018,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": 0.0019,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": 1.955,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 200,
+    "sr": 16000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 0.6417,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": -0.0015,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -0.0022,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": -4.3587,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 250,
+    "sr": 16000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 1.0075,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": 0.0,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": -0.6724,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 300,
+    "sr": 16000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 0.8799,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0003,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": 0.0003,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": 3.6863,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 400,
+    "sr": 16000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 0.8749,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": -0.0012,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -0.0012,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": -4.3587,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 500,
+    "sr": 16000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 1.7726,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": -0.0014,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -0.0014,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": -0.6724,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 600,
+    "sr": 16000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 1.0666,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": -0.0003,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -0.0003,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": 3.6863,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 700,
+    "sr": 16000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": -1199.7434,
+     "accuracy": 0.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0003,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -1200.0001,
+     "accuracy": 0.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": -3.1846,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 900,
+    "sr": 16000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": -1198.4851,
+     "accuracy": 0.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": -0.0007,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -1200.0002,
+     "accuracy": 0.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": -1198.2687,
+     "accuracy": 0.0
+    }
+   },
+   {
+    "f0": 1200,
+    "sr": 16000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": -1198.5971,
+     "accuracy": 0.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": -1200.0002,
+     "accuracy": 0.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -1200.0002,
+     "accuracy": 0.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": -1196.3137,
+     "accuracy": 0.0
+    }
+   },
+   {
+    "f0": 70,
+    "sr": 44100,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 119.4428,
+     "accuracy": 0.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0164,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 0.0,
+     "median_cents": null,
+     "accuracy": 0.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": 3.1291,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 85,
+    "sr": 44100,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 2.763,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0083,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -0.0007,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": -3.0004,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 100,
+    "sr": 44100,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 1.3631,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": -0.0224,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -0.062,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": 5.6413,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 130,
+    "sr": 44100,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 1.4866,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0016,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": 0.0065,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": 1.4273,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 160,
+    "sr": 44100,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 0.6861,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": -0.0014,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -0.0001,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": 1.955,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 200,
+    "sr": 44100,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 0.7454,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": -0.0003,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -0.0008,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": -4.3587,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 250,
+    "sr": 44100,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 0.8818,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0009,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": 0.0009,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": -0.6724,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 300,
+    "sr": 44100,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 0.4369,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.003,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": 0.0031,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": 3.6863,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 400,
+    "sr": 44100,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 0.4708,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0009,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": 0.0009,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": 5.6413,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 500,
+    "sr": 44100,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 0.7118,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0007,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": 0.0007,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": -0.6724,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 600,
+    "sr": 44100,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 11.8173,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -1199.9983,
+     "accuracy": 0.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": 3.6863,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 700,
+    "sr": 44100,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": -1199.4215,
+     "accuracy": 0.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0033,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -1199.9984,
+     "accuracy": 0.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": -3.1846,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 900,
+    "sr": 44100,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": -1199.1812,
+     "accuracy": 0.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0077,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -1199.9962,
+     "accuracy": 0.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": -1198.2687,
+     "accuracy": 0.0
+    }
+   },
+   {
+    "f0": 1200,
+    "sr": 44100,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": -1188.1827,
+     "accuracy": 0.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": -1200.0,
+     "accuracy": 0.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -1901.9545,
+     "accuracy": 0.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": -1196.3137,
+     "accuracy": 0.0
+    }
+   },
+   {
+    "f0": 70,
+    "sr": 48000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 119.4428,
+     "accuracy": 0.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0093,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 0.0,
+     "median_cents": null,
+     "accuracy": 0.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": 3.1291,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 85,
+    "sr": 48000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 2.8337,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0069,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -0.0036,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": -3.0004,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 100,
+    "sr": 48000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 1.3761,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0294,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -0.0624,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": 5.6413,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 130,
+    "sr": 48000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 1.5703,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0019,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": 0.0067,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": 1.4273,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 160,
+    "sr": 48000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 0.6956,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": -0.0051,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": 0.006,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": 1.955,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 200,
+    "sr": 48000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 0.449,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": -0.004,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -0.0045,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": -4.3587,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 250,
+    "sr": 48000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 0.9401,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": 0.0001,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": -0.6724,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 300,
+    "sr": 48000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 0.6669,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0033,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": 0.0033,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": 3.6863,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 400,
+    "sr": 48000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 0.4377,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0033,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": 0.0033,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": 5.6413,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 500,
+    "sr": 48000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 0.5536,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0038,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -0.0038,
+     "accuracy": 100.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": -0.6724,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 600,
+    "sr": 48000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": 0.0,
+     "accuracy": 100.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0035,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -1199.9982,
+     "accuracy": 0.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": 3.6863,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 700,
+    "sr": 48000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": -1199.4544,
+     "accuracy": 0.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": -0.0005,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -1200.0002,
+     "accuracy": 0.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": -3.1846,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "f0": 900,
+    "sr": 48000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": -1199.491,
+     "accuracy": 0.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": 0.0022,
+     "accuracy": 100.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -1200.0011,
+     "accuracy": 0.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": -1198.2687,
+     "accuracy": 0.0
+    }
+   },
+   {
+    "f0": 1200,
+    "sr": 48000,
+    "yours": {
+     "detected": 100.0,
+     "median_cents": -1200.0,
+     "accuracy": 0.0
+    },
+    "candidate": {
+     "detected": 100.0,
+     "median_cents": -1199.9971,
+     "accuracy": 0.0
+    },
+    "praat": {
+     "detected": 100.0,
+     "median_cents": -1901.9531,
+     "accuracy": 0.0
+    },
+    "pyin": {
+     "detected": 100.0,
+     "median_cents": -1196.3137,
+     "accuracy": 0.0
+    }
+   }
+  ],
+  "quality": {
+   "vocalweight": {
+    "by_factor": {
+     "tilt": {
+      "values": [
+       -6.0,
+       -9.0,
+       -12.0,
+       -15.0,
+       -18.0
+      ],
+      "median": [
+       33.0,
+       33.0,
+       21.0,
+       12.0,
+       12.0
+      ],
+      "jitter": [
+       3.0,
+       6.0,
+       6.0,
+       3.0,
+       3.0
+      ]
+     },
+     "breath": {
+      "values": [
+       0.0,
+       0.25,
+       0.5,
+       1.0
+      ],
+      "median": [
+       21.0,
+       21.0,
+       21.0,
+       21.0
+      ],
+      "jitter": [
+       6.0,
+       6.0,
+       6.0,
+       6.0
+      ]
+     },
+     "gain": {
+      "values": [
+       0.01,
+       0.03,
+       0.1,
+       0.3,
+       0.9
+      ],
+      "median": [
+       18.0,
+       18.0,
+       18.0,
+       21.0,
+       27.0
+      ],
+      "jitter": [
+       6.0,
+       6.0,
+       6.0,
+       6.0,
+       0.0
+      ]
+     },
+     "f0": {
+      "values": [
+       100,
+       140,
+       180,
+       240,
+       320
+      ],
+      "median": [
+       9.0,
+       21.0,
+       21.0,
+       27.0,
+       33.0
+      ],
+      "jitter": [
+       0.0,
+       9.0,
+       6.0,
+       9.0,
+       0.0
+      ]
+     },
+     "sr": {
+      "values": [
+       16000,
+       22050,
+       44100,
+       48000
+      ],
+      "median": [
+       27.0,
+       24.0,
+       24.0,
+       21.0
+      ],
+      "jitter": [
+       0.0,
+       3.0,
+       3.0,
+       6.0
+      ]
+     },
+     "vowel": {
+      "values": [
+       "a",
+       "i",
+       "u"
+      ],
+      "median": [
+       21.0,
+       18.0,
+       18.0
+      ],
+      "jitter": [
+       6.0,
+       0.0,
+       0.0
+      ]
+     }
+    },
+    "tilt_rho": 0.9487,
+    "tilt_range": 21.0,
+    "nuisance_ratio": {
+     "gain": 0.4286,
+     "f0": 1.1429,
+     "sr": 0.2857,
+     "vowel": 0.1429
+    },
+    "breath_rho": 0.0,
+    "jitter_ratio": 0.2857
+   },
+   "spectral_slope_base": {
+    "by_factor": {
+     "tilt": {
+      "values": [
+       -6.0,
+       -9.0,
+       -12.0,
+       -15.0,
+       -18.0
+      ],
+      "median": [
+       -4.6651,
+       -5.3349,
+       -5.5679,
+       -5.2512,
+       -4.8212
+      ],
+      "jitter": [
+       0.0,
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     "breath": {
+      "values": [
+       0.0,
+       0.25,
+       0.5,
+       1.0
+      ],
+      "median": [
+       -5.5679,
+       -7.4881,
+       -8.3571,
+       -8.9277
+      ],
+      "jitter": [
+       0.0,
+       0.0863,
+       0.0928,
+       0.0912
+      ]
+     },
+     "gain": {
+      "values": [
+       0.01,
+       0.03,
+       0.1,
+       0.3,
+       0.9
+      ],
+      "median": [
+       -5.5679,
+       -5.5679,
+       -5.5679,
+       -5.5679,
+       -5.5679
+      ],
+      "jitter": [
+       0.0,
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     "f0": {
+      "values": [
+       100,
+       140,
+       180,
+       240,
+       320
+      ],
+      "median": [
+       -9.5421,
+       -7.1499,
+       -5.5679,
+       -4.0317,
+       -2.7872
+      ],
+      "jitter": [
+       0.0,
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     "sr": {
+      "values": [
+       16000,
+       22050,
+       44100,
+       48000
+      ],
+      "median": [
+       -5.495,
+       -5.5402,
+       -5.5665,
+       -5.5679
+      ],
+      "jitter": [
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     "vowel": {
+      "values": [
+       "a",
+       "i",
+       "u"
+      ],
+      "median": [
+       -5.5679,
+       -3.928,
+       -4.9157
+      ],
+      "jitter": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     }
+    },
+    "tilt_rho": 0.1,
+    "tilt_range": 0.9028,
+    "nuisance_ratio": {
+     "gain": 0.0,
+     "f0": 7.4821,
+     "sr": 0.0807,
+     "vowel": 1.8165
+    },
+    "breath_rho": -1.0,
+    "jitter_ratio": 0.0
+   },
+   "spectral_slope_derived": {
+    "by_factor": {
+     "tilt": {
+      "values": [
+       -6.0,
+       -9.0,
+       -12.0,
+       -15.0,
+       -18.0
+      ],
+      "median": [
+       -51.0068,
+       -60.9726,
+       -70.9384,
+       -80.9041,
+       -90.8679
+      ],
+      "jitter": [
+       0.0,
+       0.0001,
+       0.0001,
+       0.0003,
+       0.0025
+      ]
+     },
+     "breath": {
+      "values": [
+       0.0,
+       0.25,
+       0.5,
+       1.0
+      ],
+      "median": [
+       -70.9384,
+       -66.6333,
+       -61.6291,
+       -55.9086
+      ],
+      "jitter": [
+       0.0001,
+       0.2509,
+       0.3176,
+       0.4738
+      ]
+     },
+     "gain": {
+      "values": [
+       0.01,
+       0.03,
+       0.1,
+       0.3,
+       0.9
+      ],
+      "median": [
+       -70.9385,
+       -70.9383,
+       -70.9384,
+       -70.9384,
+       -70.9385
+      ],
+      "jitter": [
+       0.0001,
+       0.0001,
+       0.0001,
+       0.0001,
+       0.0001
+      ]
+     },
+     "f0": {
+      "values": [
+       100,
+       140,
+       180,
+       240,
+       320
+      ],
+      "median": [
+       -66.1837,
+       -71.6846,
+       -70.9384,
+       -73.914,
+       -80.6128
+      ],
+      "jitter": [
+       0.0,
+       0.0003,
+       0.0001,
+       0.0001,
+       0.0003
+      ]
+     },
+     "sr": {
+      "values": [
+       16000,
+       22050,
+       44100,
+       48000
+      ],
+      "median": [
+       -65.1552,
+       -68.3351,
+       -70.8135,
+       -70.9384
+      ],
+      "jitter": [
+       0.0001,
+       0.0001,
+       0.0001,
+       0.0001
+      ]
+     },
+     "vowel": {
+      "values": [
+       "a",
+       "i",
+       "u"
+      ],
+      "median": [
+       -70.9384,
+       -48.0258,
+       -89.2536
+      ],
+      "jitter": [
+       0.0001,
+       0.0,
+       0.002
+      ]
+     }
+    },
+    "tilt_rho": 1.0,
+    "tilt_range": 39.8611,
+    "nuisance_ratio": {
+     "gain": 0.0,
+     "f0": 0.362,
+     "sr": 0.1451,
+     "vowel": 1.0343
+    },
+    "breath_rho": 1.0,
+    "jitter_ratio": 0.0
+   },
+   "spectral_centroid_base": {
+    "by_factor": {
+     "tilt": {
+      "values": [
+       -6.0,
+       -9.0,
+       -12.0,
+       -15.0,
+       -18.0
+      ],
+      "median": [
+       885.8716,
+       719.9634,
+       451.8056,
+       266.4978,
+       203.5382
+      ],
+      "jitter": [
+       0.0,
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     "breath": {
+      "values": [
+       0.0,
+       0.25,
+       0.5,
+       1.0
+      ],
+      "median": [
+       451.8056,
+       452.6761,
+       454.9548,
+       463.6365
+      ],
+      "jitter": [
+       0.0,
+       0.6932,
+       1.5392,
+       2.9994
+      ]
+     },
+     "gain": {
+      "values": [
+       0.01,
+       0.03,
+       0.1,
+       0.3,
+       0.9
+      ],
+      "median": [
+       451.8056,
+       451.8056,
+       451.8056,
+       451.8056,
+       451.8056
+      ],
+      "jitter": [
+       0.0,
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     "f0": {
+      "values": [
+       100,
+       140,
+       180,
+       240,
+       320
+      ],
+      "median": [
+       195.5613,
+       377.2767,
+       451.8056,
+       586.3227,
+       671.2956
+      ],
+      "jitter": [
+       0.0,
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     "sr": {
+      "values": [
+       16000,
+       22050,
+       44100,
+       48000
+      ],
+      "median": [
+       465.7907,
+       458.1032,
+       452.1076,
+       451.8056
+      ],
+      "jitter": [
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     "vowel": {
+      "values": [
+       "a",
+       "i",
+       "u"
+      ],
+      "median": [
+       451.8056,
+       206.1455,
+       275.3943
+      ],
+      "jitter": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     }
+    },
+    "tilt_rho": 1.0,
+    "tilt_range": 682.3334,
+    "nuisance_ratio": {
+     "gain": 0.0,
+     "f0": 0.6972,
+     "sr": 0.0205,
+     "vowel": 0.36
+    },
+    "breath_rho": 1.0,
+    "jitter_ratio": 0.0
+   },
+   "spectral_centroid_derived": {
+    "by_factor": {
+     "tilt": {
+      "values": [
+       -6.0,
+       -9.0,
+       -12.0,
+       -15.0,
+       -18.0
+      ],
+      "median": [
+       885.8436,
+       720.0101,
+       451.7805,
+       266.4433,
+       203.6426
+      ],
+      "jitter": [
+       0.0596,
+       0.067,
+       0.1156,
+       0.1049,
+       0.1633
+      ]
+     },
+     "breath": {
+      "values": [
+       0.0,
+       0.25,
+       0.5,
+       1.0
+      ],
+      "median": [
+       451.7805,
+       451.899,
+       452.1161,
+       452.7441
+      ],
+      "jitter": [
+       0.1156,
+       0.4962,
+       0.9777,
+       1.8863
+      ]
+     },
+     "gain": {
+      "values": [
+       0.01,
+       0.03,
+       0.1,
+       0.3,
+       0.9
+      ],
+      "median": [
+       451.7804,
+       451.7805,
+       451.7805,
+       451.7805,
+       451.7805
+      ],
+      "jitter": [
+       0.1156,
+       0.1156,
+       0.1156,
+       0.1156,
+       0.1156
+      ]
+     },
+     "f0": {
+      "values": [
+       100,
+       140,
+       180,
+       240,
+       320
+      ],
+      "median": [
+       195.2513,
+       377.1691,
+       451.7805,
+       586.4678,
+       671.5501
+      ],
+      "jitter": [
+       0.0,
+       0.0916,
+       0.1156,
+       0.0758,
+       0.1455
+      ]
+     },
+     "sr": {
+      "values": [
+       16000,
+       22050,
+       44100,
+       48000
+      ],
+      "median": [
+       465.6621,
+       457.968,
+       451.9843,
+       451.7805
+      ],
+      "jitter": [
+       0.0781,
+       0.0488,
+       0.075,
+       0.1156
+      ]
+     },
+     "vowel": {
+      "values": [
+       "a",
+       "i",
+       "u"
+      ],
+      "median": [
+       451.7805,
+       206.4586,
+       275.6509
+      ],
+      "jitter": [
+       0.1156,
+       0.4401,
+       0.2646
+      ]
+     }
+    },
+    "tilt_rho": 1.0,
+    "tilt_range": 682.201,
+    "nuisance_ratio": {
+     "gain": 0.0,
+     "f0": 0.6982,
+     "sr": 0.0203,
+     "vowel": 0.3596
+    },
+    "breath_rho": 1.0,
+    "jitter_ratio": 0.0002
+   },
+   "harmonic_rolloff": {
+    "by_factor": {
+     "tilt": {
+      "values": [
+       -6.0,
+       -9.0,
+       -12.0,
+       -15.0,
+       -18.0
+      ],
+      "median": [
+       1270.0,
+       1260.0,
+       1260.0,
+       910.0,
+       720.0
+      ],
+      "jitter": [
+       0.0,
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     "breath": {
+      "values": [
+       0.0,
+       0.25,
+       0.5,
+       1.0
+      ],
+      "median": [
+       1260.0,
+       1260.0,
+       1260.0,
+       1260.0
+      ],
+      "jitter": [
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     "gain": {
+      "values": [
+       0.01,
+       0.03,
+       0.1,
+       0.3,
+       0.9
+      ],
+      "median": [
+       1260.0,
+       1260.0,
+       1260.0,
+       1260.0,
+       1260.0
+      ],
+      "jitter": [
+       0.0,
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     "f0": {
+      "values": [
+       100,
+       140,
+       180,
+       240,
+       320
+      ],
+      "median": [
+       1000.0,
+       1120.0,
+       1260.0,
+       1210.0,
+       1280.0
+      ],
+      "jitter": [
+       0.0,
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     "sr": {
+      "values": [
+       16000,
+       22050,
+       44100,
+       48000
+      ],
+      "median": [
+       1260.0,
+       1260.0,
+       1260.0,
+       1260.0
+      ],
+      "jitter": [
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     "vowel": {
+      "values": [
+       "a",
+       "i",
+       "u"
+      ],
+      "median": [
+       1260.0,
+       370.0,
+       370.0
+      ],
+      "jitter": [
+       0.0,
+       0.0,
+       0.0
+      ]
+     }
+    },
+    "tilt_rho": 0.9747,
+    "tilt_range": 550.0,
+    "nuisance_ratio": {
+     "gain": 0.0,
+     "f0": 0.5091,
+     "sr": 0.0,
+     "vowel": 1.6182
+    },
+    "breath_rho": 0.0,
+    "jitter_ratio": 0.0
+   },
+   "noise_rolloff": {
+    "by_factor": {
+     "tilt": {
+      "values": [
+       -6.0,
+       -9.0,
+       -12.0,
+       -15.0,
+       -18.0
+      ],
+      "median": [
+       4870.0,
+       4680.0,
+       1280.0,
+       920.0,
+       2870.0
+      ],
+      "jitter": [
+       0.0,
+       0.0,
+       0.0,
+       10.0,
+       2170.0
+      ]
+     },
+     "breath": {
+      "values": [
+       0.0,
+       0.25,
+       0.5,
+       1.0
+      ],
+      "median": [
+       1280.0,
+       1690.0,
+       1680.0,
+       1480.0
+      ],
+      "jitter": [
+       0.0,
+       50.0,
+       80.0,
+       70.0
+      ]
+     },
+     "gain": {
+      "values": [
+       0.01,
+       0.03,
+       0.1,
+       0.3,
+       0.9
+      ],
+      "median": [
+       1280.0,
+       1280.0,
+       1280.0,
+       1280.0,
+       1280.0
+      ],
+      "jitter": [
+       0.0,
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     "f0": {
+      "values": [
+       100,
+       140,
+       180,
+       240,
+       320
+      ],
+      "median": [
+       1020.0,
+       1140.0,
+       1280.0,
+       1230.0,
+       1300.0
+      ],
+      "jitter": [
+       0.0,
+       40.0,
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     "sr": {
+      "values": [
+       16000,
+       22050,
+       44100,
+       48000
+      ],
+      "median": [
+       1280.0,
+       1240.0,
+       1280.0,
+       1280.0
+      ],
+      "jitter": [
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ]
+     },
+     "vowel": {
+      "values": [
+       "a",
+       "i",
+       "u"
+      ],
+      "median": [
+       1280.0,
+       3600.0,
+       400.0
+      ],
+      "jitter": [
+       0.0,
+       190.0,
+       0.0
+      ]
+     }
+    },
+    "tilt_rho": 0.7,
+    "tilt_range": 3950.0,
+    "nuisance_ratio": {
+     "gain": 0.0,
+     "f0": 0.0709,
+     "sr": 0.0101,
+     "vowel": 0.8101
+    },
+    "breath_rho": 0.2,
+    "jitter_ratio": 0.0
+   }
+  },
+  "timing": {
+   "yours": {
+    "onset_ms": 5.0,
+    "stable_ms": 10.0,
+    "offset_ms": 45.0,
+    "wrong_frames": 2,
+    "formant_ok_ms": 30.0
+   },
+   "candidate": {
+    "onset_ms": 25.0,
+    "stable_ms": 25.0,
+    "offset_ms": 65.0,
+    "wrong_frames": 0
+   },
+   "praat": {
+    "onset_ms": -5.0,
+    "stable_ms": -5.0,
+    "offset_ms": 0.0,
+    "wrong_frames": 0
+   }
+  }
+ },
+ "code_checks": {
+  "noise_profile_unused": true,
+  "slope_per_decade": true,
+  "rolloff_98": true,
+  "weight_buffer": 256,
+  "fmin": 75.0,
+  "fmax": 600.0,
+  "label_db_per_khz": true
+ },
+ "verdicts": [
+  [
+   "Pitch on clean speech",
+   "Works",
+   "85.0% of voiced frames within half a semitone (Praat 82.1%). Gross errors 4.7% (Praat 2.1%)."
+  ],
+  [
+   "Voiced vs. silent/unvoiced decision",
+   "Doesn't work yet",
+   "Reports a pitch on 18.6% of frames that have no voice (Praat 3.4%). Misses 2.1% of voiced frames."
+  ],
+  [
+   "Timestamps in the logs",
+   "Doesn't work yet",
+   "Values are logged about 30 ms after the sound they describe. Taken at face value, pitch accuracy drops from 85.0% to 48.5%."
+  ],
+  [
+   "Pitch with background noise",
+   "Doesn't work yet",
+   "At 10 dB signal-to-noise, accuracy falls from 84.2% to 63.0% (Praat: 77.3%)."
+  ],
+  [
+   "Speed",
+   "Works",
+   "95% of frames take under 7.7 ms, so a 30 ms dashboard timestep keeps up."
+  ],
+  [
+   "Pitch range",
+   "Partly works",
+   "Correct for synthetic voices from 85 to 600 Hz. Wrong at 70, 700, 900, 1200 Hz."
+  ],
+  [
+   "Formants F1-F3 (real vowels)",
+   "Works",
+   "Within 10% of the hand-checked values for 94.2% / 91.0% / 91.1% of vowels (best Praat setting: 95.5% / 92.1% / 91.0%). As logged (no time correction): 62.8% / 79.9% / 87.7%."
+  ],
+  [
+   "Vocal weight (thickness %)",
+   "Partly works",
+   "Tracks voice brightness (spectral tilt) with rank correlation +0.95. Changing pitch moves it 1.1x as much as the full brightness range."
+  ],
+  [
+   "Spectral slope, base (magenta)",
+   "Doesn't work yet",
+   "Tracks voice brightness (spectral tilt) with rank correlation +0.10. Changing pitch moves it 7.5x as much as the full brightness range."
+  ],
+  [
+   "Spectral slope, derived (yellow)",
+   "Partly works",
+   "Tracks voice brightness (spectral tilt) with rank correlation +1.00. Changing the vowel moves it 1.0x as much as the full brightness range."
+  ],
+  [
+   "Spectral centre of gravity",
+   "Partly works",
+   "Tracks voice brightness (spectral tilt) with rank correlation +1.00. Changing pitch moves it 0.7x as much as the full brightness range."
+  ],
+  [
+   "Harmonic rolloff (tone)",
+   "Partly works",
+   "Tracks voice brightness (spectral tilt) with rank correlation +0.97. Changing the vowel moves it 1.6x as much as the full brightness range."
+  ],
+  [
+   "Noise rolloff (breath)",
+   "Doesn't work yet",
+   "Tracks breathiness with rank correlation +0.20. Changing the vowel moves it 0.8x as much as the full brightness range."
+  ]
+ ],
+ "suggestions": [
+  [
+   1,
+   "Log the time each value describes, not the end of its window",
+   "Your values describe audio about 30 ms before the logged timestamp. Comparing logs to a dataset at face value gives 48.5% pitch accuracy instead of 85.0%. Formants within 10% drop from 94.2% to 62.8% (F1).",
+   "Each feature uses a different amount of recent audio: pitch the last 50 ms, formants the last 100 ms (read at the middle, so 50 ms back), vocal weight the last 256 samples. In main11's logger, store the window centre per feature (for example pitch_time = t - 0.025, formant_time = t - 0.05), or shift audio_timestamp back by a single agreed amount. Any dataset comparison should use these times."
+  ],
+  [
+   1,
+   "Add a real voicing check instead of loudness + zero-crossing gates",
+   "18.6% of frames with no voice still get a pitch (Praat 3.4%). Your get_pitch only checks loudness (RMS > 0.001) and zero-crossing rate, and librosa.yin always returns some pitch, so any quiet hum or breath that passes both gates gets a pitch. 57% of these frames are within 50 ms of real voicing, where the analysis window still holds the start or end of a voiced sound. The typical one is only 20 dB below the loudest frame, so it is not quiet noise. A loudness gate tied to each recording's noise floor barely helps (voicing error 14.8% at best becomes 14.1%), so the fix has to look at periodicity.",
+   "Add a periodicity test: librosa.pyin's voiced probability, Praat's voicing threshold, or YIN's own aperiodicity value (reject frames above about 0.2-0.3). Judge voicing on the newest 20-30 ms rather than the whole 50 ms window so it switches off sooner after a vowel ends, and require 2-3 voiced frames in a row before reporting a pitch to remove one-frame blips."
+  ],
+  [
+   1,
+   "Stop using zero-crossing rate to reject noisy frames",
+   "Pitch accuracy falls to 63.0% at 10 dB and 35.5% at 5 dB SNR. At 10 dB, 100% of the voiced frames you miss were thrown out by the zero-crossing gate, because noise adds zero crossings even when a voice is clearly there. The candidate fix (Praat on the same 100 ms window) keeps 78.5% at 10 dB.",
+   "Replace the ZCR > 0.15 rule with a periodicity measure (see the voicing suggestion). For live use, a microphone with noise suppression off plus a periodicity-based gate is more reliable than ZCR."
+  ],
+  [
+   2,
+   "Widen the pitch search range",
+   "In the PTDB recordings, 482 voiced frames are below 75 Hz (deep or creaky male voices), and only 9.1% of them get a correct pitch. Synthetic voices at 700, 900, 1200 Hz come out an octave low (half the true pitch). get_pitch searches 75.0-600.0 Hz.",
+   "Use fmin around 55-60 Hz and fmax around 1000-1100 Hz (your notes mention singing up to 1000-2000 Hz). YIN needs at least two periods of the lowest pitch in its frame, so pass frame_length explicitly (about 2.5/fmin seconds of samples) instead of librosa's default of 2048 samples, which is a different duration at every sample rate."
+  ],
+  [
+   2,
+   "Smooth out octave jumps over time",
+   "4.7% of your voiced frames are more than 20% off (Praat 2.1%), 1.7% are octave jumps. Each frame is estimated on its own, so nothing stops a single frame from jumping an octave.",
+   "Keep the last few pitch values and reject a new value that jumps by about an octave unless the jump persists for 2-3 frames (or run a median filter over the last 3-5 frames). pYIN and Praat do this with a Viterbi path. This per-frame error data is also exactly what the correction network idea (learning true values from recent frames) would train on."
+  ],
+  [
+   2,
+   "Rebuild the base spectral slope",
+   "It barely reacts to voice brightness (rank correlation +0.10, total change 0.9 across a 12 dB/octave range), while the derived slope tracks it perfectly (+1.00). The fit runs over every FFT bin up to 4500 Hz with a -60 dB floor, so the many high, quiet bins and the floor dominate the line.",
+   "Fit dB against log-frequency on band energies (for example octave bands from 100 to 4000 Hz) or use a standard measure such as the alpha ratio (energy 50-1000 Hz vs 1-5 kHz) or the Hammarberg index. Or drop it and keep the derived slope."
+  ],
+  [
+   2,
+   "Make vocal weight independent of pitch, loudness and sample rate",
+   "Changing pitch moves vocal weight 1.1x as much as the full brightness range (loudness 0.43x, sample rate 0.29x). It also jumps 29% of its useful range from one frame to the next on a perfectly steady vowel. It analyses only 256 samples (5.3 ms at 48 kHz, 16 ms at 16 kHz), which is less than one pitch period for most voices, and log(energy + 1) depends on the input level.",
+   "Use a fixed duration (25-40 ms) instead of a fixed sample count, resample to one rate first, normalise the frame's level before taking logs, and average over a few frames. Then re-run this benchmark: the pitch and loudness ratios should fall well below 0.5."
+  ],
+  [
+   3,
+   "Choose the formant ceiling from the voice instead of always 5500 Hz",
+   "The Praat ceiling sweep picks men 5000 Hz, women 5500 Hz, boys 5500 Hz, girls 5500 Hz. A ceiling chosen from the detected pitch (the candidate fix) raises F3 within-10% for girls by 4.5 points, but lowers F3 for boys by 1.6. Averaged over F1-F3 for everyone the change is +0.8 points. Pitch alone is a rough guide to vocal tract length, which is what the ceiling should follow.",
+   "Rather than a fixed pitch rule, try 2-3 ceilings in get_formants_praat and keep the one whose formant tracks are smoothest over the last few frames (the Escudero et al. 2009 method). Let a user setting override it, since a trained voice can have a high pitch with a long vocal tract."
+  ],
+  [
+   3,
+   "Fix the spectral slope unit on the dashboard",
+   "The slope is fitted against log10(frequency), so it is in dB per decade (per 10x in frequency). The dashboard readout says dB/kHz.",
+   "Change the label to dB/decade, or divide by 3.32 and call it dB/octave, the unit most voice research uses."
+  ],
+  [
+   3,
+   "Check the breath (noise) rolloff",
+   "Adding breath noise barely changes it (rank correlation +0.20), so it does not measure breathiness yet. The helper named for an 85% rolloff actually uses 98%.",
+   "Use harmonics-to-noise ratio (Praat's to_harmonicity, or the cepstral peak prominence CPP) as the breathiness measure. Both are standard and have published norms."
+  ],
+  [
+   3,
+   "The 2-second noise calibration currently has no effect",
+   "get_audio_data receives noise_power_profile but never uses it (the denoised harmonic function is commented out). The live mode waits 2 s at startup for nothing.",
+   "Either use it, for example to set the voicing loudness gate from the room's noise level (see above), or skip the recording."
+  ]
+ ]
+}
