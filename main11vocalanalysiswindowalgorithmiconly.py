@@ -24,6 +24,8 @@ from datetime import datetime
 import time
 import threading  # --- NEW: Required for non-blocking terminal input ---
 import argparse  # --- NEW: For processing terminal commands ---
+import sys
+import traceback
 
 class NumpyEncoder(json.JSONEncoder):
     """Custom encoder to convert NumPy data types into standard Python types for JSON."""
@@ -34,39 +36,79 @@ class NumpyEncoder(json.JSONEncoder):
             return float(obj)
         if isinstance(obj, np.ndarray):
             return obj.tolist()
+        if isinstance(obj, np.bool_):
+            return bool(obj)
         return super(NumpyEncoder, self).default(obj)
 
-class AudioSessionLogger:
-    def __init__(self, base_folder="audio_logs", source_name="live_mic"):
-        os.makedirs(base_folder, exist_ok=True)
-        # Single log file named with the absolute date and time
-        session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.filepath = os.path.join(base_folder, f"session_{session_id}.jsonl")
+def json_safe(obj):
+    """Recursively turns NumPy values into plain Python and NaN/inf into null, so every log line is strict JSON
+    that pandas, Excel, R, or any other tool can read."""
+    if isinstance(obj, dict):
+        return {str(k): json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple, np.ndarray)):
+        return [json_safe(v) for v in obj]
+    if isinstance(obj, (bool, np.bool_)):
+        return bool(obj)
+    if isinstance(obj, (int, np.integer)):
+        return int(obj)
+    if isinstance(obj, (float, np.floating)):
+        return float(obj) if np.isfinite(obj) else None
+    return obj
 
+def format_ms(step_ms):
+    """30.0 -> '30', 12.5 -> '12.5' (used in file names and printouts)."""
+    return f"{step_ms:g}"
+
+def create_session_folder(base_folder, source_name, info):
+    """Makes one folder per run, e.g. audio_logs/kept_20261013_113627/, and writes session_info.json into it."""
+    safe_name = os.path.splitext(os.path.basename(source_name))[0] or "audio"
+    session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    folder = os.path.join(base_folder, f"{safe_name}_{session_id}")
+    os.makedirs(folder, exist_ok=True)
+    with open(os.path.join(folder, "session_info.json"), 'w') as f:
+        json.dump(json_safe(info), f, indent=2)
+    return folder
+
+class AudioSessionLogger:
+    """One logger = one .jsonl file for ONE timestep. Each line is one analysis frame:
+    {"frame", "timestep_ms", "audio_timestamp" (seconds into the audio), "wall_clock" (real date/time),
+     "run_elapsed_s" (seconds since logging started), "data": {...}} plus "error" if that frame failed."""
+    def __init__(self, session_folder, source_name="live_mic", timestep_ms=30):
         # Extract just the filename without the path or extension (e.g., "test_audio")
-        safe_name = os.path.splitext(os.path.basename(source_name))[0]
-        
-        self.filepath = os.path.join(base_folder, f"{safe_name}_{session_id}.jsonl")
+        safe_name = os.path.splitext(os.path.basename(source_name))[0] or "audio"
+        self.timestep_ms = timestep_ms
+        self.filepath = os.path.join(session_folder, f"{safe_name}_step{format_ms(timestep_ms)}ms.jsonl")
+        self.frame_count = 0
+        self.last_samples_logged = -1  # live mode: used to skip duplicate frames when no new audio arrived
 
         # Lock in the initialization time
         self.start_time = time.time()
-        print(f"Logging all audio data to: {self.filepath}")
+        print(f"Logging {format_ms(timestep_ms)} ms timestep to: {self.filepath}")
 
-    def log_timestep(self, audio_data, acoustic_time=None):
-        # If no time is provided (live mic mode), calculate it based on the real-world clock
+    def log_timestep(self, audio_data, acoustic_time=None, frame=None, error=None):
+        # If no time is provided, calculate it based on the real-world clock
         if acoustic_time is None:
             acoustic_time = time.time() - self.start_time
+        if frame is None:
+            frame = self.frame_count
 
-        # Bundle the exact acoustic time with the data
+        # Bundle the exact acoustic time (and the real clock time) with the data
         log_entry = {
-            "audio_timestamp": acoustic_time,
+            "frame": frame,
+            "timestep_ms": self.timestep_ms,
+            "audio_timestamp": round(float(acoustic_time), 6),
+            "wall_clock": datetime.now().isoformat(timespec='milliseconds'),
+            "run_elapsed_s": round(time.time() - self.start_time, 4),
             "data": audio_data
         }
-        
+        if error is not None:
+            log_entry["error"] = error
+        self.frame_count = frame + 1
+
         # Append as a single JSON line to the file
         try:
             with open(self.filepath, 'a') as f:
-                json.dump(log_entry, f, cls=NumpyEncoder)
+                json.dump(json_safe(log_entry), f, cls=NumpyEncoder)
                 f.write('\n')
         except Exception as e:
             print(f"Failed to log data: {e}")
@@ -99,7 +141,11 @@ def prompt_for_input():
     print("OPTION 2: Drag and drop an audio file (.wav, .flac, .mp3) here and press Enter.")
     
     while True:
-        user_input = input("\nEnter choice: ").strip()
+        try:
+            user_input = input("\nEnter choice: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nNo input given. Exiting.")
+            sys.exit(0)
         
         # Remove invisible quotes if the user dragged and dropped a file with spaces
         user_input = user_input.strip('"').strip("'")
@@ -125,18 +171,70 @@ def prompt_for_input():
 # --- CLI ARGUMENT PARSING ---
 parser = argparse.ArgumentParser(description="Vocal Analysis GUI & Headless Batch Tool")
 parser.add_argument('--input', type=str, help='Direct path to input audio file', default=None)
-parser.add_argument('--output', type=str, help='Directory to save the log file', default='audio_logs')
+parser.add_argument('--output', type=str, help='Directory to save the log folders in', default='audio_logs')
+parser.add_argument('--timesteps', type=str, nargs='+', default=None,
+                    help='One or more timesteps in milliseconds, e.g. --timesteps 10 30 100 (or 10,30,100). '
+                         'Each timestep is analysed separately and saved to its own log file. '
+                         'The first one drives the live dashboard.')
+parser.add_argument('--no-log', action='store_true', help='Do not save any log files')
 args = parser.parse_args()
+
+def parse_timesteps(values):
+    """Turns ['10', '30,100'] into [10.0, 30.0, 100.0]. Keeps order, drops duplicates. Raises ValueError if bad."""
+    steps = []
+    for v in values:
+        for part in str(v).replace(',', ' ').split():
+            ms = float(part)
+            if not np.isfinite(ms) or ms <= 0:
+                raise ValueError(f"timestep must be a positive number of ms, got '{part}'")
+            if ms not in steps:
+                steps.append(ms)
+    if not steps:
+        raise ValueError("no timesteps given")
+    return steps
+
+def prompt_for_timesteps():
+    while True:
+        try:
+            text = input(f"\nLogging timestep(s) in ms, separated by spaces or commas (press Enter for {UPDATE_INTERVAL_MS}): ").strip()
+        except (EOFError, KeyboardInterrupt):
+            text = ""
+        if not text:
+            return [float(UPDATE_INTERVAL_MS)]
+        try:
+            return parse_timesteps([text])
+        except ValueError as e:
+            print(f"Invalid timesteps ({e}). Try again, e.g.: 10 30 100")
 
 HEADLESS_MODE = args.input is not None
 OUTPUT_FOLDER = args.output
+ENABLE_LOGGING = ENABLE_LOGGING and not args.no_log
+
+if args.timesteps is not None:
+    try:
+        TIMESTEPS_MS = parse_timesteps(args.timesteps)
+    except ValueError as e:
+        print(f"ERROR: bad --timesteps value: {e}")
+        sys.exit(1)
+else:
+    TIMESTEPS_MS = None
 
 if HEADLESS_MODE:
     INPUT_FILE_PATH = args.input
     DEVICE_INDEX = None
+    if not os.path.isfile(INPUT_FILE_PATH):
+        print(f"ERROR: input file not found: {INPUT_FILE_PATH}")
+        sys.exit(1)
+    if TIMESTEPS_MS is None:
+        TIMESTEPS_MS = [float(UPDATE_INTERVAL_MS)]
     print(f"Starting in HEADLESS BATCH MODE.\nInput: {INPUT_FILE_PATH}\nOutput: {OUTPUT_FOLDER}")
 else:
     DEVICE_INDEX, INPUT_FILE_PATH = prompt_for_input()
+    if TIMESTEPS_MS is None:
+        TIMESTEPS_MS = prompt_for_timesteps() if ENABLE_LOGGING else [float(UPDATE_INTERVAL_MS)]
+
+PRIMARY_TIMESTEP_MS = TIMESTEPS_MS[0]  # this one drives the dashboard refresh rate
+print(f"Timesteps (ms): {', '.join(format_ms(t) for t in TIMESTEPS_MS)}")
 
 
 # 1. get vertical resolution
@@ -153,11 +251,24 @@ window_step=int(4096*4/resolutionfactor) #was 256 # i don't understand why this 
 FILE_AUDIO_DATA = None
 if INPUT_FILE_PATH:
     print("Loading audio file (this may take a moment)...")
-    FILE_AUDIO_DATA, SAMPLE_RATE = librosa.load(INPUT_FILE_PATH, sr=None, mono=True)
-    print(f"File loaded! Native Sample Rate: {SAMPLE_RATE} Hz")
+    try:
+        FILE_AUDIO_DATA, SAMPLE_RATE = librosa.load(INPUT_FILE_PATH, sr=None, mono=True)
+    except Exception as e:
+        print(f"\nERROR: could not read audio file '{INPUT_FILE_PATH}': {type(e).__name__}: {e}")
+        print("Make sure it is a real, non-empty audio file (.wav, .flac, .mp3, ...).")
+        sys.exit(1)
+    if len(FILE_AUDIO_DATA) == 0:
+        print(f"\nERROR: audio file '{INPUT_FILE_PATH}' contains no samples.")
+        sys.exit(1)
+    FILE_AUDIO_DATA = np.nan_to_num(FILE_AUDIO_DATA).astype(np.float32)
+    print(f"File loaded! Native Sample Rate: {SAMPLE_RATE} Hz, length {len(FILE_AUDIO_DATA) / SAMPLE_RATE:.2f}s")
 else:
     # Ask the computer for the stats of this specific microphone
-    device_info = sd.query_devices(DEVICE_INDEX, 'input')
+    try:
+        device_info = sd.query_devices(DEVICE_INDEX, 'input')
+    except Exception as e:
+        print(f"\nERROR: could not open microphone #{DEVICE_INDEX}: {e}")
+        sys.exit(1)
     # Pull out the sample rate and convert it to an integer
     SAMPLE_RATE = int(device_info['default_samplerate'])
     print(f"Microphone detected! Running at {SAMPLE_RATE} Hz")
@@ -348,9 +459,13 @@ if INPUT_FILE_PATH:
     calibration_audio = FILE_AUDIO_DATA[:calib_samples]
 else:
     # 1. Synchronously record 2 seconds of real audio
-    calibration_audio = sd.rec(int(SAMPLE_RATE * 2.0), samplerate=SAMPLE_RATE, channels=1, device=DEVICE_INDEX)
-    sd.wait() # Freeze the program until the 2 seconds are up
-    calibration_audio = calibration_audio.flatten()
+    try:
+        calibration_audio = sd.rec(int(SAMPLE_RATE * 2.0), samplerate=SAMPLE_RATE, channels=1, device=DEVICE_INDEX)
+        sd.wait() # Freeze the program until the 2 seconds are up
+        calibration_audio = calibration_audio.flatten()
+    except Exception as e:
+        print(f"WARNING: calibration recording failed ({e}). Using a silent noise profile instead.")
+        calibration_audio = np.zeros(int(SAMPLE_RATE * 2.0), dtype=np.float32)
 
 # 2. We process in 100ms chunks live, so our noise profile must also be 100ms long!
 chunk_size = int(SAMPLE_RATE * 0.100)
@@ -359,6 +474,10 @@ noise_power_profile = np.zeros(chunk_size // 2 + 1)
 
 # 3. Average the FFT power over the 2 seconds to get a solid baseline
 num_chunks = len(calibration_audio) // chunk_size
+if num_chunks == 0:
+    # Audio shorter than 100ms: pad it with silence so we still get one chunk (avoids dividing by zero)
+    calibration_audio = np.pad(calibration_audio, (0, chunk_size - len(calibration_audio)))
+    num_chunks = 1
 for i in range(num_chunks):
     chunk = calibration_audio[i*chunk_size : (i+1)*chunk_size]
     complex_spec = np.fft.rfft(chunk * window)
@@ -527,8 +646,8 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     #print(f"bbb: {bbb}")
     bbb+=1
     if len(y)<samples_to_pull:
-        print(f"AUDIO BUFFER NOT BIG ENOUGH!!! GOT f{int(y.shape[0])} NEEDS AT LEAST f{int(samples_to_pull)}")
-        return
+        print(f"AUDIO BUFFER NOT BIG ENOUGH!!! GOT {int(y.shape[0])} NEEDS AT LEAST {int(samples_to_pull)}")
+        return spectrogram_data, 0
     # Extract exactly what we need from the very end of the rolling audio buffer
     y_slice=y[-samples_to_pull:]
     # 4. Compute Spectrogram 
@@ -673,7 +792,7 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     bbb+=1
     
     return spectrogram_data, actual_new_cols
-max_mel=-1000000000
+max_mel=librosa.hz_to_mel(SAMPLE_RATE / 2) # top of the spectrogram; set now so formant markers are right before the first pitch
 f12pos=[0,0]
 f34pos=[0,0]
 # --- Formant Smoothing State ---
@@ -684,7 +803,7 @@ smooth_f4 = None
 # 1.0 is instant teleporting (jittery). 0.05 is extremely slow/laggy. 
 # 0.2 is usually the sweet spot for a snappy but smooth visual.
 SMOOTHING_FACTOR = 0.2
-def update_dashboard(acoustic_time=None):
+def update_dashboard(acoustic_time=None, frame=None):
     global pitch_history, formant_history
 
     # 1. Bring in all our globals properly!
@@ -705,15 +824,31 @@ def update_dashboard(acoustic_time=None):
     # run the math to get audio data
     #audio_data=get_audio_data(audio_buffer,BUFFER_SECONDS,SAMPLE_RATE)
     ## Pass the noise_power_profile as the 4th argument!
-    audio_data=get_audio_data(audio_buffer, BUFFER_SECONDS, SAMPLE_RATE, noise_power_profile)
+    # File mode passes acoustic_time and logs EVERY step (even when no new spectrogram column was drawn).
+    # Live mode logs whenever new mic audio arrived since the last line, timed by how much audio was received.
+    is_offline_frame = acoustic_time is not None
+    if is_offline_frame:
+        should_log = ENABLE_LOGGING and data_logger is not None
+        log_time = acoustic_time
+    else:
+        samples_now = total_samples_received
+        should_log = ENABLE_LOGGING and data_logger is not None and samples_now != data_logger.last_samples_logged
+        log_time = samples_now / SAMPLE_RATE
+        if should_log:
+            data_logger.last_samples_logged = samples_now
+    try:
+        # use the same snapshot (current_audio) as the spectrogram so the mic thread can't change it mid-frame
+        audio_data=get_audio_data(current_audio, BUFFER_SECONDS, SAMPLE_RATE, noise_power_profile)
+    except Exception as e:
+        if should_log:
+            data_logger.log_timestep(None, log_time, frame=frame, error=f"{type(e).__name__}: {e}")
+        raise
     #print(f"Audio data: {audio_data}")
     #print(f"Audio pitch: {pitch_hz}")
-    
+
     # --- NEW: Log the data for this timestep ---
-    if ENABLE_LOGGING and data_logger is not None and actual_new_cols > 0:
-        # THE FIX: Pass acoustic_time (it will be None during Live Mic mode, which is handled gracefully)
-        data_logger.log_timestep(audio_data, acoustic_time)
-        #data_logger.log_timestep(audio_data)
+    if should_log:
+        data_logger.log_timestep(audio_data, log_time, frame=frame)
 
     #print(librosa.hz_to_mel(pitch_hz))
     global max_mel
@@ -1068,18 +1203,74 @@ def update_dashboard(acoustic_time=None):
 
 
 # --- START THE LOOP ---
-# Initialize the logger only if the flag is True
+# Initialize one logger PER TIMESTEP, all inside one session folder:
+#   audio_logs/<source>_<date_time>/session_info.json
+#   audio_logs/<source>_<date_time>/<source>_step30ms.jsonl   (one line per analysed frame)
+#   audio_logs/<source>_<date_time>/<source>_step100ms.jsonl  ...
+SESSION_FOLDER = None
+loggers = {}
 if ENABLE_LOGGING:
-    if INPUT_FILE_PATH:
-        data_logger = AudioSessionLogger(base_folder=OUTPUT_FOLDER, source_name=INPUT_FILE_PATH)
-    else:
-        data_logger = AudioSessionLogger(base_folder=OUTPUT_FOLDER, source_name="live_mic")
-else:
-    data_logger = None
+    source_name = INPUT_FILE_PATH if INPUT_FILE_PATH else "live_mic"
+    session_info = {
+        "source": os.path.abspath(INPUT_FILE_PATH) if INPUT_FILE_PATH else "live_mic",
+        "mode": "headless_file" if HEADLESS_MODE else ("gui_file" if INPUT_FILE_PATH else "live_mic"),
+        "device": None if INPUT_FILE_PATH else sd.query_devices(DEVICE_INDEX)['name'],
+        "started": datetime.now().isoformat(timespec='seconds'),
+        "sample_rate": SAMPLE_RATE,
+        "audio_duration_s": len(FILE_AUDIO_DATA) / SAMPLE_RATE if INPUT_FILE_PATH else None,
+        "timesteps_ms": TIMESTEPS_MS,
+        "analysis_buffer_seconds": BUFFER_SECONDS,
+        "noise_profile_from": "first 2s of the file" if INPUT_FILE_PATH else "2s mic recording at startup",
+        "audio_timestamp_meaning": "seconds of audio at the END of the analysis window (the window is the "
+                                   "analysis_buffer_seconds of audio before it; file mode pads the start with silence)",
+        "wall_clock_meaning": "real date/time the line was written",
+    }
+    try:
+        SESSION_FOLDER = create_session_folder(OUTPUT_FOLDER, source_name, session_info)
+        print(f"Saving logs in: {SESSION_FOLDER}")
+        for step_ms in TIMESTEPS_MS:
+            loggers[step_ms] = AudioSessionLogger(SESSION_FOLDER, source_name, step_ms)
+    except OSError as e:
+        print(f"WARNING: could not create a log folder in '{OUTPUT_FOLDER}' ({e}). Continuing WITHOUT logging.")
+        ENABLE_LOGGING = False
+        loggers = {}
+data_logger = loggers.get(PRIMARY_TIMESTEP_MS)  # the dashboard logs into the first timestep's file
+
+# PyQt6 force-quits the whole program if a timer callback raises an exception,
+# so every frame goes through this: errors get printed (rate-limited) and the program keeps going.
+_frame_error_count = 0
+def report_frame_error(where):
+    global _frame_error_count
+    _frame_error_count += 1
+    if _frame_error_count <= 5 or _frame_error_count % 100 == 0:
+        print(f"\n[{where}] frame error #{_frame_error_count} (still running):")
+        traceback.print_exc()
+
+def safe_update_dashboard(acoustic_time=None, frame=None):
+    try:
+        update_dashboard(acoustic_time=acoustic_time, frame=frame)
+    except Exception:
+        report_frame_error("dashboard")
+
+def make_live_log_tick(logger):
+    """Timer callback for an extra live timestep: analyse the newest mic audio and log it (no drawing)."""
+    def tick():
+        samples_now = total_samples_received
+        if samples_now == logger.last_samples_logged:
+            return  # no new audio since this file's last line, so don't write a duplicate
+        logger.last_samples_logged = samples_now
+        try:
+            data = get_audio_data(audio_buffer.copy(), BUFFER_SECONDS, SAMPLE_RATE, noise_power_profile)
+            logger.log_timestep(data, samples_now / SAMPLE_RATE)
+        except Exception as e:
+            logger.log_timestep(None, samples_now / SAMPLE_RATE, error=f"{type(e).__name__}: {e}")
+            report_frame_error(f"{format_ms(logger.timestep_ms)} ms logger")
+    return tick
+extra_timers = []  # keep references so Qt doesn't garbage-collect them
 
 # PyQtGraph uses QTimer instead of Matplotlib's FuncAnimation
 timer = QtCore.QTimer()
-timer.timeout.connect(update_dashboard)
+timer.timeout.connect(lambda: safe_update_dashboard())
 # CRITICAL FIX: Removed global timer.start() here so it doesn't ghost-log in offline mode!
 # timer.start(UPDATE_INTERVAL_MS)
 
@@ -1158,14 +1349,23 @@ def run():
         process_file_offline(INPUT_FILE_PATH)
     else:
         # Live Mic Mode: Use the hardware stream and QTimer
-        timer.start(UPDATE_INTERVAL_MS)
+        timer.start(max(1, int(round(PRIMARY_TIMESTEP_MS))))
+        # Every extra timestep gets its own timer that only analyses + logs (no drawing).
+        # Note: each one runs the full analysis, so many small timesteps can slow the dashboard down.
+        for step_ms in TIMESTEPS_MS[1:]:
+            if step_ms in loggers:
+                extra_timer = QtCore.QTimer()
+                extra_timer.timeout.connect(make_live_log_tick(loggers[step_ms]))
+                extra_timer.start(max(1, int(round(step_ms))))
+                extra_timers.append(extra_timer)
         # 1. Setup the stream parameters using the exact device you picked!
+        # (mic blocks are never longer than the smallest timestep, so fast timesteps get fresh audio each tick)
         stream_kwargs = {
             'device': DEVICE_INDEX,
             'channels': 1,
             'samplerate': SAMPLE_RATE,
             'callback': audio_callback,
-            'blocksize': int(SAMPLE_RATE * 0.03) 
+            'blocksize': max(1, int(SAMPLE_RATE * min(0.03, min(TIMESTEPS_MS) / 1000.0)))
         }
 
         # 2. Check if the device you picked is a WASAPI device
@@ -1180,59 +1380,76 @@ def run():
         else:
             print(f"Standard audio API detected ({hostapi_name})...")
 
-        # 3. Start the Stream!
+        # 3. Start the Stream! If Exclusive Mode is refused, fall back to normal shared mode instead of quitting.
         try:
             stream = sd.InputStream(**stream_kwargs)
-            with stream:
-                print("Microphone Active. Starting Dashboard...")
-                pg.exec() # Keeps the application running
-
         except Exception as e:
-            print(f"\nCRITICAL AUDIO ERROR: {e}")
-            print("Note: Exclusive Mode requires your SAMPLE_RATE to perfectly match your hardware's native rate.")
+            if 'extra_settings' not in stream_kwargs:
+                print(f"\nCRITICAL AUDIO ERROR: {e}")
+                return
+            print(f"Exclusive Mode failed ({e}). Retrying in normal shared mode...")
+            stream_kwargs.pop('extra_settings')
+            try:
+                stream = sd.InputStream(**stream_kwargs)
+            except Exception as e2:
+                print(f"\nCRITICAL AUDIO ERROR: {e2}")
+                print("Note: Exclusive Mode requires your SAMPLE_RATE to perfectly match your hardware's native rate.")
+                return
+        with stream:
+            print("Microphone Active. Starting Dashboard...")
+            pg.exec() # Keeps the application running
+        if SESSION_FOLDER:
+            print(f"Logs saved in: {SESSION_FOLDER}")
 
-def process_file_offline(file_path):
-    print(f"Loading offline file for dataset alignment: {file_path}")
-    file_audio, sr = librosa.load(file_path, sr=None, mono=True)
-    
+def run_offline_pass(file_audio, sr, step_ms, logger, show_gui):
+    """Steps through the whole file with a fixed hop of step_ms and logs one line per step into `logger`.
+    show_gui=True also draws every step on the dashboard (only the first timestep does this)."""
     # Define a strict hop length (e.g., 30ms steps, typical for datasets)
-    step_duration_sec = UPDATE_INTERVAL_MS / 1000.0
-    hop_length_samples = int(sr * step_duration_sec)
-    
+    hop_length_samples = max(1, int(round(sr * step_ms / 1000.0)))
+
     # We need a rolling buffer equal to BUFFER_SECONDS (2.0s) to feed the math
     buffer_samples = int(sr * BUFFER_SECONDS)
-    
-    # Pad the beginning of the audio with silence so the very first 
+
+    # Pad the beginning of the audio with silence so the very first
     # timeframe has enough "history" to fill the 2-second buffer
     padded_audio = np.pad(file_audio, (buffer_samples, 0), mode='constant')
-    
-    print(f"Processing {len(file_audio) // hop_length_samples} total frames...")
-    
+
+    heads = range(buffer_samples, len(padded_audio), hop_length_samples)
+    print(f"Processing {len(heads)} total frames...")
+
     # March through the file using a strict, fixed step size
     global audio_buffer, total_samples_received, samples_processed
-    
-    for current_head in range(buffer_samples, len(padded_audio), hop_length_samples):
+
+    for frame, current_head in enumerate(heads):
         # 1. Calculate the exact timestamp from the file array index
         # (Subtracting the buffer padding so time starts exactly at 0.000s)
         acoustic_time = (current_head - buffer_samples) / sr
-        
+
         # 2. Extract the exact window
         audio_buffer = padded_audio[current_head - buffer_samples : current_head]
 
-        if HEADLESS_MODE:
-            # FAST BATCH PROCESSING: No graphics, just raw math and logging
-            audio_data = get_audio_data(audio_buffer, BUFFER_SECONDS, sr, noise_power_profile)
-            if ENABLE_LOGGING and data_logger is not None:
-                data_logger.log_timestep(audio_data, acoustic_time)
-            
+        if not show_gui:
+            # FAST BATCH PROCESSING: No graphics, just raw math and logging.
+            # A frame that errors gets an "error" line instead of killing the whole run.
+            try:
+                audio_data = get_audio_data(audio_buffer, BUFFER_SECONDS, sr, noise_power_profile)
+                if logger is not None:
+                    logger.log_timestep(audio_data, acoustic_time, frame=frame)
+            except Exception as e:
+                if logger is not None:
+                    logger.log_timestep(None, acoustic_time, frame=frame, error=f"{type(e).__name__}: {e}")
+                report_frame_error(f"{format_ms(step_ms)} ms pass")
+
             # Print a progress indicator that overwrites itself on the same console line
-            print(f"Processed {acoustic_time:.2f}s...", end='\r')
+            print(f"[{format_ms(step_ms)} ms] Processed {acoustic_time:.2f}s...", end='\r')
+            if not HEADLESS_MODE:
+                app.processEvents()  # keep the (already finished) dashboard window responsive
         else:
             # Mimic the live variables so the UI math doesn't break
             total_samples_received += hop_length_samples
-    
+
             # 3. THE FIX: Let the main dashboard handle EVERYTHING (math, logging, and ALL 1D graphs)
-            update_dashboard(acoustic_time=acoustic_time)
+            safe_update_dashboard(acoustic_time=acoustic_time, frame=frame)
     
             ## 3. Analyze data
             #audio_data = get_audio_data(audio_buffer, BUFFER_SECONDS, sr, noise_power_profile)
@@ -1249,8 +1466,32 @@ def process_file_offline(file_path):
                 
             # 6. Force PyQtGraph to render this exact frame before continuing the loop
             app.processEvents()
+    print()
+
+def process_file_offline(file_path):
+    print(f"Processing offline file for dataset alignment: {file_path}")
+    # Reuse the audio already loaded at startup instead of decoding the file a second time
+    file_audio, sr = FILE_AUDIO_DATA, SAMPLE_RATE
+    if HEADLESS_MODE and not loggers:
+        print("Logging is off (--no-log), so headless mode has nothing to save. Exiting.")
+        return
+
+    # One full pass over the file per timestep, each logging into its own file
+    for i, step_ms in enumerate(TIMESTEPS_MS):
+        show_gui = (not HEADLESS_MODE) and i == 0
+        logger = loggers.get(step_ms)
+        if not show_gui and logger is None:
+            continue  # logging is off, so an extra invisible pass would be pointless
+        label = "dashboard + log" if show_gui else "log only"
+        print(f"\n--- Pass {i + 1}/{len(TIMESTEPS_MS)}: {format_ms(step_ms)} ms timestep ({label}) ---")
+        run_offline_pass(file_audio, sr, step_ms, logger, show_gui)
 
     print("\n--- Offline Processing Complete ---")
+    if SESSION_FOLDER:
+        print(f"Logs saved in: {SESSION_FOLDER}")
+    if HEADLESS_MODE:
+        return  # batch mode has no window to keep open, so just exit
+
     print("Press Enter in this terminal to close the window and exit...")
     
     # --- NEW: Create a background thread to wait for terminal input ---
@@ -1265,4 +1506,7 @@ def process_file_offline(file_path):
     pg.exec()
 
 if __name__ == "__main__":
-    run()
+    try:
+        run()
+    except KeyboardInterrupt:
+        print("\nStopped with Ctrl+C. Everything logged up to this point is saved.")
