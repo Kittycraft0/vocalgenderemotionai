@@ -86,3 +86,15 @@ can you get databases to compare the extraction data against and have it generat
 does it implement multithreading to make things a lot faster
 
 
+10/17/2026
+make a script that reads the log data and recreates the sounds. then perhaps it could like reproduce a voice from the data and it might sound fun. do it in main13sounreconstruction.py
+
+the upper formants are wayyy too loud. i do love the lower formants though. can you add a mode that like has only the first 2 formants? or is there a way to add intensity of each formant to main11 to be able to log better data such that the reconstructor can sound more realistic?
+
+get more datasets and test main11 against them to see how the accuracy matches and what on that it matches. and then also generate a file that could be used to weigh the influence of each piece of data on a recreation such that only the things that are verified to be accurate with external data are used in a reconstruction if using the weighted mode
+
+add more datasets and reweigh
+
+can we predict when the program will be accurate vs unaccurate to make a more dynamic influence instead of just a static influence? also can we add even more datasets? and what other parameters can we have?
+
+

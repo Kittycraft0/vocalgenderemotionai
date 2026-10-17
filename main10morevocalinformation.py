@@ -55,6 +55,8 @@ def get_audio_data(audio_buffer,time,sample_rate,noise_power_profile):
     data={
         "pitch":-1,
         "formants":[],
+        "formant_bandwidths":[],
+        "formant_intensities":[],
         "vocalweight":-1,
         "harmonic_series":{"freqs":[],"mags":[]},
         "harmonic_rolloff": -1, # NEW
@@ -67,10 +69,15 @@ def get_audio_data(audio_buffer,time,sample_rate,noise_power_profile):
     # ONLY pass the most recent 100 milliseconds of audio to Praat!
     recent_audio = audio_buffer[-int(sample_rate * 0.100):]
     if data["pitch"] > 0:
-        data["formants"] = get_formants_praat(recent_audio, sample_rate)
+        fmts, bws, ints = get_formants_praat(recent_audio, sample_rate)
+        data["formants"] = fmts
+        data["formant_bandwidths"] = bws
+        data["formant_intensities"] = ints
     else:
         # If silence, don't make Praat do any math at all
         data["formants"] = [0.0, 0.0, 0.0, 0.0, 0.0]
+        data["formant_bandwidths"] = [0.0, 0.0, 0.0, 0.0, 0.0]
+        data["formant_intensities"] = [-100.0, -100.0, -100.0, -100.0, -100.0]
     
     data["vocalweight"]=get_vocal_weight(audio_buffer, sample_rate)
     
@@ -157,33 +164,41 @@ import parselmouth
 
 def get_formants_praat(audio_buffer, sample_rate):
     """
-    Extracts F1, F2, F3 using the industry-standard Praat algorithm.
+    Extracts F1..F5 frequencies, bandwidths, and spectral intensities (dB)
+    using Parselmouth (Praat) and FFT peak matching.
     """
-    # Create a Parselmouth Sound object from the numpy array
     sound = parselmouth.Sound(audio_buffer, sampling_frequency=sample_rate)
-    
-    # Get the formant object (max 5 formants, max frequency 5500Hz for adult male/female)
-    # Change 5500 to 5000 for standard male voices, or leave at 5500 for universal.
     formants = sound.to_formant_burg(max_number_of_formants=5, maximum_formant=5500.0)
-    
-    # Get the time at the exact middle of the audio buffer snippet
     mid_time = sound.get_total_duration() / 2.0
     
-    # Extract the values of F1, F2, and F3 at that specific time
-    f1 = formants.get_value_at_time(1, mid_time)
-    f2 = formants.get_value_at_time(2, mid_time)
-    f3 = formants.get_value_at_time(3, mid_time)
-    f4 = formants.get_value_at_time(4, mid_time)
-    f5 = formants.get_value_at_time(5, mid_time)
+    fmts = []
+    bws = []
+    for i in range(1, 6):
+        f = formants.get_value_at_time(i, mid_time)
+        b = formants.get_bandwidth_at_time(i, mid_time)
+        fmts.append(0.0 if (np.isnan(f) or f is None) else float(f))
+        bws.append(0.0 if (np.isnan(b) or b is None) else float(b))
     
-    # Handle 'NaN' if no formants were found (e.g., during silence)
-    if np.isnan(f1): f1 = 0
-    if np.isnan(f2): f2 = 0
-    if np.isnan(f3): f3 = 0
-    if np.isnan(f4): f4 = 0
-    if np.isnan(f5): f5 = 0
+    # Calculate decibel intensity for each formant peak from FFT
+    win = np.hanning(len(audio_buffer))
+    spec_mag = np.abs(np.fft.rfft(audio_buffer * win))
+    spec_db = 20 * np.log10(np.clip(spec_mag, 1e-10, None))
+    max_db = np.max(spec_db)
+    if max_db > -80:
+        spec_db = spec_db - max_db
+    freqs = np.fft.rfftfreq(len(audio_buffer), d=1.0 / sample_rate)
     
-    return [f1, f2, f3, f4, f5]
+    intensities = []
+    for f in fmts:
+        if f > 0:
+            c_bin = np.argmin(np.abs(freqs - f))
+            s_bin = max(0, c_bin - 2)
+            e_bin = min(len(spec_db) - 1, c_bin + 2)
+            intensities.append(round(float(np.max(spec_db[s_bin:e_bin + 1])), 2))
+        else:
+            intensities.append(-100.0)
+            
+    return fmts, bws, intensities
 
 import warnings
 

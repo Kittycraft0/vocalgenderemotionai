@@ -262,3 +262,199 @@ def write_wav(path, y, sr):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     sf.write(path, y, sr)
     return path
+
+
+# ----------------------------------------------------------------------------------------------
+# KEELE Pitch Database
+# ----------------------------------------------------------------------------------------------
+def keele_dir():
+    return os.path.join(DATA_ROOT, "keele", "KEELE")
+
+
+def load_keele():
+    """
+    Loads speakers from the KEELE pitch database.
+    Each item contains:
+      - name: speaker ID (e.g. 'f1nw0000')
+      - path: path to speech audio WAV (20 kHz)
+      - group: 'female' or 'male'
+      - ref_f0: ground-truth pitch from throat sensor (laryngograph) in Hz
+      - ref_times: timestamps of the reference frames (s)
+      - ref_voiced: boolean array of voicing
+      - ref_hop_s: 0.010 s (10ms frame rate)
+    """
+    root = keele_dir()
+    if not os.path.isdir(root):
+        return []
+
+    items = []
+    for spk in sorted(os.listdir(root)):
+        spk_dir = os.path.join(root, spk)
+        if not os.path.isdir(spk_dir):
+            continue
+        wav_path = os.path.join(spk_dir, "signal.wav")
+        pitch_path = os.path.join(spk_dir, "pitch.npy")
+        if not (os.path.exists(wav_path) and os.path.exists(pitch_path)):
+            continue
+
+        arr = np.load(pitch_path)
+        f0 = arr["pitch"].astype(np.float32)
+        times = arr["time"].astype(np.float32)
+        voiced = f0 > 0.0
+
+        items.append({
+            "name": spk,
+            "path": wav_path,
+            "speaker": spk[:2],
+            "group": "female" if spk.lower().startswith("f") else "male",
+            "ref_f0": f0,
+            "ref_times": times,
+            "ref_voiced": voiced,
+            "ref_hop_s": 0.010,
+        })
+    return items
+
+
+# ----------------------------------------------------------------------------------------------
+# Peterson & Barney (1952) Vowel Database
+# ----------------------------------------------------------------------------------------------
+def peterson_barney_dir():
+    return os.path.join(DATA_ROOT, "peterson_barney")
+
+
+def load_peterson_barney():
+    """
+    Loads tabular ground-truth vowel formant measurements from Peterson & Barney (1952).
+    1520 tokens across 76 speakers (men, women, children).
+    Returns list of items with F0, F1, F2, F3 and vowel labels.
+    """
+    tsv_path = os.path.join(peterson_barney_dir(), "pb52.tsv")
+    if not os.path.exists(tsv_path):
+        return []
+
+    items = []
+    with open(tsv_path, "r", encoding="utf-8") as f:
+        header = f.readline().strip().replace('"', '').split("\t")
+        for line in f:
+            parts = line.strip().replace('"', '').split("\t")
+            if len(parts) >= 9:
+                try:
+                    items.append({
+                        "type": parts[0],
+                        "sex": parts[1],
+                        "speaker": int(parts[2]),
+                        "vowel": parts[3],
+                        "rep": int(parts[4]),
+                        "f0": float(parts[5]),
+                        "f1": float(parts[6]),
+                        "f2": float(parts[7]),
+                        "f3": float(parts[8]),
+                    })
+                except ValueError:
+                    continue
+    return items
+
+
+# ----------------------------------------------------------------------------------------------
+# CSTR Edinburgh FDA Pitch Evaluation Database
+# ----------------------------------------------------------------------------------------------
+def fda_dir():
+    return os.path.join(DATA_ROOT, "fda")
+
+
+def load_fda(max_per_speaker=10):
+    """
+    Loads sentences from the CSTR Edinburgh FDA pitch evaluation database
+    (male speaker 'rl' and female speaker 'sb').
+    Returns items with path, ref_f0, ref_times, ref_voiced at 10ms frame rate.
+    """
+    root = fda_dir()
+    wav_dir = os.path.join(root, "wav")
+    os.makedirs(wav_dir, exist_ok=True)
+
+    items = []
+    for spk, grp in [("rl", "male"), ("sb", "female")]:
+        spk_dir = os.path.join(root, spk)
+        if not os.path.isdir(spk_dir):
+            continue
+
+        sigs = [f for f in sorted(os.listdir(spk_dir)) if f.endswith(".sig")]
+        if max_per_speaker:
+            sigs = sigs[:max_per_speaker]
+
+        for sig_file in sigs:
+            base = os.path.splitext(sig_file)[0]
+            sig_path = os.path.join(spk_dir, sig_file)
+            fx_path = os.path.join(spk_dir, base + ".fx")
+            wav_path = os.path.join(wav_dir, base + ".wav")
+
+            if not os.path.exists(fx_path):
+                continue
+
+            # Convert 20kHz 16-bit big-endian PCM to WAV if needed
+            if not os.path.exists(wav_path):
+                raw = open(sig_path, "rb").read()
+                audio = np.frombuffer(raw, dtype=">i2").astype(np.float32) / 32768.0
+                sf.write(wav_path, audio, 20000)
+            else:
+                info = sf.info(wav_path)
+                dur = info.duration
+
+            # Parse reference .fx pitch contour
+            with open(fx_path, "r", encoding="latin1") as f:
+                text = f.read()
+
+            parts = text.split("\x0c")
+            data_text = parts[1] if len(parts) > 1 else parts[0]
+            segments = []
+            curr_seg = []
+            for line in data_text.strip().split("\n"):
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if line == "=":
+                    if curr_seg:
+                        segments.append(curr_seg)
+                        curr_seg = []
+                    continue
+                toks = line.split()
+                if len(toks) == 2:
+                    try:
+                        curr_seg.append((float(toks[0]) / 1000.0, float(toks[1])))
+                    except ValueError:
+                        pass
+            if curr_seg:
+                segments.append(curr_seg)
+
+            info = sf.info(wav_path)
+            dur = info.duration
+            hop = 0.010
+            grid = np.arange(0, dur, hop, dtype=np.float32)
+            ref_f0 = np.zeros(len(grid), dtype=np.float32)
+
+            for seg in segments:
+                if len(seg) >= 2:
+                    st = [p[0] for p in seg]
+                    sf0 = [p[1] for p in seg]
+                    mask = (grid >= st[0]) & (grid <= st[-1])
+                    if np.any(mask):
+                        ref_f0[mask] = np.interp(grid[mask], st, sf0)
+                elif len(seg) == 1:
+                    idx = np.argmin(np.abs(grid - seg[0][0]))
+                    if abs(grid[idx] - seg[0][0]) < hop:
+                        ref_f0[idx] = seg[0][1]
+
+            items.append({
+                "name": base,
+                "path": wav_path,
+                "speaker": spk,
+                "group": grp,
+                "ref_f0": ref_f0,
+                "ref_times": grid,
+                "ref_voiced": ref_f0 > 0.0,
+                "ref_hop_s": hop,
+            })
+
+    return items
+
+
