@@ -97,4 +97,7 @@ add more datasets and reweigh
 
 can we predict when the program will be accurate vs unaccurate to make a more dynamic influence instead of just a static influence? also can we add even more datasets? and what other parameters can we have?
 
+10/20/2026
+hi can you fix main11 and make it actually good again and check the recent commit history within the past like hour to make sure i didn't just mess something up during merges?
+
 

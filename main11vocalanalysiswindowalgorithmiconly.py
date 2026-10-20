@@ -120,78 +120,160 @@ BUFFER_SECONDS = 2.0
 UPDATE_INTERVAL_MS = 30    # 30ms = ~33 FPS (Smoother) #changed to 250 cuz laggy on non gpu device
 DEVICE_INDEX = None
 ENABLE_LOGGING = True
-ENABLE_WHISPER = True      # --- NEW: Set to False to skip transcription ---
+ENABLE_WHISPER = True      # file mode: transcribe with Whisper and put the spoken word on every log line
+WHISPER_MODEL = "base"     # tiny / base / small / medium / large (bigger = slower but more accurate)
+FILE_MODE_REDRAW_SECONDS = 0.1  # file mode redraws the (whole-file) timeline at most this often while processing
 
 
-# --- CLI ARGUMENT PARSING & IO SETUP ---
+# --- INPUT SELECTION MENU ---
+def prompt_for_input():
+    print("\n" + "="*40)
+    print("      AVAILABLE AUDIO INPUTS")
+    print("="*40)
+    
+    devices = sd.query_devices()
+    valid_indices = []
+    for i, dev in enumerate(devices):
+        if dev['max_input_channels'] > 0:
+            api_name = sd.query_hostapis(dev['hostapi'])['name']
+            print(f"[{i}] {dev['name']}  ({api_name})")
+            valid_indices.append(i)
+            
+    print("="*40)
+    print("OPTION 1: Type a number from the list above for Live Microphone.")
+    print("OPTION 2: Drag and drop an audio file (.wav, .flac, .mp3) here and press Enter.")
+    
+    while True:
+        try:
+            user_input = input("\nEnter choice: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nNo input given. Exiting.")
+            sys.exit(0)
+        
+        # Remove invisible quotes if the user dragged and dropped a file with spaces
+        user_input = user_input.strip('"').strip("'")
+        
+        # 1. Check if the user dropped a valid file
+        if os.path.isfile(user_input):
+            print(f"\n--> Selected File: {user_input}\n")
+            return None, user_input
+        
+        # 2. Check if the user typed a microphone number
+        try:
+            selected_index = int(user_input)
+            if selected_index in valid_indices:
+                print(f"\n--> Selected Mic: {devices[selected_index]['name']}\n")
+                return selected_index, None
+            else:
+                print("Invalid microphone number. Please pick a number from the list.")
+        except ValueError:
+            print("File not found, or invalid number. Please try again.")
+
+def prompt_for_output_device():
+    """Asks which speaker the media player plays the file through. Returns a device index, or None for no playback."""
+    devices = sd.query_devices()
+    valid_indices = []
+    print("\n" + "="*40)
+    print("      AVAILABLE AUDIO OUTPUTS")
+    print("="*40)
+    for i, dev in enumerate(devices):
+        if dev['max_output_channels'] > 0:
+            api_name = sd.query_hostapis(dev['hostapi'])['name']
+            print(f"[{i}] {dev['name']}  ({api_name})")
+            valid_indices.append(i)
+    print("="*40)
+    print("Type a number for the speaker to play the file through, or 'none' (or just Enter) to disable playback.")
+
+    while True:
+        try:
+            user_input = input("\nEnter speaker: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            user_input = "none"
+        if user_input in ("", "none", "n"):
+            print("--> Audio Output Disabled.\n")
+            return None
+        try:
+            selected_index = int(user_input)
+            if selected_index in valid_indices:
+                print(f"--> Selected Speaker: {devices[selected_index]['name']}\n")
+                return selected_index
+            print("Invalid speaker number. Please pick a number from the list.")
+        except ValueError:
+            print("Invalid input. Type a speaker number or 'none'.")
+
+# Set the DEVICE_INDEX using our new menu!
+# Set both variables simultaneously 
+# --- CLI ARGUMENT PARSING ---
 parser = argparse.ArgumentParser(description="Vocal Analysis GUI & Headless Batch Tool")
 parser.add_argument('--input', type=str, help='Direct path to input audio file', default=None)
-parser.add_argument('--output', type=str, help='Directory to save the log file', default='audio_logs')
+parser.add_argument('--output', type=str, help='Directory to save the log folders in', default='audio_logs')
+parser.add_argument('--timesteps', type=str, nargs='+', default=None,
+                    help='One or more timesteps in milliseconds, e.g. --timesteps 10 30 100 (or 10,30,100). '
+                         'Each timestep is analysed separately and saved to its own log file. '
+                         'The first one drives the live dashboard.')
+parser.add_argument('--no-log', action='store_true', help='Do not save any log files')
+parser.add_argument('--no-whisper', action='store_true', help='Skip the Whisper word transcription in file mode')
 args = parser.parse_args()
+
+def parse_timesteps(values):
+    """Turns ['10', '30,100'] into [10.0, 30.0, 100.0]. Keeps order, drops duplicates. Raises ValueError if bad."""
+    steps = []
+    for v in values:
+        for part in str(v).replace(',', ' ').split():
+            ms = float(part)
+            if not np.isfinite(ms) or ms <= 0:
+                raise ValueError(f"timestep must be a positive number of ms, got '{part}'")
+            if ms not in steps:
+                steps.append(ms)
+    if not steps:
+        raise ValueError("no timesteps given")
+    return steps
+
+def prompt_for_timesteps():
+    while True:
+        try:
+            text = input(f"\nLogging timestep(s) in ms, separated by spaces or commas (press Enter for {UPDATE_INTERVAL_MS}): ").strip()
+        except (EOFError, KeyboardInterrupt):
+            text = ""
+        if not text:
+            return [float(UPDATE_INTERVAL_MS)]
+        try:
+            return parse_timesteps([text])
+        except ValueError as e:
+            print(f"Invalid timesteps ({e}). Try again, e.g.: 10 30 100")
 
 HEADLESS_MODE = args.input is not None
 OUTPUT_FOLDER = args.output
+ENABLE_LOGGING = ENABLE_LOGGING and not args.no_log
+ENABLE_WHISPER = ENABLE_WHISPER and not args.no_whisper
 
-def prompt_for_io():
-    devices = sd.query_devices()
-    in_indices, out_indices = [], []
-    
-    print("\n" + "="*40 + "\n      AVAILABLE AUDIO DEVICES\n" + "="*40)
-    for i, dev in enumerate(devices):
-        api_name = sd.query_hostapis(dev['hostapi'])['name']
-        io_str = []
-        if dev['max_input_channels'] > 0: 
-            io_str.append("IN")
-            in_indices.append(i)
-        if dev['max_output_channels'] > 0: 
-            io_str.append("OUT")
-            out_indices.append(i)
-        if io_str:
-            print(f"[{i}] {dev['name']} ({api_name}) [{'/'.join(io_str)}]")
-            
-    print("="*40)
-    print("OPTION 1: Type a number for Live Microphone.")
-    print("OPTION 2: Drag and drop an audio file (.wav, .flac) here and press Enter.")
-    
-    in_mic, in_file, out_speaker = None, None, None
-    while True:
-        user_input = input("\nEnter Input choice: ").strip().strip('"').strip("'")
-        if os.path.isfile(user_input):
-            print(f"--> Selected File: {user_input}")
-            in_file = user_input
-            break
-        try:
-            if int(user_input) in in_indices:
-                in_mic = int(user_input)
-                print(f"--> Selected Mic: {devices[in_mic]['name']}")
-                break
-        except ValueError: pass
-        print("Invalid file or microphone number.")
-
-    if in_file:
-        print("\nType a number for the Output Speaker, OR type 'none' to disable playback.")
-        while True:
-            out_input = input("Enter Output choice: ").strip().lower()
-            if out_input == 'none':
-                print("--> Audio Output Disabled.")
-                break
-            try:
-                if int(out_input) in out_indices:
-                    out_speaker = int(out_input)
-                    print(f"--> Selected Speaker: {devices[out_speaker]['name']}\n")
-                    break
-            except ValueError: pass
-            print("Invalid speaker number.")
-            
-    return in_mic, in_file, out_speaker
+if args.timesteps is not None:
+    try:
+        TIMESTEPS_MS = parse_timesteps(args.timesteps)
+    except ValueError as e:
+        print(f"ERROR: bad --timesteps value: {e}")
+        sys.exit(1)
+else:
+    TIMESTEPS_MS = None
 
 if HEADLESS_MODE:
     INPUT_FILE_PATH = args.input
     DEVICE_INDEX = None
-    OUTPUT_DEVICE_INDEX = None
+    OUTPUT_DEVICE_INDEX = None  # headless never plays audio
+    if not os.path.isfile(INPUT_FILE_PATH):
+        print(f"ERROR: input file not found: {INPUT_FILE_PATH}")
+        sys.exit(1)
+    if TIMESTEPS_MS is None:
+        TIMESTEPS_MS = [float(UPDATE_INTERVAL_MS)]
     print(f"Starting in HEADLESS BATCH MODE.\nInput: {INPUT_FILE_PATH}\nOutput: {OUTPUT_FOLDER}")
 else:
-    DEVICE_INDEX, INPUT_FILE_PATH, OUTPUT_DEVICE_INDEX = prompt_for_io()
+    DEVICE_INDEX, INPUT_FILE_PATH = prompt_for_input()
+    OUTPUT_DEVICE_INDEX = prompt_for_output_device() if INPUT_FILE_PATH else None
+    if TIMESTEPS_MS is None:
+        TIMESTEPS_MS = prompt_for_timesteps() if ENABLE_LOGGING else [float(UPDATE_INTERVAL_MS)]
+
+PRIMARY_TIMESTEP_MS = TIMESTEPS_MS[0]  # this one drives the dashboard refresh rate
+print(f"Timesteps (ms): {', '.join(format_ms(t) for t in TIMESTEPS_MS)}")
 
 
 # 1. get vertical resolution
@@ -231,7 +313,8 @@ else:
     print(f"Microphone detected! Running at {SAMPLE_RATE} Hz")
 
 if INPUT_FILE_PATH:
-    MAX_COLUMNS = len(FILE_AUDIO_DATA) // window_step
+    # File mode draws the whole file left-to-right (no scrolling), so the timeline holds every column
+    MAX_COLUMNS = max(1, len(FILE_AUDIO_DATA) // window_step)
 else:
     MAX_COLUMNS = int(TOTAL_WINDOW_SECONDS * SAMPLE_RATE / window_step)
 
@@ -359,27 +442,12 @@ if not HEADLESS_MODE:
 
     # Create two curves: Solid Cyan for Harmonics (Tone), Dashed Gray for Noise (Breath)
     harmonic_curve = p5.plot(pen=pg.mkPen('c', width=2), connect='finite')
+    #noise_curve = p5.plot(pen=pg.mkPen(color=(150, 150, 150), width=2, style=QtCore.Qt.DashLine))
+    #noise_curve = p5.plot(pen=pg.mkPen(color=(150, 150, 150), width=2, style=2))
     noise_curve = p5.plot(pen=pg.mkPen(color=(150, 150, 150), width=2, style=QtCore.Qt.PenStyle.DashLine), connect='finite')
+    #create more lines spectral slope and spectal center of gravity
     spectral_center_of_gravity_base_curve = p5.plot(pen=pg.mkPen('m', width=2), connect='finite')
     spectral_center_of_gravity_derived_curve = p5.plot(pen=pg.mkPen('y', width=2), connect='finite')
-
-    # --- NEW: UI CONTROLS & PLAYHEADS ---
-    play_btn = QtWidgets.QPushButton("▶ Play / Pause")
-    play_btn.setStyleSheet("font-size: 16px; font-weight: bold; padding: 5px; background-color: #444; color: white;")
-    btn_proxy = QtWidgets.QGraphicsProxyWidget()
-    btn_proxy.setWidget(play_btn)
-
-    # Add it to the bottom of the layout
-    win.nextRow()
-    win.addItem(btn_proxy, colspan=2)
-
-    playheads = []
-    for p in [p1, p2, p3, p4, p5]:
-        # Add a red vertical line to each timeline graph
-        line = pg.InfiniteLine(angle=90, movable=False, pen=pg.mkPen('r', width=2))
-        line.setPos(0)
-        p.addItem(line)
-        playheads.append(line)
 
     # Setup history arrays for both
     harmonic_history = np.full(MAX_COLUMNS, np.nan, dtype=np.float32)
@@ -408,6 +476,26 @@ if not HEADLESS_MODE:
     #spectrum_curve = p_spectrum.plot(pen=pg.mkPen('y', width=2))
     # Create a solid yellow line with dots at the exact harmonic frequencies
     spectrum_curve = p_spectrum.plot(pen=pg.mkPen('y', width=2), symbol='o', symbolBrush='y', symbolSize=6)
+
+    # --- FILE MODE MEDIA PLAYER: play button + a red playhead over every timeline graph ---
+    timeline_plots = [p1, p2, p3, p4, p5]
+    playheads = []
+    if INPUT_FILE_PATH:
+        play_btn = QtWidgets.QPushButton("Processing...")
+        play_btn.setEnabled(False)  # turned on once the whole file has been processed
+        play_btn.setStyleSheet("font-size: 16px; font-weight: bold; padding: 5px; background-color: #444; color: white;")
+        btn_proxy = QtWidgets.QGraphicsProxyWidget()
+        btn_proxy.setWidget(play_btn)
+        win.nextRow()
+        win.addItem(btn_proxy, colspan=2)
+
+        for p in timeline_plots:
+            if p is not p1:
+                p.setXLink(p1)  # zooming/panning one timeline graph moves them all, so they stay lined up
+            line = pg.InfiniteLine(angle=90, movable=False, pen=pg.mkPen('r', width=2))
+            line.setVisible(False)  # shown once the media player starts
+            p.addItem(line)
+            playheads.append(line)
 
 # Set up the Colormap (Magma)
 #colormap = pg.colormap.get('magma')
@@ -469,7 +557,7 @@ audio_buffer = np.zeros(buffer_size, dtype=np.float32)
 # NEW: Keep a running tally of exactly how much audio the mic has collected
 total_samples_received = 0 
 samples_processed = 0
-offline_col_idx = 0
+offline_col_idx = 0  # file mode: next timeline column to fill (the file is drawn left-to-right instead of scrolling)
 def audio_callback(indata, frames, time, status):
     global audio_buffer, total_samples_received
     if status: print(status)
@@ -554,7 +642,7 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     Takes raw audio data (y) and sample rate (sr) directly from memory.
     Returns the formatted RGB bitmap array ready for the neural network.
     """
-    global bbb, last_processed_time, samples_processed
+    global bbb, last_processed_time, samples_processed, offline_col_idx
     # 1. Check exactly how much fresh audio is sitting in the buffer waiting for us
     unprocessed_samples = total_samples_received - samples_processed
     # 2. How many columns can we draw with this fresh audio?
@@ -562,7 +650,7 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     # If we don't have enough fresh audio to draw a column, ABORT and wait.
     # This prevents the duplicate-drawing stutter!
     if new_columns < 1:
-        return spectrogram_data,0
+        return spectrogram_data, 0, slice(0, 0)
     
     
     #global last_time, bbb
@@ -606,7 +694,7 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     # this triggers if the samples to pull is larger than the buffer as well
     if samples_to_pull > len(y):
         #samples_to_pull=len(y)-1
-        return spectrogram_data,0 #full_spectrogram_bitmap_array
+        return spectrogram_data, 0, slice(0, 0) #full_spectrogram_bitmap_array
     
     
     #global width
@@ -623,7 +711,7 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     bbb+=1
     if len(y)<samples_to_pull:
         print(f"AUDIO BUFFER NOT BIG ENOUGH!!! GOT {int(y.shape[0])} NEEDS AT LEAST {int(samples_to_pull)}")
-        return spectrogram_data, 0
+        return spectrogram_data, 0, slice(0, 0)
     # Extract exactly what we need from the very end of the rolling audio buffer
     y_slice=y[-samples_to_pull:]
     # 4. Compute Spectrogram 
@@ -712,18 +800,21 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     actual_new_cols = S_db.shape[0]
     #actual_new_cols = new_bitmap.shape[1]
     
-    global offline_col_idx
     if INPUT_FILE_PATH:
-        # DAW MODE: Draw statically left-to-right
-        end_col = min(offline_col_idx + actual_new_cols, MAX_COLUMNS)
-        allowed = end_col - offline_col_idx
-        if allowed > 0:
-            spectrogram_data[offline_col_idx:end_col, :, :] = new_bitmap[-allowed:, :, :]
+        # 6. FILE MODE: fill the timeline left-to-right. Every graph writes into these same columns, so they stay aligned.
+        start = min(offline_col_idx, MAX_COLUMNS)
+        end = min(start + actual_new_cols, MAX_COLUMNS)
+        new_cols = slice(start, end)
+        if end > start:
+            spectrogram_data[new_cols, :, :] = new_bitmap[-(end - start):, :, :]
+        offline_col_idx = end
     else:
-        # LIVE MIC MODE: Scroll continuously
+        # 6. LIVE MODE: SHIFT the main image array left by the exact number of new columns
         spectrogram_data[:-actual_new_cols,:,:] = spectrogram_data[actual_new_cols:,:]
-        spectrogram_data[-actual_new_cols:,:,:] = new_bitmap
-    
+        # 7. PASTE the new data onto the right edge
+        spectrogram_data[-actual_new_cols:,:,:] = new_bitmap #S_db #new_bitmap
+        new_cols = slice(MAX_COLUMNS - actual_new_cols, MAX_COLUMNS)
+
     ## roll the image to the left by window length/2
     ## roll the second half or so of received array visual to the image 
     ##array=np.tile(np.arange(1,9),8).reshape(8,8)
@@ -774,7 +865,7 @@ def process_live_audio(y, sr, min_db=-80.0, max_db=0.0, cmap_name=cmap_name):
     #print(f"bbb: {bbb}")
     bbb+=1
     
-    return spectrogram_data, actual_new_cols
+    return spectrogram_data, new_cols.stop - new_cols.start, new_cols
 max_mel=librosa.hz_to_mel(SAMPLE_RATE / 2) # top of the spectrogram; set now so formant markers are right before the first pitch
 f12pos=[0,0]
 f34pos=[0,0]
@@ -786,27 +877,141 @@ smooth_f4 = None
 # 1.0 is instant teleporting (jittery). 0.05 is extremely slow/laggy. 
 # 0.2 is usually the sweet spot for a snappy but smooth visual.
 SMOOTHING_FACTOR = 0.2
-def update_dashboard(acoustic_time=None, frame=None):
-    global pitch_history, formant_history
+def push_history(history, values, new_cols):
+    """Writes `values` into the timeline columns `new_cols` (from process_live_audio).
+    Live mode scrolls the history left first; file mode just fills left-to-right.
+    Works for the 1D histories and the (5, N) formant history. Returns the (possibly new) array."""
+    n = new_cols.stop - new_cols.start
+    if n <= 0:
+        return history
+    if not INPUT_FILE_PATH:
+        history = np.roll(history, -n, axis=-1)
+        new_cols = slice(history.shape[-1] - n, history.shape[-1])
+    history[..., new_cols] = values
+    return history
 
-    # 1. Bring in all our globals properly!
-    #global emotion_smooth, gender_smooth, frame_counter
-    #global target_g_probs, target_e_probs, current_color
-    
-    #frame_counter += 1  # Add 1 every frame
-    
+# function to make better visual for the spectral slope rolloff visualization
+def slope_to_percent(slope):
+    option=2
+    if option==0:
+        option0=slope*5+80 #old bad way
+        return option0
+    if option==1:
+        # using a direct linear line:
+        # Define the acoustic boundaries of the human voice
+        min_slope = -35.0  # Very soft/breathy (maps to 0% at the bottom)
+        max_slope = -5.0   # Very harsh/brassy (maps to 100% at the top)
+
+        # Standard normalization formula: (value - min) / (max - min) * 100
+        option1=((slope - min_slope) / (max_slope - min_slope))*100
+        return option1
+    if option==2:
+        # using a sigmoid:
+        # 1. Choose your exact center point (50% on the graph)
+        center_slope = -20.0
+
+        # 2. Choose how sensitive the line is to changes (0.15 to 0.3 is usually a good sweet spot)
+        steepness = 0.20
+
+        # 3. The Sigmoid Math
+        option2 = 100.0 / (1.0 + np.exp(-steepness * (slope - center_slope)))
+
+        return option2
+    print("OPTION NOT SELECTED")
+
+def format_readout(audio_data):
+    """The big text under the formant graph (pitch, note, weight, centroid, slope, and the Whisper word if there is one)."""
+    pitch_hz = audio_data.get("pitch", -1.0)
+    weight_percent = audio_data.get("vocalweight", 0.0)
+    word = audio_data.get("word") or ""
+    word_str = f"  |  Word: '{word}'" if word else ""
+    if pitch_hz > 0:
+        closest_note = librosa.hz_to_note(pitch_hz)
+        return (
+            f"Pitch: {pitch_hz:.1f} Hz  |  Note: {closest_note}  |  Weight: {weight_percent:.1f}%{word_str}\n"
+            f"Center of Gravity: {audio_data.get('spectral_centroid_base', 0.0):.0f} Hz  |  "
+            f"Spectral Slope: {audio_data.get('spectral_slope_base', 0.0):.1f} dB/kHz"
+        )
+    # The HTML app considers unvoiced sounds (S, Sh, F) as thick/heavy
+    return (f"Pitch: -- Hz  |  Note: --  |  Weight: {weight_percent:.1f}% (Unvoiced){word_str}\n"
+            "Center of Gravity: -- Hz  |  Spectral Slope: -- dB/kHz")
+
+def show_frame_details(audio_data):
+    """Puts one frame's numbers on the readout, the F1/F2 + F3/F4 dots and the harmonic spectrum.
+    The media player uses this for whatever frame is under the playhead (no smoothing, so it's exact)."""
+    if audio_data is None:
+        return
+    readout_label.setText(format_readout(audio_data))
+    f = audio_data["formants"]
+    if audio_data["pitch"] > 0 and f[0] > 0:
+        dot_f12.setData([f[0]], [f[1]])
+        dot_f34.setData([f[2]], [f[3]])
+    else:
+        dot_f12.setData([], [])
+        dot_f34.setData([], [])
+    harmonics = audio_data.get("harmonic_series") or {"freqs": [], "mags": []}
+    if len(harmonics["freqs"]) > 0:
+        spectrum_curve.setData(harmonics["freqs"], harmonics["mags"])
+    else:
+        spectrum_curve.setData([], [])
+
+_last_timeline_draw = 0.0
+def redraw_timeline():
+    """Sends the spectrogram and every timeline history to the screen."""
+    global _last_timeline_draw
+    _last_timeline_draw = time.perf_counter()
+
+    # Give the raw numbers to the GPU and let it handle the colors
+    img.setImage(spectrogram_data, autoLevels=False)
+
+    pitch_curve.setData(pitch_history)
+    f1_curve.setData(formant_history[0])
+    f2_curve.setData(formant_history[1])
+    f3_curve.setData(formant_history[2])
+    f4_curve.setData(formant_history[3])
+    f5_curve.setData(formant_history[4])
+
+    # 1. Create true/false masks for the 3 color thresholds from the HTML file
+    green_level=30#16.5
+    red_level=50#27.5
+    green_mask = (weight_history < green_level)
+    red_mask = (weight_history >= green_level) & (weight_history < red_level)
+    blue_mask = (weight_history >= red_level)
+
+    # 2. To prevent visual gaps where colors change, we use a NumPy shift trick
+    # to stretch the masks forward by 1 point so the lines perfectly bridge together!
+    green_mask = green_mask | np.pad(green_mask[:-1], (1, 0), constant_values=False)
+    red_mask = red_mask | np.pad(red_mask[:-1], (1, 0), constant_values=False)
+    blue_mask = blue_mask | np.pad(blue_mask[:-1], (1, 0), constant_values=False)
+
+    # 3. Apply the masks to create 3 separate fragmented lines and render them
+    weight_green_curve.setData(np.where(green_mask, weight_history, np.nan))
+    weight_red_curve.setData(np.where(red_mask, weight_history, np.nan))
+    weight_blue_curve.setData(np.where(blue_mask, weight_history, np.nan))
+
+    spectral_slope_base_curve.setData(spectral_slope_base_history)
+    spectral_slope_derived_curve.setData(spectral_slope_derived_history)
+
+    harmonic_curve.setData(harmonic_history)
+    noise_curve.setData(noise_history)
+    spectral_center_of_gravity_base_curve.setData(spectral_center_of_gravity_base_history)
+    spectral_center_of_gravity_derived_curve.setData(spectral_center_of_gravity_derived_history)
+
+def update_dashboard(acoustic_time=None, frame=None, word=None):
+    """Analyses the current audio_buffer, logs it, and updates the dashboard. Returns the frame's audio_data.
+    `word` (file mode + Whisper) is the word being spoken at this time; it goes into the log line and the readout."""
+    global pitch_history, formant_history, weight_history
+    global spectral_slope_base_history, spectral_slope_derived_history
+    global harmonic_history, noise_history
+    global spectral_center_of_gravity_base_history, spectral_center_of_gravity_derived_history
+    global smooth_f1, smooth_f2, smooth_f3, smooth_f4
+
     # 1. Get Audio
     current_audio = audio_buffer.copy()
-    
 
-    # --- SILENCE GATE ---
-    #volume = np.sqrt(np.mean(current_audio**2))
-    
-    bitmap, actual_new_cols= process_live_audio(current_audio, SAMPLE_RATE)
+    # new_cols = which timeline columns this frame fills (right edge in live mode, next free columns in file mode)
+    bitmap, actual_new_cols, new_cols = process_live_audio(current_audio, SAMPLE_RATE)
 
-    # run the math to get audio data
-    #audio_data=get_audio_data(audio_buffer,BUFFER_SECONDS,SAMPLE_RATE)
-    ## Pass the noise_power_profile as the 4th argument!
     # File mode passes acoustic_time and logs EVERY step (even when no new spectrogram column was drawn).
     # Live mode logs whenever new mic audio arrived since the last line, timed by how much audio was received.
     is_offline_frame = acoustic_time is not None
@@ -826,197 +1031,114 @@ def update_dashboard(acoustic_time=None, frame=None):
         if should_log:
             data_logger.log_timestep(None, log_time, frame=frame, error=f"{type(e).__name__}: {e}")
         raise
-    #print(f"Audio data: {audio_data}")
-    #print(f"Audio pitch: {pitch_hz}")
+    if word is not None:
+        audio_data["word"] = word
 
     # --- NEW: Log the data for this timestep ---
     if should_log:
         data_logger.log_timestep(audio_data, log_time, frame=frame)
 
-    #print(librosa.hz_to_mel(pitch_hz))
-    global max_mel
     pitch_hz=audio_data["pitch"]
-    if pitch_hz > 0: # If a pitch is actually detected
-        # Let Librosa calculate the closest musical note!
-        closest_note = librosa.hz_to_note(pitch_hz)
-        max_mel = librosa.hz_to_mel(SAMPLE_RATE / 2)
-        pitch_mel=int(librosa.hz_to_mel(pitch_hz))
-        pitch_y = int((pitch_mel / max_mel) * spectrogram_pixel_height)
-        pitch_y = np.clip(pitch_y, 2, spectrogram_pixel_height - 2) # Numpy clamp!
-        current_w = hist_data.get("word", "")
-        word_str = f" | Word: '{current_w}'" if current_w else ""
-        if actual_new_cols>=1:
-            bitmap[-actual_new_cols:, pitch_y-1:pitch_y+1] = [0, 255, 255]
-        # Format the text so it limits decimals to 1 spot (e.g., 440.5 Hz)
-        #readout_label.setText(f"Pitch: {pitch_hz:.1f} Hz  |  Note: {closest_note}")
-        readout_label.setText(f"Pitch: {p_hz:.1f} Hz | Note: {librosa.hz_to_note(p_hz)}{word_str} | Weight: {w_pct:.1f}%")
-    else:
-        # If silence, clear the readout
-        #readout_label.setText("Pitch: -- Hz  |  Note: --")
-        readout_label.setText(f"Pitch: -- Hz | Note: --{word_str} | Weight: {w_pct:.1f}% (Unvoiced)")
-
-
-    
-    #pitch_y = int((pitch_mel / max_mel) * spectrogram_pixel_height)
-    #pitch_y = max(2, min(pitch_y, spectrogram_pixel_height - 2))
-    #bitmap[-5:,pitch_y-2:pitch_y+2]=[0,255,255]
-    
     # 1. Convert to pure Numpy array
     formants_arr = np.array(audio_data["formants"])
-    # 2. Vectorized Math: Convert all 5 to Mel, scale them, and cast to int instantly
-    formants_mel = librosa.hz_to_mel(formants_arr)
-    formants_y = ((formants_mel / max_mel) * spectrogram_pixel_height).astype(int)
-    # 3. Vectorized Clamp: Keep all 5 safely inside the screen bounds
-    formants_y = np.clip(formants_y, 2, spectrogram_pixel_height - 2)
 
-    formant_colors = [[0, 255, 0], [0, 255, 127], [255, 0, 0], [255, 0, 255], [255, 255, 255]]
-    
-    # 4. Inject colors (Unrolled to avoid loops. We check >0 so silence doesn't draw at the bottom)
+    # --- 2. MARK PITCH + FORMANTS ON THE NEW SPECTROGRAM COLUMNS ---
     if actual_new_cols>=1:
-        if formants_arr[0] > 0: bitmap[-actual_new_cols:, formants_y[0]:formants_y[0]+1] = formant_colors[0]
-        if formants_arr[1] > 0: bitmap[-actual_new_cols:, formants_y[1]:formants_y[1]+1] = formant_colors[1]
-        if formants_arr[2] > 0: bitmap[-actual_new_cols:, formants_y[2]:formants_y[2]+1] = formant_colors[2]
-        if formants_arr[3] > 0: bitmap[-actual_new_cols:, formants_y[3]:formants_y[3]+1] = formant_colors[3]
-        if formants_arr[4] > 0: bitmap[-actual_new_cols:, formants_y[4]:formants_y[4]+1] = formant_colors[4]
+        if pitch_hz > 0: # If a pitch is actually detected
+            pitch_mel=int(librosa.hz_to_mel(pitch_hz))
+            pitch_y = int((pitch_mel / max_mel) * spectrogram_pixel_height)
+            pitch_y = np.clip(pitch_y, 2, spectrogram_pixel_height - 2) # Numpy clamp!
+            bitmap[new_cols, pitch_y-1:pitch_y+1] = [0, 255, 255]
 
+        # 2. Vectorized Math: Convert all 5 to Mel, scale them, and cast to int instantly
+        formants_mel = librosa.hz_to_mel(formants_arr)
+        formants_y = ((formants_mel / max_mel) * spectrogram_pixel_height).astype(int)
+        # 3. Vectorized Clamp: Keep all 5 safely inside the screen bounds
+        formants_y = np.clip(formants_y, 2, spectrogram_pixel_height - 2)
 
-    # render the formants and graph them out onto a separate graph
-    #formants_y=librosa.hz_to_mel(audio_data["formants"]).astype(int)
-    #formants_y[:] = max(2, min(formants_y[:], spectrogram_pixel_height - 2))
-    #bitmap[-5:,formants_y[0]:formants_y[0]+2]=formant_colors[0]
-    #bitmap[-5:,formants_y[1]:formants_y[1]+2]=formant_colors[1]
-    #bitmap[-5:,formants_y[2]:formants_y[2]+2]=formant_colors[2]
-    #bitmap[-5:,formants_y[3]:formants_y[3]+2]=formant_colors[3]
-    #[0,255,0]
-    #[0,255,127]
-    #[255,0,0]
-    #[255,0,255]
+        formant_colors = [[0, 255, 0], [0, 255, 127], [255, 0, 0], [255, 0, 255], [255, 255, 255]]
+        # 4. Inject colors (we check >0 so silence doesn't draw at the bottom)
+        for k in range(5):
+            if formants_arr[k] > 0:
+                bitmap[new_cols, formants_y[k]:formants_y[k]+1] = formant_colors[k]
 
-    
-    # --- 3. RENDER ---
-    # Give the raw numbers to the GPU and let it handle the colors
-    img.setImage(bitmap, autoLevels=False)
+    # --- 3. UPDATE TEXT READOUT ---
+    readout_label.setText(format_readout(audio_data))
 
-
-    # --- 3. & 5. UPDATE PITCH AND FORMANT GRAPHS ---
-    global formant_history
+    # --- 4. UPDATE EVERY TIMELINE HISTORY BY THE SAME COLUMNS AS THE SPECTROGRAM (keeps them all in sync) ---
     if actual_new_cols > 0:
-        global offline_col_idx
-        
-        weight_percent = audio_data.get("vocalweight", 0.0)
-        ssb_hz = audio_data.get("spectral_slope_base")
-        ssd_hz = audio_data.get("spectral_slope_derived")
-        scogb_hz = audio_data.get("spectral_centroid_base")
-        scogd_hz = audio_data.get("spectral_centroid_derived")
+        pitch_history = push_history(pitch_history, pitch_hz if pitch_hz > 0 else np.nan, new_cols)
+        # np.newaxis duplicates the formants across all new columns to match the spectrogram
+        new_formants = np.where(formants_arr > 0, formants_arr, np.nan)
+        formant_history = push_history(formant_history, new_formants[:, np.newaxis], new_cols)
 
-        def slope_to_percent(slope):
-            return 100.0 / (1.0 + np.exp(-0.20 * (slope - (-20.0))))
-
-        if INPUT_FILE_PATH:
-            # ==========================================
-            # FILE MODE: STATIC DAW ARRAY FILLING
-            # ==========================================
-            end_col = min(offline_col_idx + actual_new_cols, MAX_COLUMNS)
-            allowed = end_col - offline_col_idx
-            
-            if allowed > 0:
-                pitch_history[offline_col_idx:end_col] = np.where(pitch_hz > 0, pitch_hz, np.nan)
-                
-                new_formants = np.where(formants_arr > 0, formants_arr, np.nan)
-                formant_history[:, offline_col_idx:end_col] = new_formants[:, np.newaxis]
-                
-                w_val = weight_percent if np.max(np.abs(current_audio)) >= 0.001 else np.nan
-                weight_history[offline_col_idx:end_col] = w_val
-                
-                if np.max(np.abs(current_audio)) < 0.001:
-                    spectral_slope_base_history[offline_col_idx:end_col] = np.nan
-                    spectral_slope_derived_history[offline_col_idx:end_col] = np.nan
-                    harmonic_history[offline_col_idx:end_col] = np.nan
-                    noise_history[offline_col_idx:end_col] = np.nan
-                    spectral_center_of_gravity_base_history[offline_col_idx:end_col] = np.nan
-                    spectral_center_of_gravity_derived_history[offline_col_idx:end_col] = np.nan
-                else:
-                    spectral_slope_base_history[offline_col_idx:end_col] = slope_to_percent(ssb_hz)
-                    spectral_slope_derived_history[offline_col_idx:end_col] = slope_to_percent(ssd_hz) if pitch_hz > 0 else np.nan
-                    
-                    min_hz = pitch_hz if pitch_hz > 0 else 200.0
-                    max_hz = 4000.0
-                    h_hz = audio_data.get("harmonic_rolloff", -1.0)
-                    n_hz = audio_data.get("noise_rolloff", -1.0)
-                    harmonic_history[offline_col_idx:end_col] = ((h_hz - min_hz) / (max_hz - min_hz)) * 100.0
-                    noise_history[offline_col_idx:end_col] = ((n_hz - min_hz) / (max_hz - min_hz)) * 100.0
-                    spectral_center_of_gravity_base_history[offline_col_idx:end_col] = ((scogb_hz - min_hz) / (max_hz - min_hz)) * 100.0
-                    spectral_center_of_gravity_derived_history[offline_col_idx:end_col] = ((scogd_hz - min_hz) / (max_hz - min_hz)) * 100.0
-
-                offline_col_idx += allowed
-                
+        # Check for absolute silence using the raw audio buffer to hide the lines
+        if np.max(np.abs(current_audio)) < 0.001:
+            weight = ssb = ssd = h_percent = n_percent = scogb_percent = scogd_percent = np.nan
         else:
-            # ==========================================
-            # LIVE MIC MODE: ROLLING ARRAY SHIFTS
-            # ==========================================
-            pitch_history = np.roll(pitch_history, -actual_new_cols)
-            pitch_history[-actual_new_cols:] = np.where(pitch_hz > 0, pitch_hz, np.nan)
-            
-            formant_history = np.roll(formant_history, -actual_new_cols, axis=1)
-            new_formants = np.where(formants_arr > 0, formants_arr, np.nan)
-            formant_history[:, -actual_new_cols:] = new_formants[:, np.newaxis]
-            
-            weight_history = np.roll(weight_history, -actual_new_cols)
-            spectral_slope_base_history = np.roll(spectral_slope_base_history, -actual_new_cols)
-            spectral_slope_derived_history = np.roll(spectral_slope_derived_history, -actual_new_cols)
-            harmonic_history = np.roll(harmonic_history, -actual_new_cols)
-            noise_history = np.roll(noise_history, -actual_new_cols)
-            spectral_center_of_gravity_base_history = np.roll(spectral_center_of_gravity_base_history, -actual_new_cols)
-            spectral_center_of_gravity_derived_history = np.roll(spectral_center_of_gravity_derived_history, -actual_new_cols)
+            weight = audio_data.get("vocalweight", 0.0)
+            ssb = slope_to_percent(audio_data.get("spectral_slope_base"))
+            # Derived slope ONLY draws if a voice/pitch is actively detected
+            ssd = slope_to_percent(audio_data.get("spectral_slope_derived")) if pitch_hz > 0 else np.nan
 
-            if np.max(np.abs(current_audio)) < 0.001:
-                weight_history[-actual_new_cols:] = np.nan
-                spectral_slope_base_history[-actual_new_cols:] = np.nan
-                spectral_slope_derived_history[-actual_new_cols:] = np.nan
-                harmonic_history[-actual_new_cols:] = np.nan
-                noise_history[-actual_new_cols:] = np.nan
-                spectral_center_of_gravity_base_history[-actual_new_cols:] = np.nan
-                spectral_center_of_gravity_derived_history[-actual_new_cols:] = np.nan
-            else:
-                weight_history[-actual_new_cols:] = weight_percent
-                spectral_slope_base_history[-actual_new_cols:] = slope_to_percent(ssb_hz)
-                spectral_slope_derived_history[-actual_new_cols:] = slope_to_percent(ssd_hz) if pitch_hz > 0 else np.nan
-                
-                min_hz = pitch_hz if pitch_hz > 0 else 200.0
-                max_hz = 4000.0
-                h_hz = audio_data.get("harmonic_rolloff", -1.0)
-                n_hz = audio_data.get("noise_rolloff", -1.0)
-                harmonic_history[-actual_new_cols:] = ((h_hz - min_hz) / (max_hz - min_hz)) * 100.0
-                noise_history[-actual_new_cols:] = ((n_hz - min_hz) / (max_hz - min_hz)) * 100.0
-                spectral_center_of_gravity_base_history[-actual_new_cols:] = ((scogb_hz - min_hz) / (max_hz - min_hz)) * 100.0
-                spectral_center_of_gravity_derived_history[-actual_new_cols:] = ((scogd_hz - min_hz) / (max_hz - min_hz)) * 100.0
+            # Use the actual live pitch as the 0% floor
+            # (With a fallback of 200Hz just in case it's unvoiced breath noise)
+            min_hz = pitch_hz if pitch_hz > 0 else 200.0
+            max_hz = 4000.0
+            def to_percent(hz):
+                return ((hz - min_hz) / (max_hz - min_hz)) * 100.0
+            h_percent = to_percent(audio_data.get("harmonic_rolloff", -1.0))
+            n_percent = to_percent(audio_data.get("noise_rolloff", -1.0))
+            scogb_percent = to_percent(audio_data.get("spectral_centroid_base"))
+            scogd_percent = to_percent(audio_data.get("spectral_centroid_derived"))
 
-        # ==========================================
-        # RENDER ALL GRAPHS TO THE SCREEN
-        # ==========================================
-        pitch_curve.setData(pitch_history)
-        f1_curve.setData(formant_history[0])
-        f2_curve.setData(formant_history[1])
-        f3_curve.setData(formant_history[2])
-        f4_curve.setData(formant_history[3])
-        f5_curve.setData(formant_history[4])
+        weight_history = push_history(weight_history, weight, new_cols)
+        spectral_slope_base_history = push_history(spectral_slope_base_history, ssb, new_cols)
+        spectral_slope_derived_history = push_history(spectral_slope_derived_history, ssd, new_cols)
+        harmonic_history = push_history(harmonic_history, h_percent, new_cols)
+        noise_history = push_history(noise_history, n_percent, new_cols)
+        spectral_center_of_gravity_base_history = push_history(spectral_center_of_gravity_base_history, scogb_percent, new_cols)
+        spectral_center_of_gravity_derived_history = push_history(spectral_center_of_gravity_derived_history, scogd_percent, new_cols)
 
-        green_level, red_level = 30, 50
-        green_mask = (weight_history < green_level) | np.pad((weight_history < green_level)[:-1], (1, 0), constant_values=False)
-        red_mask = ((weight_history >= green_level) & (weight_history < red_level)) | np.pad(((weight_history >= green_level) & (weight_history < red_level))[:-1], (1, 0), constant_values=False)
-        blue_mask = (weight_history >= red_level) | np.pad((weight_history >= red_level)[:-1], (1, 0), constant_values=False)
+    # --- 5. UPDATE 2D FORMANT DOTS (WITH SMOOTHING) ---
+    if pitch_hz > 0 and formants_arr[0] > 0:
+        f1, f2, f3, f4 = formants_arr[0], formants_arr[1], formants_arr[2], formants_arr[3]
 
-        weight_green_curve.setData(np.where(green_mask, weight_history, np.nan))
-        weight_red_curve.setData(np.where(red_mask, weight_history, np.nan))
-        weight_blue_curve.setData(np.where(blue_mask, weight_history, np.nan))
-        
-        spectral_slope_base_curve.setData(spectral_slope_base_history)
-        spectral_slope_derived_curve.setData(spectral_slope_derived_history)
-        
-        harmonic_curve.setData(harmonic_history)
-        noise_curve.setData(noise_history)
-        spectral_center_of_gravity_base_curve.setData(spectral_center_of_gravity_base_history)
-        spectral_center_of_gravity_derived_curve.setData(spectral_center_of_gravity_derived_history)
+        # If this is the very first frame of a new sound, teleport instantly!
+        # (We don't want the dot sliding in all the way from 0,0)
+        if smooth_f1 is None:
+            smooth_f1, smooth_f2 = f1, f2
+            smooth_f3, smooth_f4 = f3, f4
+        else:
+            # Glide the current position toward the new target
+            smooth_f1 += (f1 - smooth_f1) * SMOOTHING_FACTOR
+            smooth_f2 += (f2 - smooth_f2) * SMOOTHING_FACTOR
+            smooth_f3 += (f3 - smooth_f3) * SMOOTHING_FACTOR
+            smooth_f4 += (f4 - smooth_f4) * SMOOTHING_FACTOR
+
+        dot_f12.setData([smooth_f1], [smooth_f2])
+        dot_f34.setData([smooth_f3], [smooth_f4])
+    else:
+        # Silence! Erase the dots and reset the smoothing state
+        smooth_f1 = None
+        dot_f12.setData([], [])
+        dot_f34.setData([], [])
+
+    # --- 6. UPDATE HARMONIC SPECTRUM GRAPH ---
+    harmonics = audio_data.get("harmonic_series")
+    if len(harmonics["freqs"]) > 0:
+        # Give the exact harmonic coordinates to the graph
+        spectrum_curve.setData(harmonics["freqs"], harmonics["mags"])
+    else:
+        # If silent or unvoiced, clear the dots
+        spectrum_curve.setData([], [])
+
+    # --- 7. RENDER ---
+    # File mode's timeline is the whole file, so redrawing it every 30ms step would be slow; do it every so often instead
+    if not INPUT_FILE_PATH or time.perf_counter() - _last_timeline_draw >= FILE_MODE_REDRAW_SECONDS:
+        redraw_timeline()
+
+    return audio_data
 
 
 # --- START THE LOOP ---
@@ -1036,6 +1158,7 @@ if ENABLE_LOGGING:
         "sample_rate": SAMPLE_RATE,
         "audio_duration_s": len(FILE_AUDIO_DATA) / SAMPLE_RATE if INPUT_FILE_PATH else None,
         "timesteps_ms": TIMESTEPS_MS,
+        "whisper_words": bool(INPUT_FILE_PATH and ENABLE_WHISPER),
         "analysis_buffer_seconds": BUFFER_SECONDS,
         "noise_profile_from": "first 2s of the file" if INPUT_FILE_PATH else "2s mic recording at startup",
         "audio_timestamp_meaning": "seconds of audio at the END of the analysis window (the window is the "
@@ -1063,11 +1186,13 @@ def report_frame_error(where):
         print(f"\n[{where}] frame error #{_frame_error_count} (still running):")
         traceback.print_exc()
 
-def safe_update_dashboard(acoustic_time=None, frame=None):
+def safe_update_dashboard(acoustic_time=None, frame=None, word=None):
+    """Returns the frame's audio_data, or None if the frame failed."""
     try:
-        update_dashboard(acoustic_time=acoustic_time, frame=frame)
+        return update_dashboard(acoustic_time=acoustic_time, frame=frame, word=word)
     except Exception:
         report_frame_error("dashboard")
+        return None
 
 def make_live_log_tick(logger):
     """Timer callback for an extra live timestep: analyse the newest mic audio and log it (no drawing)."""
@@ -1086,8 +1211,9 @@ def make_live_log_tick(logger):
 extra_timers = []  # keep references so Qt doesn't garbage-collect them
 
 # PyQtGraph uses QTimer instead of Matplotlib's FuncAnimation
-timer = QtCore.QTimer()
-timer.timeout.connect(lambda: safe_update_dashboard())
+if not HEADLESS_MODE:  # headless has no Qt app, so no timers
+    timer = QtCore.QTimer()
+    timer.timeout.connect(lambda: safe_update_dashboard())
 # CRITICAL FIX: Removed global timer.start() here so it doesn't ghost-log in offline mode!
 # timer.start(UPDATE_INTERVAL_MS)
 
@@ -1218,162 +1344,259 @@ def run():
         if SESSION_FOLDER:
             print(f"Logs saved in: {SESSION_FOLDER}")
 
-def process_file_offline(file_path):
-    print(f"Loading offline file for dataset alignment: {file_path}")
-    file_audio, sr = librosa.load(file_path, sr=None, mono=True)
-    
-    step_duration_sec = UPDATE_INTERVAL_MS / 1000.0
-    hop_length_samples = int(sr * step_duration_sec)
-    buffer_samples = int(sr * BUFFER_SECONDS)
-    padded_audio = np.pad(file_audio, (buffer_samples, 0), mode='constant')
-    
-    transcript_words = []
-    if ENABLE_WHISPER:
-        print("Loading Whisper model (this takes a moment)...")
+def transcribe_words(file_audio, sr):
+    """Runs Whisper on the file. Returns {"text", "language", "words": [{"word", "start", "end"}, ...]} or None.
+    Note: Whisper only gives WORD timestamps, not phones. Phone-level timing needs a forced aligner
+    (e.g. Montreal Forced Aligner) run on these words afterwards."""
+    try:
         import whisper
-        model = whisper.load_model("base") 
+    except ImportError:
+        print("WARNING: openai-whisper is not installed (pip install openai-whisper). Skipping transcription.")
+        return None
+    try:
+        print(f"Loading Whisper '{WHISPER_MODEL}' model (this takes a moment)...")
+        model = whisper.load_model(WHISPER_MODEL)
         print("Transcribing audio and extracting word timestamps...")
-        result = model.transcribe(file_path, word_timestamps=True)
-        for segment in result.get("segments", []):
-            for word_info in segment.get("words", []):
-                transcript_words.append({
-                    "word": word_info["word"].strip(),
-                    "start": word_info["start"],
-                    "end": word_info["end"]
-                })
-        print(f"Transcription complete. Found {len(transcript_words)} words.")
-        
-    total_frames = len(file_audio) // hop_length_samples
-    print(f"Pre-computing {total_frames} frames... This may take a minute.")
-    
-    global audio_buffer, total_samples_received, samples_processed, offline_col_idx
-    all_audio_data_history = []
-    
-    # 1. PRE-COMPUTE PHASE
-    for i in range(total_frames):
-        current_head = buffer_samples + (i * hop_length_samples)
-        acoustic_time = i * step_duration_sec
+        # Whisper wants 16 kHz mono float32. Passing the array (not the path) means ffmpeg isn't needed.
+        audio_16k = librosa.resample(file_audio, orig_sr=sr, target_sr=16000) if sr != 16000 else file_audio
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # "FP16 is not supported on CPU" etc.
+            result = model.transcribe(audio_16k.astype(np.float32), word_timestamps=True)
+    except Exception as e:
+        print(f"WARNING: Whisper transcription failed ({type(e).__name__}: {e}). Continuing without words.")
+        return None
+    words = [{"word": w["word"].strip(), "start": float(w["start"]), "end": float(w["end"])}
+             for segment in result.get("segments", []) for w in segment.get("words", [])]
+    print(f"Transcription complete. Found {len(words)} words.")
+    return {"model": WHISPER_MODEL, "language": result.get("language"), "text": result.get("text", "").strip(), "words": words}
+
+def make_word_lookup(words):
+    """Returns word_at(t): the word being spoken at t seconds, or '' between words."""
+    starts = np.array([w["start"] for w in words])
+    def word_at(t):
+        i = int(np.searchsorted(starts, t, side='right')) - 1
+        if i >= 0 and t <= words[i]["end"]:
+            return words[i]["word"]
+        return ""
+    return word_at
+
+def run_offline_pass(file_audio, sr, step_ms, logger, show_gui, word_lookup=None):
+    """Steps through the whole file with a fixed hop of step_ms and logs one line per step into `logger`.
+    show_gui=True also draws every step on the dashboard (only the first timestep does this) and returns
+    the list of per-frame audio_data so the media player can show any frame afterwards."""
+    # Define a strict hop length (e.g., 30ms steps, typical for datasets)
+    hop_length_samples = max(1, int(round(sr * step_ms / 1000.0)))
+
+    # We need a rolling buffer equal to BUFFER_SECONDS (2.0s) to feed the math
+    buffer_samples = int(sr * BUFFER_SECONDS)
+
+    # Pad the beginning of the audio with silence so the very first
+    # timeframe has enough "history" to fill the 2-second buffer
+    padded_audio = np.pad(file_audio, (buffer_samples, 0), mode='constant')
+
+    heads = range(buffer_samples, len(padded_audio), hop_length_samples)
+    print(f"Processing {len(heads)} total frames...")
+
+    # March through the file using a strict, fixed step size
+    global audio_buffer, total_samples_received
+    frame_history = [] if show_gui else None
+
+    for frame, current_head in enumerate(heads):
+        # 1. Calculate the exact timestamp from the file array index
+        # (Subtracting the buffer padding so time starts exactly at 0.000s)
+        acoustic_time = (current_head - buffer_samples) / sr
+
+        # 2. Extract the exact window
         audio_buffer = padded_audio[current_head - buffer_samples : current_head]
-        total_samples_received += hop_length_samples
-        
-        audio_data = get_audio_data(audio_buffer, BUFFER_SECONDS, sr, noise_power_profile)
-        
-        current_word = ""
-        if ENABLE_WHISPER:
-            for w in transcript_words:
-                if w["start"] <= acoustic_time <= w["end"]:
-                    current_word = w["word"]
-                    break
-        audio_data["word"] = current_word
-        all_audio_data_history.append(audio_data)
-        
-        if ENABLE_LOGGING and data_logger is not None:
-            data_logger.log_timestep(audio_data, acoustic_time)
-            
-        if HEADLESS_MODE:
-            print(f"Processed {acoustic_time:.2f}s...", end='\r')
+        word = word_lookup(acoustic_time) if word_lookup else None
+
+        if not show_gui:
+            # FAST BATCH PROCESSING: No graphics, just raw math and logging.
+            # A frame that errors gets an "error" line instead of killing the whole run.
+            try:
+                audio_data = get_audio_data(audio_buffer, BUFFER_SECONDS, sr, noise_power_profile)
+                if word is not None:
+                    audio_data["word"] = word
+                if logger is not None:
+                    logger.log_timestep(audio_data, acoustic_time, frame=frame)
+            except Exception as e:
+                if logger is not None:
+                    logger.log_timestep(None, acoustic_time, frame=frame, error=f"{type(e).__name__}: {e}")
+                report_frame_error(f"{format_ms(step_ms)} ms pass")
+
+            # Print a progress indicator that overwrites itself on the same console line
+            print(f"[{format_ms(step_ms)} ms] Processed {acoustic_time:.2f}s...", end='\r')
+            if not HEADLESS_MODE:
+                app.processEvents()  # keep the (already finished) dashboard window responsive
         else:
-            update_dashboard(acoustic_time=acoustic_time)
+            # Mimic the live variables so the UI math doesn't break
+            total_samples_received += hop_length_samples
 
-    if HEADLESS_MODE:
-        print(f"\n--- Batch Processing Complete. Log saved to: {OUTPUT_FOLDER} ---")
-        return
-        
-    app.processEvents()
-    print("\n--- Processing Complete. Media Player Active ---")
+            # 3. Let the main dashboard handle EVERYTHING (math, logging, and ALL 1D graphs)
+            frame_history.append(safe_update_dashboard(acoustic_time=acoustic_time, frame=frame, word=word))
 
-    # 2. PLAYBACK ENGINE PHASE
-    is_playing = False
-    current_frame_idx = 0
+            # 4. Let PyQtGraph handle events before continuing the loop
+            app.processEvents()
+
+    if show_gui:
+        redraw_timeline()  # file mode only redraws every so often, so draw the finished timeline once more
+    print()
+    return frame_history
+
+def start_media_player(file_audio, sr, frame_history, step_ms):
+    """File mode, after processing: Play/Pause button, red playhead over every timeline graph,
+    click a timeline graph to jump there, hover while paused to preview a spot.
+    The readout, F1/F2 + F3/F4 dots and harmonic spectrum show the frame under the playhead.
+    Returns the objects that have to stay alive (Qt timer + audio stream)."""
+    hop_length_samples = max(1, int(round(sr * step_ms / 1000.0)))
     total_audio_samples = len(file_audio)
+    # pos = playback position in samples (written by the audio thread while playing)
+    state = {"playing": False, "pos": 0, "was_playing": False, "last_tick": time.perf_counter()}
 
-    def audio_out_callback(outdata, frames, time, status):
-        nonlocal current_frame_idx, is_playing
-        if not is_playing or OUTPUT_DEVICE_INDEX is None:
+    def show_at_sample(sample):
+        col = sample / window_step  # timeline x-axis is in spectrogram columns
+        for ph in playheads:
+            ph.setPos(col)
+            ph.setVisible(True)
+        if frame_history:
+            # frame k was analysed with audio ending at k * hop, so that's the frame "at" this sample
+            show_frame_details(frame_history[int(np.clip(sample // hop_length_samples, 0, len(frame_history) - 1))])
+
+    def sample_under(scene_pos):
+        """Sample index under the mouse if it's over a timeline graph, else None."""
+        for p in timeline_plots:
+            if p.sceneBoundingRect().contains(scene_pos):
+                col = p.vb.mapSceneToView(scene_pos).x()
+                return int(np.clip(col * window_step, 0, total_audio_samples))
+        return None
+
+    def audio_out_callback(outdata, frames, time_info, status):
+        if not state["playing"]:
             outdata.fill(0)
             return
-            
-        chunk = file_audio[current_frame_idx : current_frame_idx + frames]
-        if len(chunk) < frames:
-            outdata[:len(chunk), 0] = chunk
-            outdata[len(chunk):, 0] = 0
-            is_playing = False
-            current_frame_idx = total_audio_samples
-        else:
-            outdata[:, 0] = chunk
-            current_frame_idx += frames
+        start = state["pos"]
+        chunk = file_audio[start : start + frames]
+        outdata[:len(chunk), 0] = chunk
+        outdata[len(chunk):, 0] = 0
+        state["pos"] = start + len(chunk)
+        if state["pos"] >= total_audio_samples:
+            state["playing"] = False  # automatically pause at the end
+
+    stream = None
+    if OUTPUT_DEVICE_INDEX is not None:
+        try:
+            stream = sd.OutputStream(device=OUTPUT_DEVICE_INDEX, samplerate=sr, channels=1,
+                                     dtype='float32', callback=audio_out_callback)
+            stream.start()
+        except Exception as e:
+            print(f"WARNING: could not play through speaker #{OUTPUT_DEVICE_INDEX} at {sr} Hz ({e}). Playback will be silent.")
+            stream = None
+
+    def update_button():
+        play_btn.setText("⏸ Pause" if state["playing"] else "▶ Play")
 
     def toggle_play():
-        nonlocal is_playing, current_frame_idx
-        if current_frame_idx >= total_audio_samples:
-            current_frame_idx = 0
-        is_playing = not is_playing
-        play_btn.setText("⏸ Pause" if is_playing else "▶ Play / Pause")
-    play_btn.clicked.connect(toggle_play)
-
-    def update_cursors(col_idx):
-        for ph in playheads:
-            ph.setPos(col_idx)
-            
-        if col_idx < len(all_audio_data_history):
-            hist_data = all_audio_data_history[col_idx]
-            p_hz = hist_data["pitch"]
-            w_pct = hist_data["vocalweight"]
-            current_w = hist_data.get("word", "")
-            word_str = f" | Word: '{current_w}'" if current_w else ""
-            
-            if p_hz > 0:
-                readout_label.setText(f"Pitch: {p_hz:.1f} Hz | Note: {librosa.hz_to_note(p_hz)}{word_str} | Weight: {w_pct:.1f}%")
-            else:
-                readout_label.setText(f"Pitch: -- Hz | Note: --{word_str} | Weight: {w_pct:.1f}% (Unvoiced)")
-                
-            f = hist_data["formants"]
-            if p_hz > 0 and f[0] > 0:
-                dot_f12.setData([f[0]], [f[1]])
-                dot_f34.setData([f[2]], [f[3]])
-            else:
-                dot_f12.setData([], [])
-                dot_f34.setData([], [])
-                
-            h = hist_data["harmonic_series"]
-            if len(h["freqs"]) > 0:
-                spectrum_curve.setData(h["freqs"], h["mags"])
-            else:
-                spectrum_curve.setData([], [])
-
-    def on_click(evt):
-        nonlocal current_frame_idx
-        pos = p1.vb.mapSceneToView(evt.scenePos())
-        clicked_col = int(pos.x())
-        if 0 <= clicked_col < total_frames:
-            current_frame_idx = clicked_col * hop_length_samples
-            update_cursors(clicked_col)
-    p1.scene().sigMouseClicked.connect(on_click)
-
-    def on_hover(evt):
-        if is_playing: return
-        pos = p1.vb.mapSceneToView(evt)
-        hover_col = int(pos.x())
-        if 0 <= hover_col < total_frames:
-            update_cursors(hover_col)
-    p1.scene().sigMouseMoved.connect(on_hover)
+        if not state["playing"] and state["pos"] >= total_audio_samples:
+            state["pos"] = 0  # pressing play after the end restarts the playback
+        state["last_tick"] = time.perf_counter()
+        state["playing"] = not state["playing"]
+        update_button()
 
     def ui_tick():
-        if is_playing:
-            col_idx = current_frame_idx // hop_length_samples
-            update_cursors(col_idx)
-            if current_frame_idx >= total_audio_samples:
-                toggle_play()
-                
+        now = time.perf_counter()
+        if state["playing"] and stream is None:
+            # No speaker: still move the playhead in real time, just silently
+            state["pos"] = min(total_audio_samples, state["pos"] + int((now - state["last_tick"]) * sr))
+            if state["pos"] >= total_audio_samples:
+                state["playing"] = False
+        state["last_tick"] = now
+        if state["playing"] or state["was_playing"]:
+            show_at_sample(state["pos"])
+        if state["was_playing"] != state["playing"]:
+            update_button()  # catches the automatic pause at the end
+        state["was_playing"] = state["playing"]
+
+    def on_click(evt):
+        if evt.button() != QtCore.Qt.MouseButton.LeftButton:
+            return
+        sample = sample_under(evt.scenePos())
+        if sample is not None:
+            state["pos"] = sample
+            show_at_sample(sample)
+
+    def on_hover(scene_pos):
+        if state["playing"]:
+            return
+        # While paused, the playhead follows the mouse; off the graphs it snaps back to the real position
+        sample = sample_under(scene_pos)
+        show_at_sample(state["pos"] if sample is None else sample)
+
+    play_btn.clicked.connect(toggle_play)
+    play_btn.setEnabled(True)
+    update_button()
+    win.scene().sigMouseClicked.connect(on_click)
+    win.scene().sigMouseMoved.connect(on_hover)
+
     play_timer = QtCore.QTimer()
     play_timer.timeout.connect(ui_tick)
     play_timer.start(30)
+    show_at_sample(0)
+    return play_timer, stream
 
-    if OUTPUT_DEVICE_INDEX is not None:
-        out_stream = sd.OutputStream(device=OUTPUT_DEVICE_INDEX, samplerate=sr, channels=1, callback=audio_out_callback)
-        out_stream.start()
+def process_file_offline(file_path):
+    print(f"Processing offline file for dataset alignment: {file_path}")
+    # Reuse the audio already loaded at startup instead of decoding the file a second time
+    file_audio, sr = FILE_AUDIO_DATA, SAMPLE_RATE
+    if HEADLESS_MODE and not loggers:
+        print("Logging is off (--no-log), so headless mode has nothing to save. Exiting.")
+        return
 
+    # Whisper word timestamps: every log line gets the word being spoken at that time (and transcript.json is saved)
+    word_lookup = None
+    if ENABLE_WHISPER:
+        transcript = transcribe_words(file_audio, sr)
+        if transcript is not None:
+            word_lookup = make_word_lookup(transcript["words"])
+            if SESSION_FOLDER:
+                transcript_path = os.path.join(SESSION_FOLDER, "transcript.json")
+                with open(transcript_path, 'w', encoding='utf-8') as f:
+                    json.dump(json_safe(transcript), f, indent=2, ensure_ascii=False)
+                print(f"Transcript saved to: {transcript_path}")
+
+    # One full pass over the file per timestep, each logging into its own file
+    frame_history = None
+    for i, step_ms in enumerate(TIMESTEPS_MS):
+        show_gui = (not HEADLESS_MODE) and i == 0
+        logger = loggers.get(step_ms)
+        if not show_gui and logger is None:
+            continue  # logging is off, so an extra invisible pass would be pointless
+        label = "dashboard + log" if show_gui else "log only"
+        print(f"\n--- Pass {i + 1}/{len(TIMESTEPS_MS)}: {format_ms(step_ms)} ms timestep ({label}) ---")
+        history = run_offline_pass(file_audio, sr, step_ms, logger, show_gui, word_lookup)
+        if show_gui:
+            frame_history = history
+
+    print("\n--- Offline Processing Complete ---")
+    if SESSION_FOLDER:
+        print(f"Logs saved in: {SESSION_FOLDER}")
+    if HEADLESS_MODE:
+        return  # batch mode has no window to keep open, so just exit
+
+    keep_alive = start_media_player(file_audio, sr, frame_history or [], PRIMARY_TIMESTEP_MS)
+    print("Media player ready: press Play, click a graph to jump there, hover while paused to preview.")
+    print("Close the window or press Enter in this terminal to exit...")
+
+    # --- Create a background thread to wait for terminal input ---
+    def wait_for_exit():
+        input()       # Waits for the user to press Enter
+        os._exit(0)   # Safely and instantly terminates the entire program from the background thread
+
+    threading.Thread(target=wait_for_exit, daemon=True).start()
+
+    # --- Hand control back to PyQtGraph so the window doesn't freeze ---
     pg.exec()
+    if keep_alive[1] is not None:
+        keep_alive[1].close()
 
 if __name__ == "__main__":
     try:
