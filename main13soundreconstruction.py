@@ -327,10 +327,11 @@ class SoundReconstructionEngine:
     # -----------------------------------------------------------------
     # FORMANT GAIN & BANDWIDTH CALCULATOR
     # -----------------------------------------------------------------
-    def _compute_formant_params(self, rec, num_formants=2, formant_scale=1.0, apply_weights=False):
+    def _compute_formant_params(self, rec, num_formants=2, formant_scale=1.0, apply_weights=False, dynamic_conf=None):
         """
         Determines the resonant frequencies, bandwidths, and gains for each formant.
-        - If apply_weights is True: multiplies each formant by its empirical benchmark weight.
+        - If apply_weights is True: multiplies each formant by its empirical benchmark weight
+          and dynamic frame-by-frame confidence.
         - If formant_intensities are logged: uses the exact physical dB levels.
         - Otherwise: applies natural human vocal acoustic rolloff (-12 dB/octave glottal tilt).
         """
@@ -371,10 +372,12 @@ class SoundReconstructionEngine:
             else:
                 g = natural_gains[k]
 
-            # Apply empirical benchmark confidence weight
+            # Apply empirical benchmark confidence weight + dynamic frame confidence
             if apply_weights:
                 w_key = f"F{k + 1}"
                 conf_weight = self.weights.get(w_key, 1.0)
+                if dynamic_conf and f"F{k + 1}_conf" in dynamic_conf:
+                    conf_weight *= dynamic_conf[f"F{k + 1}_conf"]
                 g *= conf_weight
 
             gains.append(g)
@@ -396,6 +399,9 @@ class SoundReconstructionEngine:
         - Formants: F1 (1.00), F2 (0.92), F3 (0.72) are active; F4 is faint (0.25); F5 is 0.00 (suppressed).
         - Vocal Weight: modulates glottal pulse thickness with verified weight (0.77).
         - Harmonics: lower harmonics H1-H12 (0.90) active, upper noise (0.20) attenuated.
+        - Dynamic Reliability Gating: Formant gains and pitch influence are multiplied
+          by real-time confidence C(t) in [0.0, 1.0], dynamically suppressing mic noise,
+          bandwidth blowups (>500 Hz), and unvoiced frame artifacts.
         - Unverified features (noise rolloff, spectral slope base) are ignored (0.00).
         """
         if not records:
@@ -406,27 +412,45 @@ class SoundReconstructionEngine:
         frame_lengths = [max(1, int(round((r["timestep_ms"] / 1000.0) * sr))) for r in records]
         total_samples = sum(frame_lengths)
 
+        # Import Dynamic Confidence Engine
+        try:
+            from dynamic_confidence import DynamicConfidenceEngine
+            dyn_engine = DynamicConfidenceEngine(sr)
+        except Exception:
+            dyn_engine = None
+
         pitch_curve = np.zeros(total_samples, dtype=np.float64)
         voicing_envelope = np.zeros(total_samples, dtype=np.float32)
         vocal_weight_curve = np.full(total_samples, 20.0, dtype=np.float32)
 
-        p_weight = self.weights.get("pitch", 0.95)
-        vw_weight = self.weights.get("vocalweight", 0.77)
+        vw_static_weight = self.weights.get("vocalweight", 0.77)
 
         pos = 0
+        all_dynamic_confs = []
         for i, rec in enumerate(records):
             N_samp = frame_lengths[i]
             p = rec["pitch"]
             w = rec["vocalweight"]
-            harm_mags = rec.get("harmonic_mags", [])
-            # Gate out false-alarm pitch blips (isolated low-energy spikes)
-            has_harmonic_energy = len(harm_mags) > 0 and harm_mags[0] > -65.0
-            is_truly_voiced = (p > 0) and (has_harmonic_energy or p_weight >= 0.90)
+            prev_rec = records[i - 1] if i > 0 else None
+
+            if dyn_engine:
+                dconf = dyn_engine.compute_frame_confidence(rec, prev_rec=prev_rec, static_weights=self.weights)
+                all_dynamic_confs.append(dconf)
+                p_conf = dconf["pitch_conf"]
+                vw_eff_weight = dconf["vocalweight_weight"]
+            else:
+                p_conf = 1.0 if p > 0 else 0.0
+                vw_eff_weight = vw_static_weight
+                all_dynamic_confs.append(None)
+
+            # Dynamic pitch voicing gate:
+            # Requires positive pitch AND dynamic confidence >= 0.28
+            is_truly_voiced = (p > 0) and (p_conf >= 0.28)
 
             if is_truly_voiced:
                 pitch_curve[pos:pos + N_samp] = p * pitch_scale
-                voicing_envelope[pos:pos + N_samp] = 1.0
-                vocal_weight_curve[pos:pos + N_samp] = np.clip(w * vw_weight, 5.0, 95.0)
+                voicing_envelope[pos:pos + N_samp] = float(np.clip(p_conf, 0.4, 1.0))
+                vocal_weight_curve[pos:pos + N_samp] = np.clip(w * vw_eff_weight, 5.0, 95.0)
             else:
                 pitch_curve[pos:pos + N_samp] = 130.0
                 voicing_envelope[pos:pos + N_samp] = 0.0
@@ -461,7 +485,7 @@ class SoundReconstructionEngine:
         glottal_source = np.diff(pulse, prepend=pulse[0]).astype(np.float32)
         glottal_source = glottal_source * voicing_envelope
 
-        # Formant Resonators weighted by empirical accuracy
+        # Formant Resonators weighted by empirical accuracy + dynamic frame confidence
         output = np.zeros(total_samples, dtype=np.float32)
         zi_states = [np.zeros(2, dtype=np.float64) for _ in range(num_f)]
 
@@ -471,8 +495,10 @@ class SoundReconstructionEngine:
             sub_src = glottal_source[pos:pos + N_samp]
             sub_out = np.zeros(N_samp, dtype=np.float32)
 
+            dconf = all_dynamic_confs[i] if i < len(all_dynamic_confs) else None
             fmts, bws, gains = self._compute_formant_params(
-                rec, num_formants=num_f, formant_scale=formant_scale, apply_weights=True
+                rec, num_formants=num_f, formant_scale=formant_scale,
+                apply_weights=True, dynamic_conf=dconf
             )
 
             for k in range(num_f):

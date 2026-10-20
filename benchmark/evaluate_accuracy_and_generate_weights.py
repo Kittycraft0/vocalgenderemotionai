@@ -420,6 +420,17 @@ def reweigh_and_save(pitch_results, formant_results, synth_results, pb_results=N
     return out_path
 
 
+def run_vocobox_evaluation(limit=8):
+    """
+    Evaluates pitch tracking on human singing voices from Vocobox (musical note ground-truth).
+    """
+    items = ds.load_vocobox(limit=limit)
+    if not items:
+        print("[!] Vocobox dataset not found.")
+        return {}
+    return evaluate_pitch_on_dataset(items, "Vocobox_Singing", hop_step=2)
+
+
 # =====================================================================
 # MAIN BENCHMARK RUNNER
 # =====================================================================
@@ -432,19 +443,19 @@ def main():
     pitch_results = {}
 
     # 1. KEELE Pitch Database
-    print("\n--- [1/6] Evaluating on KEELE Pitch Database ---")
+    print("\n--- [1/7] Evaluating on KEELE Pitch Database ---")
     keele_items = ds.load_keele()
     if keele_items:
         pitch_results["KEELE"] = evaluate_pitch_on_dataset(keele_items[:5], "KEELE", hop_step=2)
 
     # 2. CSTR Edinburgh FDA Database
-    print("\n--- [2/6] Evaluating on CSTR Edinburgh FDA Database ---")
+    print("\n--- [2/7] Evaluating on CSTR Edinburgh FDA Database ---")
     fda_items = ds.load_fda(max_per_speaker=8)
     if fda_items:
         pitch_results["FDA"] = evaluate_pitch_on_dataset(fda_items, "FDA", hop_step=2)
 
     # 3. PTDB-TUG Database
-    print("\n--- [3/6] Evaluating on PTDB-TUG Laryngograph Database ---")
+    print("\n--- [3/7] Evaluating on PTDB-TUG Laryngograph Database ---")
     ptdb_items = ds.load_ptdb(max_per_speaker=4)
     if ptdb_items:
         wrapped_ptdb = []
@@ -458,21 +469,26 @@ def main():
             })
         pitch_results["PTDB_TUG"] = evaluate_pitch_on_dataset(wrapped_ptdb, "PTDB_TUG", hop_step=2)
 
-    # 4. Hillenbrand Steady-State & Dynamic Trajectories
-    print("\n--- [4/6] Evaluating Formants on Hillenbrand 1995 ---")
+    # 4. Vocobox Human Singing Voice Database
+    print("\n--- [4/7] Evaluating on Vocobox Singing Voice Database ---")
+    pitch_results["Vocobox_Singing"] = run_vocobox_evaluation(limit=8)
+
+    # 5. Hillenbrand Steady-State & Dynamic Trajectories
+    print("\n--- [5/7] Evaluating Formants on Hillenbrand 1995 ---")
     formant_results = run_hillenbrand_full_formant_evaluation(limit=60)
 
-    # 5. Peterson & Barney 1952 Canonical Formants
-    print("\n--- [5/6] Evaluating Formants on Peterson & Barney 1952 ---")
+    # 6. Peterson & Barney 1952 Canonical Formants
+    print("\n--- [6/7] Evaluating Formants on Peterson & Barney 1952 ---")
     pb_results = run_peterson_barney_evaluation(limit=40)
 
-    # 6. Synthetic Parametric Ground-Truth
-    print("\n--- [6/6] Evaluating Synthetic Feature Correlations ---")
+    # 7. Synthetic Parametric Ground-Truth
+    print("\n--- [7/7] Evaluating Synthetic Feature Correlations ---")
     synth_results = run_synthetic_feature_correlation()
 
-    # 7. Re-weigh and save
+    # 8. Re-weigh and save
     reweigh_and_save(pitch_results, formant_results, synth_results, pb_results)
 
 
 if __name__ == "__main__":
     main()
+

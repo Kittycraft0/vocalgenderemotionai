@@ -1,7 +1,7 @@
 {
   "metadata": {
     "description": "Multi-dataset empirical confidence weights for vocal sound reconstruction.",
-    "generated_at": "2026-10-17T09:24:33.768072",
+    "generated_at": "2026-10-17T09:55:28.810065",
     "target_evaluator": "main10morevocalinformation.py / main11vocalanalysiswindowalgorithmiconly.py",
     "datasets_evaluated": [
       "PTDB-TUG (Graz University of Technology, Laryngograph F0)",
@@ -65,6 +65,17 @@
           "median_hz": 9.163629271230946,
           "voicing_recall": 94.38775510204081,
           "false_alarm": 18.29614604462475
+        },
+        "Vocobox_Singing": {
+          "dataset": "Vocobox_Singing",
+          "files": 7,
+          "total_frames": 403,
+          "rpa": 60.35353535353535,
+          "gpe": 30.555555555555557,
+          "median_cents": 24.80164232573039,
+          "median_hz": 2.3980489391927478,
+          "voicing_recall": 98.26302729528535,
+          "false_alarm": 0.0
         }
       }
     },

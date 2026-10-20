@@ -106,6 +106,51 @@ def get_audio_data(audio_buffer,time,sample_rate,noise_power_profile):
     data["harmonic_rolloff"] = h_roll
     data["noise_rolloff"] = n_roll
 
+    # --- ADVANCED GLOTTAL & TRACT PARAMETERS ---
+    # 1. HNR (Harmonics-to-Noise Ratio in dB)
+    if data["pitch"] > 0:
+        try:
+            snd = parselmouth.Sound(recent_audio, sampling_frequency=sample_rate)
+            hnr_obj = snd.to_harmonicity_cc()
+            hnr_val = float(hnr_obj.get_value(snd.get_total_duration() / 2.0))
+            data["hnr"] = 0.0 if (np.isnan(hnr_val) or hnr_val is None) else round(hnr_val, 2)
+        except Exception:
+            data["hnr"] = 0.0
+    else:
+        data["hnr"] = -20.0
+
+    # 2. H1 - H2 (Glottal open quotient / vocal fold adduction proxy in dB)
+    if len(harmonic_mags) >= 2:
+        data["h1_h2"] = round(float(harmonic_mags[0] - harmonic_mags[1]), 2)
+    else:
+        data["h1_h2"] = 0.0
+
+    # 3. H1 - A3 (Glottal closing abruptness / high-frequency spectral tilt proxy in dB)
+    if len(harmonic_mags) >= 1 and len(data["formant_intensities"]) >= 3 and data["formant_intensities"][2] > -90.0:
+        data["h1_a3"] = round(float(harmonic_mags[0] - data["formant_intensities"][2]), 2)
+    else:
+        data["h1_a3"] = 0.0
+
+    # 4. Apparent Vocal Tract Length (VTL in cm) from formant dispersion
+    valid_fmts = [f for f in data["formants"] if f > 100.0]
+    if len(valid_fmts) >= 3:
+        df = (valid_fmts[-1] - valid_fmts[0]) / max(1, len(valid_fmts) - 1)
+        if df > 200.0:
+            vtl = 17500.0 / df  # c / (2 * df) where c = 35000 cm/s
+            data["vocal_tract_length_cm"] = round(float(np.clip(vtl, 8.0, 24.0)), 2)
+        else:
+            data["vocal_tract_length_cm"] = 0.0
+    else:
+        data["vocal_tract_length_cm"] = 0.0
+
+    # 5. Dynamic Confidence Engine (predicts frame accuracy vs inaccuracy)
+    try:
+        from dynamic_confidence import DynamicConfidenceEngine
+        dyn_engine = DynamicConfidenceEngine(sample_rate)
+        data["confidence"] = dyn_engine.compute_frame_confidence(data)
+    except Exception:
+        data["confidence"] = {"overall_speech_confidence": 1.0 if data["pitch"] > 0 else 0.0}
+
     return(data)
 
 

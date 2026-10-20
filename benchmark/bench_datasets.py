@@ -458,3 +458,139 @@ def load_fda(max_per_speaker=10):
     return items
 
 
+# ----------------------------------------------------------------------------------------------
+# Vocobox Human Voice Singing Dataset (GitHub: vocobox/human-voice-dataset)
+# ----------------------------------------------------------------------------------------------
+VOCOBOX_URL_BASE = "https://raw.githubusercontent.com/vocobox/human-voice-dataset/master/data/voices/martin/notes/exports/mono"
+VOCOBOX_NOTE_HZ = {
+    "C3": 130.81, "C#3": 138.59, "D3": 146.83, "D#3": 155.56, "E3": 164.81,
+    "F3": 174.61, "F#3": 185.00, "G3": 196.00, "G#3": 207.65, "A3": 220.00, "A#3": 233.08, "B3": 246.94,
+    "C4": 261.63, "C#4": 277.18, "D4": 293.66, "D#4": 311.13, "E4": 329.63,
+    "F4": 349.23, "F#4": 369.99, "G4": 392.00, "G#4": 415.30, "A4": 440.00
+}
+
+
+def vocobox_dir():
+    return os.path.join(DATA_ROOT, "vocobox")
+
+
+def load_vocobox(limit=14):
+    """
+    Downloads and loads human singing voice recordings from the Vocobox dataset
+    with exact musical note ground-truth fundamental frequencies.
+    """
+    root = vocobox_dir()
+    os.makedirs(root, exist_ok=True)
+
+    target_notes = ["C3", "D3", "E3", "F3", "G3", "A3", "B3", "C4", "D4", "E4", "F4", "G4", "A4"]
+    target_notes = target_notes[:limit]
+
+    items = []
+    for note in target_notes:
+        fname = f"{note}.wav"
+        dest = os.path.join(root, fname)
+        url = f"{VOCOBOX_URL_BASE}/{fname}"
+        try:
+            _download(url, dest, timeout=15)
+        except Exception as e:
+            continue
+
+        if not os.path.exists(dest) or os.path.getsize(dest) == 0:
+            continue
+
+        info = sf.info(dest)
+        dur = info.duration
+        hop = 0.010
+        grid = np.arange(0.0, dur, hop, dtype=np.float32)
+        ref_note_f0 = VOCOBOX_NOTE_HZ.get(note, 220.0)
+        # Pad initial attack and final release as lower energy
+        ref_f0 = np.full(len(grid), ref_note_f0, dtype=np.float32)
+
+        items.append({
+            "name": f"vocobox_{note}",
+            "path": dest,
+            "speaker": "martin",
+            "group": "male_singer",
+            "ref_f0": ref_f0,
+            "ref_times": grid,
+            "ref_voiced": np.ones(len(grid), dtype=bool),
+            "ref_hop_s": hop,
+            "target_hz": ref_note_f0
+        })
+
+    return items
+
+
+# ----------------------------------------------------------------------------------------------
+# Dynamic Vowel Diphthong Glides (Continuous Formant Trajectories)
+# ----------------------------------------------------------------------------------------------
+def synth_diphthong_glide(f0=160.0, diphthong_type="a_to_i", sr=44100, dur=1.2, tilt=-12.0):
+    """
+    Synthesizes continuous human vowel diphthongs with exact analytical formant trajectories.
+    Types:
+      'a_to_i' (/aɪ/ as in 'fly'): F1 800 -> 280 Hz, F2 1200 -> 2300 Hz
+      'o_to_i' (/ɔɪ/ as in 'boy'): F1 550 -> 280 Hz, F2 900 -> 2200 Hz
+      'a_to_u' (/aʊ/ as in 'cow'): F1 800 -> 320 Hz, F2 1200 -> 800 Hz
+    Returns (audio_samples, times_array, dict_of_ground_truth_formants).
+    """
+    diphthong_presets = {
+        "a_to_i": {"f1": (800.0, 280.0), "f2": (1200.0, 2300.0), "f3": (2600.0, 2800.0), "f4": 3500.0},
+        "o_to_i": {"f1": (550.0, 280.0), "f2": (900.0, 2200.0), "f3": (2500.0, 2800.0), "f4": 3500.0},
+        "a_to_u": {"f1": (800.0, 320.0), "f2": (1200.0, 800.0), "f3": (2600.0, 2400.0), "f4": 3500.0}
+    }
+    cfg = diphthong_presets.get(diphthong_type, diphthong_presets["a_to_i"])
+    t = np.linspace(0.0, dur, int(sr * dur), endpoint=False)
+
+    # Smooth S-curve glide from 20% to 80% of duration
+    t_norm = np.clip((t - 0.20 * dur) / (0.60 * dur), 0.0, 1.0)
+    s_curve = 0.5 * (1.0 - np.cos(np.pi * t_norm))
+
+    f1_traj = cfg["f1"][0] + (cfg["f1"][1] - cfg["f1"][0]) * s_curve
+    f2_traj = cfg["f2"][0] + (cfg["f2"][1] - cfg["f2"][0]) * s_curve
+    f3_traj = cfg["f3"][0] + (cfg["f3"][1] - cfg["f3"][0]) * s_curve
+    f4_const = cfg["f4"]
+
+    # Generate glottal source
+    from scipy import signal
+    pulse_phase = 2.0 * np.pi * f0 * t
+    source = np.sin(pulse_phase)
+    # Apply spectral tilt
+    if tilt < 0:
+        b_tilt, a_tilt = signal.butter(1, 1000.0 / (sr / 2.0), btype='low')
+        source = signal.lfilter(b_tilt, a_tilt, source)
+
+    # Filter with time-varying formants via small 20ms blocks
+    block_n = int(sr * 0.020)
+    audio = np.zeros_like(source)
+    zi_states = [np.zeros(2, dtype=np.float64) for _ in range(4)]
+
+    for idx in range(0, len(source), block_n):
+        seg = source[idx:idx + block_n]
+        mid_idx = min(idx + block_n // 2, len(t) - 1)
+        cur_f = [f1_traj[mid_idx], f2_traj[mid_idx], f3_traj[mid_idx], f4_const]
+        cur_bw = [80.0, 110.0, 160.0, 250.0]
+
+        sub_out = np.zeros_like(seg)
+        for k in range(4):
+            r = np.exp(-np.pi * cur_bw[k] / sr)
+            theta = 2.0 * np.pi * cur_f[k] / sr
+            b0 = 1.0 - r
+            b = np.array([b0, 0.0, -b0], dtype=np.float64)
+            a = np.array([1.0, -2.0 * r * np.cos(theta), r * r], dtype=np.float64)
+            res, zi_states[k] = signal.lfilter(b, a, seg, zi=zi_states[k])
+            sub_out += res
+
+        audio[idx:idx + block_n] = sub_out
+
+    # Normalize
+    audio = audio / (np.max(np.abs(audio)) + 1e-6) * 0.8
+    ref_times = np.linspace(0.0, dur, len(audio))
+    return audio.astype(np.float32), ref_times, {
+        "F1": f1_traj,
+        "F2": f2_traj,
+        "F3": f3_traj,
+        "F4": np.full(len(t), f4_const)
+    }
+
+
+
