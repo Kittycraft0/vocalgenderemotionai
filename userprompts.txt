@@ -1,0 +1,88 @@
+# 10/13/2026
+scraping some of what i had
+from here https://gemini.google.com/app/36cc9831605fcd50
+and from DMs with alt account
+
+do not recreate anything in its entirety
+i want to add an option to be able to save the output to a folder such that each loop running on a different timestep gets its own file with logs of the specific time either being running or in general or something and having the data at that time on that line.
+i will then later ask to make something that allows for the option of uploading files to it to run the data getters on. the ultimate end goal of this is to be able to plug in data from various datasets and see how well my program and various other tools log the data being analyzed accurtely. the ultimate end goal is to make a more accurate tool, but that is far down the road.
+for now just propose some point changes to make to add the functionality that i want.
+i.e. a  class or method or function or two to add to main11 and a place in the script to put a call to the function or whatever.
+
+okay cool but i would rather each timestep NOT have its own file, rather either there just be one log file for the whole thing or, if there are some stats that generate faster than others, have separate files for each thing that is being logged, i.e. one for the frequencies one for the pitch one for the formants. but again if those are all generated at the exact same time with no offset delay between them running in different loops then one file is good. make sure the timestep of the folder (if there are several files) or the file (if there is only one) reflects the date and time, whereas each log in the folder reflects only the time since initialization or since the start of the recording or whatever else.
+
+ok wonderful now what can i do to make a boolean set at the beginning to determine whether or not the files will be logged
+
+okay amazing!!! now add a new separate option to start (preserving the current way, making it an option) by inputting an audio file that it takes and uses for the microphone input as well, making sure that time timestamps generated from the logs of the file match that of the timestamps of the audio being analyzed within the file itself, to ensure it can eventually be directly used and tested against established datasets of values to make sure the analysis timestamps match up properly so it can go by properly without a mismatch.
+
+[i had said 'i have not implemented your latest code yet as i want to ensure it will not severely mess with the timesteps. ' with an upload of the log data]
+
+yeah i can tell as it is visually quite laggy while running, the spectrogram specifically is particularly slow i think as well as some of the other things.
+i thinnk my program makes up for it by making the window be all the data from the last time it was processed up until current??? and then that makes it still work even if the windows are larger and it's kinda laggy i think??? but then again that inconsistency makes it such that the logged data most likely won't match any datasets. so perhaps marching forwards at non-live speed while still taking regular window steps according to what most programs/datasets use and whatever else is a better idea.
+idk if your option for calculating time is best, i'd personally consider calculating the time from the file itself would perhaps give more consistent data, unless datasets themselves do it differently.
+
+make sure the log file matches the name of the file in some way that one can easily tell that the log file is for the audio file
+currently INPUT_FILE_PATH is not defined anywhere???
+what file type(s) are gonna be accepted? wav???
+how does one load in an audio file into this? would one like drag and drop the file onto it, or would they like put in a file or a folder to recurse through to get all the files logged? would it be something written in? obviously when this is run using the not microphone then you shouldn't have to select a microphone to use.
+
+ok amazing it all works wonderfully
+can you make it such that once the audio processing is complete it leaves the window open until something is pressed in the terminal?
+
+! Riley — 9/22/2026 11:08 AM
+upon offline completion, the spectrogram stops as intended, but the other indicator things still keep on logging just flatlined with no more audio data left. also there has been a problem with my program to current where the horizontalness stretch of the spectrogram is different from that of all the other datas, and i feel like the fix to this problem will have a tangential relation to that problem.
+to be more explicit in the problem: during microphone use, the spectrogram goes by like twice as fast as the pitch tracker and the other trackers go by. upon current use, the pitch tracker does not show any "steps" that would happen if there was a sort of lag where the pitch tracker advanced without any new data, so clearly the pitch tracker is functioning in a good way. perhaps the issue is a stretch misalignment? or perhaps that one function is being run twice while another is only being run once?
+"Problem 2 (Stretch Misalignment): In Live Mode, the microphone buffer fills up dynamically. If the CPU lags, actual_new_cols might process 2 or 3 columns of the spectrogram at once to catch up. However, your 1D tracking graphs (Pitch, Formants, Weight) are hardcoded to shift by exactly np.roll(..., -1) no matter what. This causes the spectrogram to stretch horizontally faster than the pitch tracker, entirely breaking visual synchronization." i feel like i want to solve this problem by making the np.roll(...,-1) be changed to np.roll(...,-(number of new spectrogram columns)). would that entirely fix visual synchronization? it would also keep the lines perfectly smooth, just decreasing the resolution of the lines while being as close as possible to what they ideally would have been.
+your fix seems to be only if enable logging is true, but the problem has been persisting before this conversation, before logging was even enabled. wait what nevermind im so lost
+"Inside update_dashboard(), we must update all the tracking arrays to roll by -actual_new_cols instead of -1, and wrap them in an if actual_new_cols > 0: block. This physically binds the horizontal speed of the line graphs to the spectrogram's rendering speed." good
+im so confused
+okay i implemented your changes and now it's being weird and the pitch isn't smooth anymore and keeps on jumping back down to some place idk why what's with this
+
+the bottom graph keeps on replacing all of its data with flatline for some reason sometimes idk if its in response to a silence or something
+
+okay i haven't tested offline in a bit. i just tested it and now nothing has been logged to the screen except for the spectrogram. whats with that
+
+ok yay amazing offline works!!!
+pressing enter in the terminal upon completion doesn't make the window close thoough it just makes it stop responding can you fix that
+
+yay amazing that works!!!
+okay now... are there publicly available datasets that contain scruplious of F0 (pitch) speech activity, voice quality params, and anything else i've logged?
+what about robul/wiss for adding noise and reverb to the dataset data to make sure that my program works under a variety of conditions?
+let's start with what options for datasets are there available, and will my program's output data fit cleanly onto it or not? i'll likely create a new script to read logged data and compare it to dataset data, because i don't need the vocal analysis thing going if i already have it all logged.
+
+what if i trained a neural network to convert the last ten frames of measurements plus the current frame or window's measurements to get the real measurements based on training off of datasets to see what my stuff says or predicts versus what is true and then using the neural network trained off of that to predict what is true???
+
+my machine learning professor who is advising me on this research wrote this piece of paper for notes for what we talked about a week ago for me to take with me and know my goals for the week. the robul/wiss is what i most likely misread in the bottom left. oh it probably also says transcriptions not transcruplious duhh lol
+anyways for offline mode can you have an option where you can just like directly run the program in the console and directly input the input file and output location for the log file to skip all the menus so it can be ran several times in an eventual batch script, and if ran that way then it runs headless without the window?
+
+ok yay amazing
+can you make a play button in the offline headed version that after processing completion you can press the button and like it actually has a little progress bar thing or else you can like...
+-- you can click on the spectrogram to set the time being played to that location on the spectrogram
+-- the things scroll if there was overflow and the overflow clearing is disabled for offline headed mode
+-- you can pause/play the audio playback and there is a little red vertical bar that goes over all of the graphs to signify where in the graph is being played (making this work with the scrolling graphs is something to specifically consider)
+-- it automatically pauses upon getting to the end, if play is pressed after that then it will restart the playback
+-- hovering the mouse over a location shows the vertical red bar at the mouse position instead of where it actually is if the playback is paused
+-- wherever the vertical red bar is, the formant live graphs on the right side with the x and y coordinates being the formants without a time aspect should update to show their coordinates wherever the red bar is
+-- lmk if i forgot any features with this option thingy
+-- for playback through the speaker, make an option menu just like the microphone input one but now for the speakers, asking the user to select a specific speaker to use in a similar way to how the microphone operates, allowing a special thing to be entered to skip that and disable audio output  for the rest of the program execution and have it run fine if that is the case
+
+date is unknown here i guess???
+
+okay now offline headless is trying to ask for a microphone and start the dashboard, that's not good
+
+integrate whisper to create audio transcriptions and have the phones timestamped so they can be analyzed for all their data so eventually a machine can specialize and log how the user/how the uploaded data pronounces different things, and then it can eventually be compared to established datasets
+
+can you use search replace blocks [TALKING TO GEMINI BECAUSE IT'S NOT INTEGRATED INTO MY IDE LIKE CLAUDE IS]
+i don't think it's accurate currently with the variable names
+
+[a lot of errors, like 4 i guess]
+
+10/7/2026
+"can whisper ai identify phone alignment and phonetic transcription with width timestamps" no but other tools exist
+
+10/13/2026 now:
+can you get databases to compare the extraction data against and have it generate a report of sorts detailing what works and what doesn't and suggestions for improvement?
+
+does it implement multithreading to make things a lot faster
+
+
