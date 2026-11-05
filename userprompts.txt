@@ -100,4 +100,13 @@ can we predict when the program will be accurate vs unaccurate to make a more dy
 10/20/2026
 hi can you fix main11 and make it actually good again and check the recent commit history within the past like hour to make sure i didn't just mess something up during merges?
 
+# 2026-11-03 09:19:28.143
+tell me about the datasets used and how my algorithms compare against that of pratt. make a detailed report. i must become an expert on my program so my machine learning advisor thinks i know what i'm talking about with this.
+
+# 2026-11-03 09:51:32.685
+what is causing the innacuracies? are they fixable?
+
+# 2026-11-05 09:57:52.231
+can you make a system that makes live syllabic transcriptions? use whisper as a live test case to be able to get per word and use it as a reference to see if at least some of it matches, because like say a word starting timestamp should correspond to the starting of the first syllable of that word, so then you can like also see how it's doing accuracy wise live. the eventual goal is to like be able to like live map out a person's vowel space on the F1/F2 (and maybe F3/F4 too?) so then say if i'm voice training to try to sound like a certain voice then i could eventually see the target vowel space live and see my moving actively slowly changing vowel space live so i can try to shift my vowel space more towards my target. you would also perhaps need to use whisper and a word-to-IPA list or something to get moreso correct points on the graph to be able to figure out what is actually being tried to be said.
+
 
