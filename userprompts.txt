@@ -109,4 +109,14 @@ what is causing the innacuracies? are they fixable?
 # 2026-11-05 09:57:52.231
 can you make a system that makes live syllabic transcriptions? use whisper as a live test case to be able to get per word and use it as a reference to see if at least some of it matches, because like say a word starting timestamp should correspond to the starting of the first syllable of that word, so then you can like also see how it's doing accuracy wise live. the eventual goal is to like be able to like live map out a person's vowel space on the F1/F2 (and maybe F3/F4 too?) so then say if i'm voice training to try to sound like a certain voice then i could eventually see the target vowel space live and see my moving actively slowly changing vowel space live so i can try to shift my vowel space more towards my target. you would also perhaps need to use whisper and a word-to-IPA list or something to get moreso correct points on the graph to be able to figure out what is actually being tried to be said.
 
+# 2026-11-05 15:59:10.076
+this seems great in theory. i just tried it and it seemed to be kinda poor at actually transcribing even though i felt like i was speaking quite clearly. can you like try to make it work with the audio i just made in the logs if it saved it? 
+a trans woman just told me "what if you could emulate what someone's voice could sound like if they tried", i said anyone could sound like nayone if they tried hard enough, but honestly if you could make an estimate of what someone might sound like if they put in x hours of practice trying to sound like template or inserted speech y then that might actually be really good.
+
+# 2026-11-09 21:35:35.873
+therea re numorous issues. for one, check the logs. for two, i think my vowel space is a lot more clustered because of like idk, maybe the window size is too large to fully and adequately grab the actual locations of each formant? or maybe i'm just actually talking funny like that. this is a good tool though and some trans friends said they'd pay like $7/month for it. might be sometthing good to do way down the road? anyways also whisper decides to simply like stop workign i think if i talk too much for longer enough. there are many issues find them and fix them.
+
+# 2026-11-10 09:06:42.987
+does this look right or are a bunch of them all in the wrong places
+
 

@@ -1,0 +1,761 @@
+{
+ "started": "2026-11-05T11:11:07",
+ "quick": false,
+ "whisper_model": "small.en",
+ "arctic": {
+  "default_params": {
+   "band": [
+    300.0,
+    2500.0
+   ],
+   "min_dip_db": 1.5,
+   "silence_rel_db": 25.0,
+   "floor_margin_db": 3.0,
+   "voicing": 0.6,
+   "smooth": 5,
+   "pause_margin_db": 6.0,
+   "pause_min_s": 0.05,
+   "min_sep_s": 0.06,
+   "onset_rule": "end",
+   "dip_tol_db": 1.0,
+   "fall_frac": 0.5,
+   "onset_rel_db": 30.0,
+   "onset_shift_s": 0.0,
+   "max_back_s": 0.6,
+   "stats_window_s": 30.0
+  },
+  "default_on_test": {
+   "slt": {
+    "precision": 93.1,
+    "recall": 79.9,
+    "f1": 86.0,
+    "n_true": 1419,
+    "n_detected": 1218,
+    "nucleus_position_in_vowel_median": 51.0,
+    "word_count_exact": 77.0,
+    "onset_all_syllables": {
+     "n": 1134,
+     "median_ms": 4.4,
+     "mae_ms": 48.6,
+     "within_50ms": 64.7,
+     "within_100ms": 89.6
+    },
+    "onset_word_initial": {
+     "n": 839,
+     "median_ms": 20.9,
+     "mae_ms": 48.3,
+     "within_50ms": 63.8,
+     "within_100ms": 89.6
+    },
+    "onset_after_pause": {
+     "n": 112,
+     "median_ms": 29.0,
+     "mae_ms": 41.1,
+     "within_50ms": 70.5,
+     "within_100ms": 93.8
+    },
+    "onset_connected_word_initial": {
+     "n": 727,
+     "median_ms": 16.9,
+     "mae_ms": 49.4,
+     "within_50ms": 62.7,
+     "within_100ms": 89.0
+    }
+   },
+   "bdl": {
+    "precision": 94.6,
+    "recall": 80.9,
+    "f1": 87.2,
+    "n_true": 1443,
+    "n_detected": 1234,
+    "nucleus_position_in_vowel_median": 60.6,
+    "word_count_exact": 74.2,
+    "onset_all_syllables": {
+     "n": 1167,
+     "median_ms": 11.8,
+     "mae_ms": 45.6,
+     "within_50ms": 68.0,
+     "within_100ms": 92.0
+    },
+    "onset_word_initial": {
+     "n": 881,
+     "median_ms": 26.7,
+     "mae_ms": 46.5,
+     "within_50ms": 67.5,
+     "within_100ms": 91.7
+    },
+    "onset_after_pause": {
+     "n": 105,
+     "median_ms": 30.9,
+     "mae_ms": 36.8,
+     "within_50ms": 84.8,
+     "within_100ms": 98.1
+    },
+    "onset_connected_word_initial": {
+     "n": 776,
+     "median_ms": 23.8,
+     "mae_ms": 47.8,
+     "within_50ms": 65.2,
+     "within_100ms": 90.9
+    }
+   }
+  },
+  "tuned_params": {
+   "band": [
+    300.0,
+    2500.0
+   ],
+   "min_dip_db": 1.5,
+   "silence_rel_db": 25.0,
+   "floor_margin_db": 3.0,
+   "voicing": 0.6,
+   "smooth": 5,
+   "pause_margin_db": 6.0,
+   "pause_min_s": 0.05,
+   "min_sep_s": 0.06,
+   "onset_rule": "end",
+   "dip_tol_db": 1.0,
+   "fall_frac": 0.5,
+   "onset_rel_db": 30.0,
+   "onset_shift_s": 0.0,
+   "max_back_s": 0.6,
+   "stats_window_s": 30.0
+  },
+  "tuned_on_test": {
+   "slt": {
+    "precision": 93.1,
+    "recall": 79.9,
+    "f1": 86.0,
+    "n_true": 1419,
+    "n_detected": 1218,
+    "nucleus_position_in_vowel_median": 51.0,
+    "word_count_exact": 77.0,
+    "onset_all_syllables": {
+     "n": 1134,
+     "median_ms": 4.4,
+     "mae_ms": 48.6,
+     "within_50ms": 64.7,
+     "within_100ms": 89.6
+    },
+    "onset_word_initial": {
+     "n": 839,
+     "median_ms": 20.9,
+     "mae_ms": 48.3,
+     "within_50ms": 63.8,
+     "within_100ms": 89.6
+    },
+    "onset_after_pause": {
+     "n": 112,
+     "median_ms": 29.0,
+     "mae_ms": 41.1,
+     "within_50ms": 70.5,
+     "within_100ms": 93.8
+    },
+    "onset_connected_word_initial": {
+     "n": 727,
+     "median_ms": 16.9,
+     "mae_ms": 49.4,
+     "within_50ms": 62.7,
+     "within_100ms": 89.0
+    }
+   },
+   "bdl": {
+    "precision": 94.6,
+    "recall": 80.9,
+    "f1": 87.2,
+    "n_true": 1443,
+    "n_detected": 1234,
+    "nucleus_position_in_vowel_median": 60.6,
+    "word_count_exact": 74.2,
+    "onset_all_syllables": {
+     "n": 1167,
+     "median_ms": 11.8,
+     "mae_ms": 45.6,
+     "within_50ms": 68.0,
+     "within_100ms": 92.0
+    },
+    "onset_word_initial": {
+     "n": 881,
+     "median_ms": 26.7,
+     "mae_ms": 46.5,
+     "within_50ms": 67.5,
+     "within_100ms": 91.7
+    },
+    "onset_after_pause": {
+     "n": 105,
+     "median_ms": 30.9,
+     "mae_ms": 36.8,
+     "within_50ms": 84.8,
+     "within_100ms": 98.1
+    },
+    "onset_connected_word_initial": {
+     "n": 776,
+     "median_ms": 23.8,
+     "mae_ms": 47.8,
+     "within_50ms": 65.2,
+     "within_100ms": 90.9
+    }
+   }
+  },
+  "whisper": {
+   "slt": {
+    "words_true": 1014,
+    "words_whisper": 1028,
+    "words_matched": 986,
+    "start_error_all": {
+     "n": 986,
+     "median_ms": -21.3,
+     "mae_ms": 74.1,
+     "within_50ms": 52.8,
+     "within_100ms": 79.0
+    },
+    "start_error_after_pause": {
+     "n": 147,
+     "median_ms": 20.6,
+     "mae_ms": 165.1,
+     "within_50ms": 37.4,
+     "within_100ms": 59.2
+    },
+    "start_error_connected": {
+     "n": 839,
+     "median_ms": -26.0,
+     "mae_ms": 58.1,
+     "within_50ms": 55.5,
+     "within_100ms": 82.5
+    }
+   },
+   "bdl": {
+    "words_true": 1038,
+    "words_whisper": 1043,
+    "words_matched": 1009,
+    "start_error_all": {
+     "n": 1009,
+     "median_ms": -11.5,
+     "mae_ms": 64.8,
+     "within_50ms": 56.9,
+     "within_100ms": 83.2
+    },
+    "start_error_after_pause": {
+     "n": 150,
+     "median_ms": 25.6,
+     "mae_ms": 117.8,
+     "within_50ms": 52.0,
+     "within_100ms": 71.3
+    },
+    "start_error_connected": {
+     "n": 859,
+     "median_ms": -18.0,
+     "mae_ms": 55.6,
+     "within_50ms": 57.7,
+     "within_100ms": 85.2
+    }
+   }
+  },
+  "live_vs_true": {
+   "slt": {
+    "live_count_exact": 79.4,
+    "true_count_exact": 77.0,
+    "live_onset_hit": 62.2,
+    "true_onset_hit": 75.5,
+    "live_recall": 84.0,
+    "live_precision": 98.4,
+    "live_onset_median_ms": 40.0
+   },
+   "bdl": {
+    "live_count_exact": 79.9,
+    "true_count_exact": 74.3,
+    "live_onset_hit": 70.2,
+    "true_onset_hit": 78.9,
+    "live_recall": 84.2,
+    "live_precision": 98.9,
+    "live_onset_median_ms": 30.0
+   }
+  },
+  "tokens": {
+   "slt": {
+    "chart": {
+     "tokens": 252,
+     "in_a_vowel": 98.4,
+     "same_vowel": 96.8
+    },
+    "all": {
+     "tokens": 1008,
+     "in_a_vowel": 93.9,
+     "same_vowel": 85.6
+    }
+   },
+   "bdl": {
+    "chart": {
+     "tokens": 272,
+     "in_a_vowel": 98.2,
+     "same_vowel": 93.4
+    },
+    "all": {
+     "tokens": 1036,
+     "in_a_vowel": 95.7,
+     "same_vowel": 85.9
+    }
+   }
+  }
+ },
+ "noise": {
+  "clean": {
+   "slt": {
+    "precision": 93.1,
+    "recall": 79.9,
+    "f1": 86.0,
+    "n_true": 1419,
+    "n_detected": 1218,
+    "nucleus_position_in_vowel_median": 51.0,
+    "word_count_exact": 77.0,
+    "onset_all_syllables": {
+     "n": 1134,
+     "median_ms": 4.4,
+     "mae_ms": 48.6,
+     "within_50ms": 64.7,
+     "within_100ms": 89.6
+    },
+    "onset_word_initial": {
+     "n": 839,
+     "median_ms": 20.9,
+     "mae_ms": 48.3,
+     "within_50ms": 63.8,
+     "within_100ms": 89.6
+    },
+    "onset_after_pause": {
+     "n": 112,
+     "median_ms": 29.0,
+     "mae_ms": 41.1,
+     "within_50ms": 70.5,
+     "within_100ms": 93.8
+    },
+    "onset_connected_word_initial": {
+     "n": 727,
+     "median_ms": 16.9,
+     "mae_ms": 49.4,
+     "within_50ms": 62.7,
+     "within_100ms": 89.0
+    }
+   },
+   "bdl": {
+    "precision": 94.6,
+    "recall": 80.9,
+    "f1": 87.2,
+    "n_true": 1443,
+    "n_detected": 1234,
+    "nucleus_position_in_vowel_median": 60.6,
+    "word_count_exact": 74.2,
+    "onset_all_syllables": {
+     "n": 1167,
+     "median_ms": 11.8,
+     "mae_ms": 45.6,
+     "within_50ms": 68.0,
+     "within_100ms": 92.0
+    },
+    "onset_word_initial": {
+     "n": 881,
+     "median_ms": 26.7,
+     "mae_ms": 46.5,
+     "within_50ms": 67.5,
+     "within_100ms": 91.7
+    },
+    "onset_after_pause": {
+     "n": 105,
+     "median_ms": 30.9,
+     "mae_ms": 36.8,
+     "within_50ms": 84.8,
+     "within_100ms": 98.1
+    },
+    "onset_connected_word_initial": {
+     "n": 776,
+     "median_ms": 23.8,
+     "mae_ms": 47.8,
+     "within_50ms": 65.2,
+     "within_100ms": 90.9
+    }
+   }
+  },
+  "10": {
+   "slt": {
+    "precision": 93.5,
+    "recall": 77.7,
+    "f1": 84.9,
+    "n_true": 1419,
+    "n_detected": 1180,
+    "nucleus_position_in_vowel_median": 51.0,
+    "word_count_exact": 75.6,
+    "onset_all_syllables": {
+     "n": 1103,
+     "median_ms": 38.5,
+     "mae_ms": 63.0,
+     "within_50ms": 49.0,
+     "within_100ms": 78.3
+    },
+    "onset_word_initial": {
+     "n": 819,
+     "median_ms": 56.4,
+     "mae_ms": 72.6,
+     "within_50ms": 39.4,
+     "within_100ms": 73.6
+    },
+    "onset_after_pause": {
+     "n": 112,
+     "median_ms": 53.1,
+     "mae_ms": 68.3,
+     "within_50ms": 44.6,
+     "within_100ms": 78.6
+    },
+    "onset_connected_word_initial": {
+     "n": 707,
+     "median_ms": 57.6,
+     "mae_ms": 73.3,
+     "within_50ms": 38.6,
+     "within_100ms": 72.8
+    }
+   },
+   "bdl": {
+    "precision": 94.4,
+    "recall": 71.8,
+    "f1": 81.6,
+    "n_true": 1443,
+    "n_detected": 1097,
+    "nucleus_position_in_vowel_median": 59.5,
+    "word_count_exact": 65.5,
+    "onset_all_syllables": {
+     "n": 1036,
+     "median_ms": 56.1,
+     "mae_ms": 69.1,
+     "within_50ms": 40.4,
+     "within_100ms": 76.0
+    },
+    "onset_word_initial": {
+     "n": 803,
+     "median_ms": 70.1,
+     "mae_ms": 77.7,
+     "within_50ms": 30.8,
+     "within_100ms": 71.2
+    },
+    "onset_after_pause": {
+     "n": 102,
+     "median_ms": 56.1,
+     "mae_ms": 68.2,
+     "within_50ms": 36.3,
+     "within_100ms": 83.3
+    },
+    "onset_connected_word_initial": {
+     "n": 701,
+     "median_ms": 72.1,
+     "mae_ms": 79.1,
+     "within_50ms": 30.0,
+     "within_100ms": 69.5
+    }
+   }
+  },
+  "5": {
+   "slt": {
+    "precision": 92.9,
+    "recall": 67.9,
+    "f1": 78.5,
+    "n_true": 1419,
+    "n_detected": 1038,
+    "nucleus_position_in_vowel_median": 50.6,
+    "word_count_exact": 65.7,
+    "onset_all_syllables": {
+     "n": 964,
+     "median_ms": 66.1,
+     "mae_ms": 78.5,
+     "within_50ms": 36.6,
+     "within_100ms": 68.9
+    },
+    "onset_word_initial": {
+     "n": 727,
+     "median_ms": 78.1,
+     "mae_ms": 88.8,
+     "within_50ms": 27.5,
+     "within_100ms": 63.0
+    },
+    "onset_after_pause": {
+     "n": 104,
+     "median_ms": 67.2,
+     "mae_ms": 82.6,
+     "within_50ms": 30.8,
+     "within_100ms": 71.2
+    },
+    "onset_connected_word_initial": {
+     "n": 623,
+     "median_ms": 81.9,
+     "mae_ms": 89.9,
+     "within_50ms": 27.0,
+     "within_100ms": 61.6
+    }
+   },
+   "bdl": {
+    "precision": 93.9,
+    "recall": 50.9,
+    "f1": 66.0,
+    "n_true": 1443,
+    "n_detected": 782,
+    "nucleus_position_in_vowel_median": 57.9,
+    "word_count_exact": 44.0,
+    "onset_all_syllables": {
+     "n": 734,
+     "median_ms": 79.5,
+     "mae_ms": 86.1,
+     "within_50ms": 30.4,
+     "within_100ms": 62.3
+    },
+    "onset_word_initial": {
+     "n": 570,
+     "median_ms": 92.9,
+     "mae_ms": 98.0,
+     "within_50ms": 18.8,
+     "within_100ms": 53.7
+    },
+    "onset_after_pause": {
+     "n": 79,
+     "median_ms": 69.7,
+     "mae_ms": 81.8,
+     "within_50ms": 25.3,
+     "within_100ms": 73.4
+    },
+    "onset_connected_word_initial": {
+     "n": 491,
+     "median_ms": 97.3,
+     "mae_ms": 100.7,
+     "within_50ms": 17.7,
+     "within_100ms": 50.5
+    }
+   }
+  }
+ },
+ "ravdess": {
+  "neutral": {
+   "clips": 96,
+   "exact_7": 81.2,
+   "within_1": 96.9,
+   "mean_detected": 7.1
+  },
+  "calm": {
+   "clips": 192,
+   "exact_7": 52.1,
+   "within_1": 89.1,
+   "mean_detected": 7.4
+  },
+  "happy": {
+   "clips": 192,
+   "exact_7": 40.1,
+   "within_1": 82.8,
+   "mean_detected": 7.7
+  },
+  "sad": {
+   "clips": 192,
+   "exact_7": 45.8,
+   "within_1": 82.8,
+   "mean_detected": 7.4
+  },
+  "angry": {
+   "clips": 192,
+   "exact_7": 41.1,
+   "within_1": 74.0,
+   "mean_detected": 7.7
+  },
+  "fearful": {
+   "clips": 192,
+   "exact_7": 35.4,
+   "within_1": 86.5,
+   "mean_detected": 7.5
+  },
+  "disgust": {
+   "clips": 192,
+   "exact_7": 33.9,
+   "within_1": 74.5,
+   "mean_detected": 7.6
+  },
+  "surprised": {
+   "clips": 192,
+   "exact_7": 40.6,
+   "within_1": 89.1,
+   "mean_detected": 7.1
+  },
+  "all": {
+   "clips": 1440,
+   "exact_7": 44.0,
+   "within_1": 83.6,
+   "mean_detected": 7.5
+  }
+ },
+ "hillenbrand": {
+  "files": 1668,
+  "seconds": 92.8,
+  "nucleus_minus_steady_state_ms_median": 50.0,
+  "nucleus_minus_steady_state_ms_mae": 74.7,
+  "5000": {
+   "all": {
+    "F1_within_10pct": 79.6,
+    "F2_within_10pct": 62.7,
+    "F3_within_10pct": 67.0,
+    "F1_median_err_pct": 3.4,
+    "F2_median_err_pct": 5.6,
+    "F3_median_err_pct": 2.9
+   },
+   "men": {
+    "F1_within_10pct": 86.3,
+    "F2_within_10pct": 80.0,
+    "F3_within_10pct": 92.8,
+    "F1_median_err_pct": 3.1,
+    "F2_median_err_pct": 3.6,
+    "F3_median_err_pct": 1.7
+   },
+   "women": {
+    "F1_within_10pct": 78.3,
+    "F2_within_10pct": 58.7,
+    "F3_within_10pct": 59.9,
+    "F1_median_err_pct": 3.5,
+    "F2_median_err_pct": 7.0,
+    "F3_median_err_pct": 3.3
+   },
+   "boys": {
+    "F1_within_10pct": 75.3,
+    "F2_within_10pct": 53.1,
+    "F3_within_10pct": 56.8,
+    "F1_median_err_pct": 3.6,
+    "F2_median_err_pct": 8.2,
+    "F3_median_err_pct": 5.1
+   },
+   "girls": {
+    "F1_within_10pct": 72.8,
+    "F2_within_10pct": 45.6,
+    "F3_within_10pct": 38.6,
+    "F1_median_err_pct": 4.0,
+    "F2_median_err_pct": 14.8,
+    "F3_median_err_pct": 20.2
+   }
+  },
+  "5500": {
+   "all": {
+    "F1_within_10pct": 80.5,
+    "F2_within_10pct": 74.6,
+    "F3_within_10pct": 88.3,
+    "F1_median_err_pct": 3.6,
+    "F2_median_err_pct": 3.9,
+    "F3_median_err_pct": 2.0
+   },
+   "men": {
+    "F1_within_10pct": 84.8,
+    "F2_within_10pct": 78.5,
+    "F3_within_10pct": 92.4,
+    "F1_median_err_pct": 3.8,
+    "F2_median_err_pct": 3.9,
+    "F3_median_err_pct": 2.1
+   },
+   "women": {
+    "F1_within_10pct": 79.9,
+    "F2_within_10pct": 75.7,
+    "F3_within_10pct": 89.2,
+    "F1_median_err_pct": 3.4,
+    "F2_median_err_pct": 3.3,
+    "F3_median_err_pct": 1.8
+   },
+   "boys": {
+    "F1_within_10pct": 76.2,
+    "F2_within_10pct": 66.7,
+    "F3_within_10pct": 84.6,
+    "F1_median_err_pct": 3.5,
+    "F2_median_err_pct": 4.3,
+    "F3_median_err_pct": 2.2
+   },
+   "girls": {
+    "F1_within_10pct": 77.6,
+    "F2_within_10pct": 73.7,
+    "F3_within_10pct": 81.6,
+    "F1_median_err_pct": 3.5,
+    "F2_median_err_pct": 4.4,
+    "F3_median_err_pct": 2.4
+   }
+  },
+  "pitch-based": {
+   "all": {
+    "F1_within_10pct": 80.8,
+    "F2_within_10pct": 76.0,
+    "F3_within_10pct": 89.7,
+    "F1_median_err_pct": 3.3,
+    "F2_median_err_pct": 3.7,
+    "F3_median_err_pct": 2.0
+   },
+   "men": {
+    "F1_within_10pct": 86.7,
+    "F2_within_10pct": 80.2,
+    "F3_within_10pct": 93.1,
+    "F1_median_err_pct": 3.1,
+    "F2_median_err_pct": 3.6,
+    "F3_median_err_pct": 1.7
+   },
+   "women": {
+    "F1_within_10pct": 79.3,
+    "F2_within_10pct": 76.7,
+    "F3_within_10pct": 90.6,
+    "F1_median_err_pct": 3.6,
+    "F2_median_err_pct": 3.4,
+    "F3_median_err_pct": 2.0
+   },
+   "boys": {
+    "F1_within_10pct": 76.2,
+    "F2_within_10pct": 67.0,
+    "F3_within_10pct": 85.2,
+    "F1_median_err_pct": 3.7,
+    "F2_median_err_pct": 4.6,
+    "F3_median_err_pct": 2.6
+   },
+   "girls": {
+    "F1_within_10pct": 76.8,
+    "F2_within_10pct": 76.8,
+    "F3_within_10pct": 85.5,
+    "F1_median_err_pct": 3.3,
+    "F2_median_err_pct": 3.6,
+    "F3_median_err_pct": 2.8
+   }
+  },
+  "auto": {
+   "all": {
+    "F1_within_10pct": 80.8,
+    "F2_within_10pct": 77.8,
+    "F3_within_10pct": 92.7,
+    "F1_median_err_pct": 3.4,
+    "F2_median_err_pct": 3.3,
+    "F3_median_err_pct": 1.6
+   },
+   "men": {
+    "F1_within_10pct": 86.3,
+    "F2_within_10pct": 80.9,
+    "F3_within_10pct": 96.3,
+    "F1_median_err_pct": 3.1,
+    "F2_median_err_pct": 3.2,
+    "F3_median_err_pct": 1.5
+   },
+   "women": {
+    "F1_within_10pct": 78.8,
+    "F2_within_10pct": 77.6,
+    "F3_within_10pct": 92.2,
+    "F1_median_err_pct": 3.6,
+    "F2_median_err_pct": 3.2,
+    "F3_median_err_pct": 1.5
+   },
+   "boys": {
+    "F1_within_10pct": 78.1,
+    "F2_within_10pct": 71.6,
+    "F3_within_10pct": 90.7,
+    "F1_median_err_pct": 3.4,
+    "F2_median_err_pct": 3.6,
+    "F3_median_err_pct": 2.0
+   },
+   "girls": {
+    "F1_within_10pct": 76.8,
+    "F2_within_10pct": 79.4,
+    "F3_within_10pct": 88.6,
+    "F1_median_err_pct": 3.7,
+    "F2_median_err_pct": 3.3,
+    "F3_median_err_pct": 1.9
+   }
+  }
+ }
+}

@@ -1,0 +1,537 @@
+{
+ "started": "2026-11-09T23:05:06",
+ "quick": false,
+ "whisper_model": "small.en",
+ "arctic": {
+  "default_params": {
+   "band": [
+    300.0,
+    2500.0
+   ],
+   "min_dip_db": 1.5,
+   "silence_rel_db": 25.0,
+   "floor_margin_db": 3.0,
+   "voicing": 0.6,
+   "smooth": 5,
+   "pause_margin_db": 6.0,
+   "pause_min_s": 0.05,
+   "min_sep_s": 0.06,
+   "onset_rule": "end",
+   "dip_tol_db": 1.0,
+   "fall_frac": 0.5,
+   "onset_rel_db": 30.0,
+   "onset_shift_s": 0.0,
+   "max_back_s": 0.6,
+   "stats_window_s": 30.0
+  },
+  "default_on_test": {
+   "slt": {
+    "precision": 93.1,
+    "recall": 79.9,
+    "f1": 86.0,
+    "n_true": 1419,
+    "n_detected": 1218,
+    "nucleus_position_in_vowel_median": 51.0,
+    "word_count_exact": 77.0,
+    "onset_all_syllables": {
+     "n": 1134,
+     "median_ms": 4.4,
+     "mae_ms": 48.6,
+     "within_50ms": 64.7,
+     "within_100ms": 89.6
+    },
+    "onset_word_initial": {
+     "n": 839,
+     "median_ms": 20.9,
+     "mae_ms": 48.3,
+     "within_50ms": 63.8,
+     "within_100ms": 89.6
+    },
+    "onset_after_pause": {
+     "n": 112,
+     "median_ms": 29.0,
+     "mae_ms": 41.1,
+     "within_50ms": 70.5,
+     "within_100ms": 93.8
+    },
+    "onset_connected_word_initial": {
+     "n": 727,
+     "median_ms": 16.9,
+     "mae_ms": 49.4,
+     "within_50ms": 62.7,
+     "within_100ms": 89.0
+    }
+   },
+   "bdl": {
+    "precision": 94.6,
+    "recall": 80.9,
+    "f1": 87.2,
+    "n_true": 1443,
+    "n_detected": 1234,
+    "nucleus_position_in_vowel_median": 60.6,
+    "word_count_exact": 74.2,
+    "onset_all_syllables": {
+     "n": 1167,
+     "median_ms": 11.8,
+     "mae_ms": 45.6,
+     "within_50ms": 68.0,
+     "within_100ms": 92.0
+    },
+    "onset_word_initial": {
+     "n": 881,
+     "median_ms": 26.7,
+     "mae_ms": 46.5,
+     "within_50ms": 67.5,
+     "within_100ms": 91.7
+    },
+    "onset_after_pause": {
+     "n": 105,
+     "median_ms": 30.9,
+     "mae_ms": 36.8,
+     "within_50ms": 84.8,
+     "within_100ms": 98.1
+    },
+    "onset_connected_word_initial": {
+     "n": 776,
+     "median_ms": 23.8,
+     "mae_ms": 47.8,
+     "within_50ms": 65.2,
+     "within_100ms": 90.9
+    }
+   }
+  },
+  "tuned_params": {
+   "band": [
+    300.0,
+    2500.0
+   ],
+   "min_dip_db": 1.5,
+   "silence_rel_db": 25.0,
+   "floor_margin_db": 3.0,
+   "voicing": 0.6,
+   "smooth": 5,
+   "pause_margin_db": 6.0,
+   "pause_min_s": 0.05,
+   "min_sep_s": 0.06,
+   "onset_rule": "end",
+   "dip_tol_db": 1.0,
+   "fall_frac": 0.5,
+   "onset_rel_db": 30.0,
+   "onset_shift_s": 0.0,
+   "max_back_s": 0.6,
+   "stats_window_s": 30.0
+  },
+  "tuned_on_test": {
+   "slt": {
+    "precision": 93.1,
+    "recall": 79.9,
+    "f1": 86.0,
+    "n_true": 1419,
+    "n_detected": 1218,
+    "nucleus_position_in_vowel_median": 51.0,
+    "word_count_exact": 77.0,
+    "onset_all_syllables": {
+     "n": 1134,
+     "median_ms": 4.4,
+     "mae_ms": 48.6,
+     "within_50ms": 64.7,
+     "within_100ms": 89.6
+    },
+    "onset_word_initial": {
+     "n": 839,
+     "median_ms": 20.9,
+     "mae_ms": 48.3,
+     "within_50ms": 63.8,
+     "within_100ms": 89.6
+    },
+    "onset_after_pause": {
+     "n": 112,
+     "median_ms": 29.0,
+     "mae_ms": 41.1,
+     "within_50ms": 70.5,
+     "within_100ms": 93.8
+    },
+    "onset_connected_word_initial": {
+     "n": 727,
+     "median_ms": 16.9,
+     "mae_ms": 49.4,
+     "within_50ms": 62.7,
+     "within_100ms": 89.0
+    }
+   },
+   "bdl": {
+    "precision": 94.6,
+    "recall": 80.9,
+    "f1": 87.2,
+    "n_true": 1443,
+    "n_detected": 1234,
+    "nucleus_position_in_vowel_median": 60.6,
+    "word_count_exact": 74.2,
+    "onset_all_syllables": {
+     "n": 1167,
+     "median_ms": 11.8,
+     "mae_ms": 45.6,
+     "within_50ms": 68.0,
+     "within_100ms": 92.0
+    },
+    "onset_word_initial": {
+     "n": 881,
+     "median_ms": 26.7,
+     "mae_ms": 46.5,
+     "within_50ms": 67.5,
+     "within_100ms": 91.7
+    },
+    "onset_after_pause": {
+     "n": 105,
+     "median_ms": 30.9,
+     "mae_ms": 36.8,
+     "within_50ms": 84.8,
+     "within_100ms": 98.1
+    },
+    "onset_connected_word_initial": {
+     "n": 776,
+     "median_ms": 23.8,
+     "mae_ms": 47.8,
+     "within_50ms": 65.2,
+     "within_100ms": 90.9
+    }
+   }
+  },
+  "whisper": {
+   "slt": {
+    "words_true": 1014,
+    "words_whisper": 1040,
+    "words_matched": 979,
+    "start_error_all": {
+     "n": 979,
+     "median_ms": -16.7,
+     "mae_ms": 62.5,
+     "within_50ms": 55.1,
+     "within_100ms": 80.7
+    },
+    "start_error_after_pause": {
+     "n": 154,
+     "median_ms": 11.5,
+     "mae_ms": 72.5,
+     "within_50ms": 48.1,
+     "within_100ms": 74.7
+    },
+    "start_error_connected": {
+     "n": 825,
+     "median_ms": -24.7,
+     "mae_ms": 60.6,
+     "within_50ms": 56.4,
+     "within_100ms": 81.8
+    }
+   },
+   "bdl": {
+    "words_true": 1038,
+    "words_whisper": 1062,
+    "words_matched": 1009,
+    "start_error_all": {
+     "n": 1009,
+     "median_ms": -11.1,
+     "mae_ms": 57.6,
+     "within_50ms": 57.9,
+     "within_100ms": 84.0
+    },
+    "start_error_after_pause": {
+     "n": 143,
+     "median_ms": 6.5,
+     "mae_ms": 58.1,
+     "within_50ms": 62.2,
+     "within_100ms": 83.9
+    },
+    "start_error_connected": {
+     "n": 866,
+     "median_ms": -12.9,
+     "mae_ms": 57.6,
+     "within_50ms": 57.2,
+     "within_100ms": 84.1
+    }
+   }
+  },
+  "live_vs_true": {
+   "slt": {
+    "live_count_exact": 77.3,
+    "true_count_exact": 77.0,
+    "live_onset_hit": 63.1,
+    "true_onset_hit_all_words": 75.5,
+    "same_words": 969,
+    "same_words_live_onset_hit": 64.5,
+    "same_words_true_onset_hit": 74.1,
+    "live_recall": 82.1,
+    "live_precision": 98.7,
+    "live_onset_median_ms": 30.0
+   },
+   "bdl": {
+    "live_count_exact": 78.8,
+    "true_count_exact": 74.3,
+    "live_onset_hit": 70.6,
+    "true_onset_hit_all_words": 78.9,
+    "same_words": 998,
+    "same_words_live_onset_hit": 71.2,
+    "same_words_true_onset_hit": 76.7,
+    "live_recall": 83.5,
+    "live_precision": 99.1,
+    "live_onset_median_ms": 30.0
+   }
+  },
+  "tokens": {
+   "slt": {
+    "chart": {
+     "tokens": 249,
+     "in_a_vowel": 98.0,
+     "same_vowel": 96.8
+    },
+    "all": {
+     "tokens": 1005,
+     "in_a_vowel": 93.9,
+     "same_vowel": 86.1
+    }
+   },
+   "bdl": {
+    "chart": {
+     "tokens": 271,
+     "in_a_vowel": 98.2,
+     "same_vowel": 94.1
+    },
+    "all": {
+     "tokens": 1033,
+     "in_a_vowel": 95.6,
+     "same_vowel": 86.4
+    }
+   }
+  }
+ },
+ "noise": {
+  "clean": {
+   "slt": {
+    "precision": 93.1,
+    "recall": 79.9,
+    "f1": 86.0,
+    "n_true": 1419,
+    "n_detected": 1218,
+    "nucleus_position_in_vowel_median": 51.0,
+    "word_count_exact": 77.0,
+    "onset_all_syllables": {
+     "n": 1134,
+     "median_ms": 4.4,
+     "mae_ms": 48.6,
+     "within_50ms": 64.7,
+     "within_100ms": 89.6
+    },
+    "onset_word_initial": {
+     "n": 839,
+     "median_ms": 20.9,
+     "mae_ms": 48.3,
+     "within_50ms": 63.8,
+     "within_100ms": 89.6
+    },
+    "onset_after_pause": {
+     "n": 112,
+     "median_ms": 29.0,
+     "mae_ms": 41.1,
+     "within_50ms": 70.5,
+     "within_100ms": 93.8
+    },
+    "onset_connected_word_initial": {
+     "n": 727,
+     "median_ms": 16.9,
+     "mae_ms": 49.4,
+     "within_50ms": 62.7,
+     "within_100ms": 89.0
+    }
+   },
+   "bdl": {
+    "precision": 94.6,
+    "recall": 80.9,
+    "f1": 87.2,
+    "n_true": 1443,
+    "n_detected": 1234,
+    "nucleus_position_in_vowel_median": 60.6,
+    "word_count_exact": 74.2,
+    "onset_all_syllables": {
+     "n": 1167,
+     "median_ms": 11.8,
+     "mae_ms": 45.6,
+     "within_50ms": 68.0,
+     "within_100ms": 92.0
+    },
+    "onset_word_initial": {
+     "n": 881,
+     "median_ms": 26.7,
+     "mae_ms": 46.5,
+     "within_50ms": 67.5,
+     "within_100ms": 91.7
+    },
+    "onset_after_pause": {
+     "n": 105,
+     "median_ms": 30.9,
+     "mae_ms": 36.8,
+     "within_50ms": 84.8,
+     "within_100ms": 98.1
+    },
+    "onset_connected_word_initial": {
+     "n": 776,
+     "median_ms": 23.8,
+     "mae_ms": 47.8,
+     "within_50ms": 65.2,
+     "within_100ms": 90.9
+    }
+   }
+  },
+  "10": {
+   "slt": {
+    "precision": 93.5,
+    "recall": 77.7,
+    "f1": 84.9,
+    "n_true": 1419,
+    "n_detected": 1180,
+    "nucleus_position_in_vowel_median": 51.0,
+    "word_count_exact": 75.6,
+    "onset_all_syllables": {
+     "n": 1103,
+     "median_ms": 38.5,
+     "mae_ms": 63.0,
+     "within_50ms": 49.0,
+     "within_100ms": 78.3
+    },
+    "onset_word_initial": {
+     "n": 819,
+     "median_ms": 56.4,
+     "mae_ms": 72.6,
+     "within_50ms": 39.4,
+     "within_100ms": 73.6
+    },
+    "onset_after_pause": {
+     "n": 112,
+     "median_ms": 53.1,
+     "mae_ms": 68.3,
+     "within_50ms": 44.6,
+     "within_100ms": 78.6
+    },
+    "onset_connected_word_initial": {
+     "n": 707,
+     "median_ms": 57.6,
+     "mae_ms": 73.3,
+     "within_50ms": 38.6,
+     "within_100ms": 72.8
+    }
+   },
+   "bdl": {
+    "precision": 94.4,
+    "recall": 71.8,
+    "f1": 81.6,
+    "n_true": 1443,
+    "n_detected": 1097,
+    "nucleus_position_in_vowel_median": 59.5,
+    "word_count_exact": 65.5,
+    "onset_all_syllables": {
+     "n": 1036,
+     "median_ms": 56.1,
+     "mae_ms": 69.1,
+     "within_50ms": 40.4,
+     "within_100ms": 76.0
+    },
+    "onset_word_initial": {
+     "n": 803,
+     "median_ms": 70.1,
+     "mae_ms": 77.7,
+     "within_50ms": 30.8,
+     "within_100ms": 71.2
+    },
+    "onset_after_pause": {
+     "n": 102,
+     "median_ms": 56.1,
+     "mae_ms": 68.2,
+     "within_50ms": 36.3,
+     "within_100ms": 83.3
+    },
+    "onset_connected_word_initial": {
+     "n": 701,
+     "median_ms": 72.1,
+     "mae_ms": 79.1,
+     "within_50ms": 30.0,
+     "within_100ms": 69.5
+    }
+   }
+  },
+  "5": {
+   "slt": {
+    "precision": 92.9,
+    "recall": 67.9,
+    "f1": 78.5,
+    "n_true": 1419,
+    "n_detected": 1038,
+    "nucleus_position_in_vowel_median": 50.6,
+    "word_count_exact": 65.7,
+    "onset_all_syllables": {
+     "n": 964,
+     "median_ms": 66.1,
+     "mae_ms": 78.5,
+     "within_50ms": 36.6,
+     "within_100ms": 68.9
+    },
+    "onset_word_initial": {
+     "n": 727,
+     "median_ms": 78.1,
+     "mae_ms": 88.8,
+     "within_50ms": 27.5,
+     "within_100ms": 63.0
+    },
+    "onset_after_pause": {
+     "n": 104,
+     "median_ms": 67.2,
+     "mae_ms": 82.6,
+     "within_50ms": 30.8,
+     "within_100ms": 71.2
+    },
+    "onset_connected_word_initial": {
+     "n": 623,
+     "median_ms": 81.9,
+     "mae_ms": 89.9,
+     "within_50ms": 27.0,
+     "within_100ms": 61.6
+    }
+   },
+   "bdl": {
+    "precision": 93.9,
+    "recall": 50.9,
+    "f1": 66.0,
+    "n_true": 1443,
+    "n_detected": 782,
+    "nucleus_position_in_vowel_median": 57.9,
+    "word_count_exact": 44.0,
+    "onset_all_syllables": {
+     "n": 734,
+     "median_ms": 79.5,
+     "mae_ms": 86.1,
+     "within_50ms": 30.4,
+     "within_100ms": 62.3
+    },
+    "onset_word_initial": {
+     "n": 570,
+     "median_ms": 92.9,
+     "mae_ms": 98.0,
+     "within_50ms": 18.8,
+     "within_100ms": 53.7
+    },
+    "onset_after_pause": {
+     "n": 79,
+     "median_ms": 69.7,
+     "mae_ms": 81.8,
+     "within_50ms": 25.3,
+     "within_100ms": 73.4
+    },
+    "onset_connected_word_initial": {
+     "n": 491,
+     "median_ms": 97.3,
+     "mae_ms": 100.7,
+     "within_50ms": 17.7,
+     "within_100ms": 50.5
+    }
+   }
+  }
+ }
+}
