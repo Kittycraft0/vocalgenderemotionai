@@ -1,0 +1,16 @@
+
+=== Hillenbrand 1995 (formants at the detected nucleus vs hand-checked steady state) ===
+  'speaker' ceiling per group (smallest within-vowel spread): boys 6500 Hz, girls 6000 Hz, men 5250 Hz, women 5750 Hz
+  ceiling 5000        within 10%: F1 79.6  F2 62.7  F3 67.0   (men F2 80.0, women F2 58.7)
+  ceiling 5500        within 10%: F1 80.5  F2 74.6  F3 88.3   (men F2 78.5, women F2 75.7)
+  ceiling pitch-based within 10%: F1 80.8  F2 76.0  F3 89.7   (men F2 80.2, women F2 76.7)
+  ceiling auto        within 10%: F1 80.8  F2 77.8  F3 92.7   (men F2 80.9, women F2 77.6)
+  ceiling speaker     within 10%: F1 80.6  F2 77.1  F3 91.2   (men F2 80.0, women F2 78.8)
+  detected nucleus vs Hillenbrand's steady-state time: median 50.0 ms
+
+=== running-speech targets (CMU ARCTIC read sentences, measured like your voice) ===
+  slt (female (US)): 762 chart tokens, speaker ceiling 6000 Hz; /i/ F1 378 F2 2699, /u/ F2 1917, /oU/ F2 1535, /a/ F1 813
+  clb (female (US)): 800 chart tokens, speaker ceiling 5500 Hz; /i/ F1 284 F2 2717, /u/ F2 1651, /oU/ F2 1262, /a/ F1 867
+  bdl (male (US)): 758 chart tokens, speaker ceiling 4750 Hz; /i/ F1 340 F2 2359, /u/ F2 1479, /oU/ F2 1107, /a/ F1 707
+  rms (male (US)): 790 chart tokens, speaker ceiling 4750 Hz; /i/ F1 303 F2 2045, /u/ F2 1494, /oU/ F2 1153, /a/ F1 622
+  wrote 10 targets to D:\Users\iwbmo\Desktop\college\fall 2025\machine learning research\python\vocalgenderemotionai\syllabic\data\hillenbrand_targets.json

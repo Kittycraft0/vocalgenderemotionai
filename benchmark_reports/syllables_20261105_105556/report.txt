@@ -1,0 +1,21 @@
+
+=== ARCTIC (tune: clb, rms | test: slt, bdl) ===
+  clb: 1014 words, 1419 syllables, 7.1 min
+  rms: 1014 words, 1419 syllables, 7.3 min
+  slt: 1014 words, 1419 syllables, 6.4 min
+  bdl: 1038 words, 1443 syllables, 5.7 min
+  stage 1 best nucleus F1 on tune speakers: 89.7  (band (300.0, 2500.0), dip 1.5 dB, voicing 0.6, smooth 5)
+  stage 2 best syllable-start rule: end (fall_frac 0.5), pause margin 6.0 dB, pause 0.05 s, breath guard 30.0 dB, shift +0 ms -> 58.3% of starts within 50 ms
+  slt: nucleus F1 85.1 -> 86.0 (P 93.0 R 79.9), syllable starts within 50 ms 58.5 -> 64.7%, word count exact 77.0%
+  bdl: nucleus F1 87.3 -> 87.3 (P 94.5 R 81.1), syllable starts within 50 ms 67.7 -> 68.1%, word count exact 74.2%
+  slt with Whisper (97 s): Whisper word starts within 50 ms 52.8% (median -21.3 ms; after a pause 20.6 ms)
+     live score vs truth: count exact 79.4 vs 77.0, word-start hit 62.2 vs 75.5
+     vowel-chart points: 252, in a real vowel 98.4%, same vowel as the alignment 96.8%
+  bdl with Whisper (46 s): Whisper word starts within 50 ms 56.9% (median -11.5 ms; after a pause 25.6 ms)
+     live score vs truth: count exact 79.9 vs 74.3, word-start hit 70.2 vs 78.9
+     vowel-chart points: 272, in a real vowel 98.2%, same vowel as the alignment 93.4%
+
+=== noise (arctic test speakers) ===
+  clean: nucleus F1 86.7, syllable starts within 50 ms 66.4%
+  10 dB: nucleus F1 83.2, syllable starts within 50 ms 44.7%
+  5 dB: nucleus F1 72.2, syllable starts within 50 ms 33.5%

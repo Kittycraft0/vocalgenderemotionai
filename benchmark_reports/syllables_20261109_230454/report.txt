@@ -1,0 +1,19 @@
+
+=== ARCTIC (tune: clb, rms | test: slt, bdl) ===
+  clb: 1014 words, 1419 syllables, 7.1 min
+  rms: 1014 words, 1419 syllables, 7.3 min
+  slt: 1014 words, 1419 syllables, 6.4 min
+  bdl: 1038 words, 1443 syllables, 5.7 min
+  slt: nucleus F1 86.0 -> 86.0 (P 93.1 R 79.9), syllable starts within 50 ms 64.7 -> 64.7%, word count exact 77.0%
+  bdl: nucleus F1 87.2 -> 87.2 (P 94.6 R 80.9), syllable starts within 50 ms 68.0 -> 68.0%, word count exact 74.2%
+  slt with Whisper (59 s): Whisper word starts within 50 ms 55.1% (median -16.7 ms; after a pause 11.5 ms)
+     live score vs truth: count exact 77.3 vs 77.0, word-start hit on the same 969 words 64.5 vs 74.1
+     vowel-chart points: 249, in a real vowel 98.0%, same vowel as the alignment 96.8%
+  bdl with Whisper (57 s): Whisper word starts within 50 ms 57.9% (median -11.1 ms; after a pause 6.5 ms)
+     live score vs truth: count exact 78.8 vs 74.3, word-start hit on the same 998 words 71.2 vs 76.7
+     vowel-chart points: 271, in a real vowel 98.2%, same vowel as the alignment 94.1%
+
+=== noise (arctic test speakers) ===
+  clean: nucleus F1 86.6, syllable starts within 50 ms 66.3%
+  10 dB: nucleus F1 83.2, syllable starts within 50 ms 44.7%
+  5 dB: nucleus F1 72.2, syllable starts within 50 ms 33.5%

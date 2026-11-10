@@ -1,0 +1,38 @@
+
+=== ARCTIC (tune: clb, rms | test: slt, bdl) ===
+  clb: 1014 words, 1419 syllables, 7.1 min
+  rms: 1014 words, 1419 syllables, 7.3 min
+  slt: 1014 words, 1419 syllables, 6.4 min
+  bdl: 1038 words, 1443 syllables, 5.7 min
+  slt: nucleus F1 86.0 -> 86.0 (P 93.1 R 79.9), syllable starts within 50 ms 64.7 -> 64.7%, word count exact 77.0%
+  bdl: nucleus F1 87.2 -> 87.2 (P 94.6 R 80.9), syllable starts within 50 ms 68.0 -> 68.0%, word count exact 74.2%
+  slt with Whisper (291 s): Whisper word starts within 50 ms 52.8% (median -21.3 ms; after a pause 20.6 ms)
+     live score vs truth: count exact 79.4 vs 77.0, word-start hit 62.2 vs 75.5
+     vowel-chart points: 252, in a real vowel 98.4%, same vowel as the alignment 96.8%
+  bdl with Whisper (392 s): Whisper word starts within 50 ms 56.9% (median -11.5 ms; after a pause 25.6 ms)
+     live score vs truth: count exact 79.9 vs 74.3, word-start hit 70.2 vs 78.9
+     vowel-chart points: 272, in a real vowel 98.2%, same vowel as the alignment 93.4%
+
+=== noise (arctic test speakers) ===
+  clean: nucleus F1 86.6, syllable starts within 50 ms 66.3%
+  10 dB: nucleus F1 83.2, syllable starts within 50 ms 44.7%
+  5 dB: nucleus F1 72.2, syllable starts within 50 ms 33.5%
+
+=== RAVDESS (7 syllables per sentence) ===
+  neutral    exactly 7:  81.2%  within 1:  96.9%  mean 7.1
+  calm       exactly 7:  52.1%  within 1:  89.1%  mean 7.4
+  happy      exactly 7:  40.1%  within 1:  82.8%  mean 7.7
+  sad        exactly 7:  45.8%  within 1:  82.8%  mean 7.4
+  angry      exactly 7:  41.1%  within 1:  74.0%  mean 7.7
+  fearful    exactly 7:  35.4%  within 1:  86.5%  mean 7.5
+  disgust    exactly 7:  33.9%  within 1:  74.5%  mean 7.6
+  surprised  exactly 7:  40.6%  within 1:  89.1%  mean 7.1
+  all        exactly 7:  44.0%  within 1:  83.6%  mean 7.5
+
+=== Hillenbrand 1995 (formants at the detected nucleus vs hand-checked steady state) ===
+  ceiling 5000        within 10%: F1 79.6  F2 62.7  F3 67.0   (men F2 80.0, women F2 58.7)
+  ceiling 5500        within 10%: F1 80.5  F2 74.6  F3 88.3   (men F2 78.5, women F2 75.7)
+  ceiling pitch-based within 10%: F1 80.8  F2 76.0  F3 89.7   (men F2 80.2, women F2 76.7)
+  ceiling auto        within 10%: F1 80.8  F2 77.8  F3 92.7   (men F2 80.9, women F2 77.6)
+  detected nucleus vs Hillenbrand's steady-state time: median 50.0 ms
+  wrote 8 targets to D:\Users\iwbmo\Desktop\college\fall 2025\machine learning research\python\vocalgenderemotionai\syllabic\data\hillenbrand_targets.json

@@ -31,6 +31,24 @@ so only work affected by a code change is redone.
 "Candidate fix" in the report is a quick prototype of a suggested change (Praat pitch on the last 100 ms, and a
 pitch-based formant ceiling). It is there to test whether a suggestion actually helps before you build it.
 
+## Syllables, Whisper and vowel labels (main14)
+
+`eval_syllables.py` tests the live syllable detector in `syllabic/` (used by `main14livesyllables.py`):
+
+```
+python benchmark/eval_syllables.py            # ~15 minutes with a GPU; downloads CMU ARCTIC (~460 MB) the first time
+python benchmark/eval_syllables.py --quick    # fewer sentences
+```
+
+| Dataset | What it checks | Reference |
+|---|---|---|
+| CMU ARCTIC (4 speakers) | syllable nuclei, syllable/word start times, Whisper's word times, live score vs truth, vowel labels, noise | forced-alignment word/syllable/phone boundaries |
+| RAVDESS | syllable count across 8 emotions | both sentences have 7 syllables |
+| Hillenbrand 1995 | F1-F3 at the detected nucleus for each formant-ceiling option; writes the built-in targets | hand-checked steady-state formants |
+
+Detector settings are tuned on ARCTIC speakers clb + rms and reported on slt + bdl. Results go to
+`benchmark_reports/syllables_<date_time>/`.
+
 ## Files
 
 - `bench_datasets.py`: downloads and loads the datasets, and generates the synthetic vowels
@@ -38,6 +56,7 @@ pitch-based formant ceiling). It is there to test whether a suggestion actually 
 - `bench_metrics.py`: scoring (standard pitch-tracking and formant error measures)
 - `run_benchmark.py`: runs everything in parallel and computes the results
 - `bench_report.py`: verdicts, rule-based suggestions, charts and the HTML page
+- `eval_syllables.py`: the syllable / Whisper / vowel-label evaluation above
 
 ## Adding another dataset
 

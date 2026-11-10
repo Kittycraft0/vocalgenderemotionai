@@ -1,0 +1,227 @@
+{
+ "started": "2026-11-09T22:21:53",
+ "quick": false,
+ "whisper_model": "none",
+ "hillenbrand": {
+  "files": 1668,
+  "seconds": 123.4,
+  "speaker_ceiling_per_group": {
+   "boys": 6500.0,
+   "girls": 6000.0,
+   "men": 5250.0,
+   "women": 5750.0
+  },
+  "nucleus_minus_steady_state_ms_median": 50.0,
+  "nucleus_minus_steady_state_ms_mae": 74.7,
+  "5000": {
+   "all": {
+    "F1_within_10pct": 79.6,
+    "F2_within_10pct": 62.7,
+    "F3_within_10pct": 67.0,
+    "F1_median_err_pct": 3.4,
+    "F2_median_err_pct": 5.6,
+    "F3_median_err_pct": 2.9
+   },
+   "men": {
+    "F1_within_10pct": 86.3,
+    "F2_within_10pct": 80.0,
+    "F3_within_10pct": 92.8,
+    "F1_median_err_pct": 3.1,
+    "F2_median_err_pct": 3.6,
+    "F3_median_err_pct": 1.7
+   },
+   "women": {
+    "F1_within_10pct": 78.3,
+    "F2_within_10pct": 58.7,
+    "F3_within_10pct": 59.9,
+    "F1_median_err_pct": 3.5,
+    "F2_median_err_pct": 7.0,
+    "F3_median_err_pct": 3.3
+   },
+   "boys": {
+    "F1_within_10pct": 75.3,
+    "F2_within_10pct": 53.1,
+    "F3_within_10pct": 56.8,
+    "F1_median_err_pct": 3.6,
+    "F2_median_err_pct": 8.2,
+    "F3_median_err_pct": 5.1
+   },
+   "girls": {
+    "F1_within_10pct": 72.8,
+    "F2_within_10pct": 45.6,
+    "F3_within_10pct": 38.6,
+    "F1_median_err_pct": 4.0,
+    "F2_median_err_pct": 14.8,
+    "F3_median_err_pct": 20.2
+   }
+  },
+  "5500": {
+   "all": {
+    "F1_within_10pct": 80.5,
+    "F2_within_10pct": 74.6,
+    "F3_within_10pct": 88.3,
+    "F1_median_err_pct": 3.6,
+    "F2_median_err_pct": 3.9,
+    "F3_median_err_pct": 2.0
+   },
+   "men": {
+    "F1_within_10pct": 84.8,
+    "F2_within_10pct": 78.5,
+    "F3_within_10pct": 92.4,
+    "F1_median_err_pct": 3.8,
+    "F2_median_err_pct": 3.9,
+    "F3_median_err_pct": 2.1
+   },
+   "women": {
+    "F1_within_10pct": 79.9,
+    "F2_within_10pct": 75.7,
+    "F3_within_10pct": 89.2,
+    "F1_median_err_pct": 3.4,
+    "F2_median_err_pct": 3.3,
+    "F3_median_err_pct": 1.8
+   },
+   "boys": {
+    "F1_within_10pct": 76.2,
+    "F2_within_10pct": 66.7,
+    "F3_within_10pct": 84.6,
+    "F1_median_err_pct": 3.5,
+    "F2_median_err_pct": 4.3,
+    "F3_median_err_pct": 2.2
+   },
+   "girls": {
+    "F1_within_10pct": 77.6,
+    "F2_within_10pct": 73.7,
+    "F3_within_10pct": 81.6,
+    "F1_median_err_pct": 3.5,
+    "F2_median_err_pct": 4.4,
+    "F3_median_err_pct": 2.4
+   }
+  },
+  "pitch-based": {
+   "all": {
+    "F1_within_10pct": 80.8,
+    "F2_within_10pct": 76.0,
+    "F3_within_10pct": 89.7,
+    "F1_median_err_pct": 3.3,
+    "F2_median_err_pct": 3.7,
+    "F3_median_err_pct": 2.0
+   },
+   "men": {
+    "F1_within_10pct": 86.7,
+    "F2_within_10pct": 80.2,
+    "F3_within_10pct": 93.1,
+    "F1_median_err_pct": 3.1,
+    "F2_median_err_pct": 3.6,
+    "F3_median_err_pct": 1.7
+   },
+   "women": {
+    "F1_within_10pct": 79.3,
+    "F2_within_10pct": 76.7,
+    "F3_within_10pct": 90.6,
+    "F1_median_err_pct": 3.6,
+    "F2_median_err_pct": 3.4,
+    "F3_median_err_pct": 2.0
+   },
+   "boys": {
+    "F1_within_10pct": 76.2,
+    "F2_within_10pct": 67.0,
+    "F3_within_10pct": 85.2,
+    "F1_median_err_pct": 3.7,
+    "F2_median_err_pct": 4.6,
+    "F3_median_err_pct": 2.6
+   },
+   "girls": {
+    "F1_within_10pct": 76.8,
+    "F2_within_10pct": 76.8,
+    "F3_within_10pct": 85.5,
+    "F1_median_err_pct": 3.3,
+    "F2_median_err_pct": 3.6,
+    "F3_median_err_pct": 2.8
+   }
+  },
+  "auto": {
+   "all": {
+    "F1_within_10pct": 80.8,
+    "F2_within_10pct": 77.8,
+    "F3_within_10pct": 92.7,
+    "F1_median_err_pct": 3.4,
+    "F2_median_err_pct": 3.3,
+    "F3_median_err_pct": 1.6
+   },
+   "men": {
+    "F1_within_10pct": 86.3,
+    "F2_within_10pct": 80.9,
+    "F3_within_10pct": 96.3,
+    "F1_median_err_pct": 3.1,
+    "F2_median_err_pct": 3.2,
+    "F3_median_err_pct": 1.5
+   },
+   "women": {
+    "F1_within_10pct": 78.8,
+    "F2_within_10pct": 77.6,
+    "F3_within_10pct": 92.2,
+    "F1_median_err_pct": 3.6,
+    "F2_median_err_pct": 3.2,
+    "F3_median_err_pct": 1.5
+   },
+   "boys": {
+    "F1_within_10pct": 78.1,
+    "F2_within_10pct": 71.6,
+    "F3_within_10pct": 90.7,
+    "F1_median_err_pct": 3.4,
+    "F2_median_err_pct": 3.6,
+    "F3_median_err_pct": 2.0
+   },
+   "girls": {
+    "F1_within_10pct": 76.8,
+    "F2_within_10pct": 79.4,
+    "F3_within_10pct": 88.6,
+    "F1_median_err_pct": 3.7,
+    "F2_median_err_pct": 3.3,
+    "F3_median_err_pct": 1.9
+   }
+  },
+  "speaker": {
+   "all": {
+    "F1_within_10pct": 80.6,
+    "F2_within_10pct": 77.1,
+    "F3_within_10pct": 91.2,
+    "F1_median_err_pct": 3.5,
+    "F2_median_err_pct": 3.5,
+    "F3_median_err_pct": 2.0
+   },
+   "men": {
+    "F1_within_10pct": 85.0,
+    "F2_within_10pct": 80.0,
+    "F3_within_10pct": 94.8,
+    "F1_median_err_pct": 3.4,
+    "F2_median_err_pct": 3.7,
+    "F3_median_err_pct": 1.7
+   },
+   "women": {
+    "F1_within_10pct": 80.0,
+    "F2_within_10pct": 78.8,
+    "F3_within_10pct": 92.5,
+    "F1_median_err_pct": 3.6,
+    "F2_median_err_pct": 3.1,
+    "F3_median_err_pct": 1.7
+   },
+   "boys": {
+    "F1_within_10pct": 76.5,
+    "F2_within_10pct": 68.8,
+    "F3_within_10pct": 85.5,
+    "F1_median_err_pct": 3.9,
+    "F2_median_err_pct": 4.5,
+    "F3_median_err_pct": 3.1
+   },
+   "girls": {
+    "F1_within_10pct": 77.6,
+    "F2_within_10pct": 77.6,
+    "F3_within_10pct": 87.3,
+    "F1_median_err_pct": 3.3,
+    "F2_median_err_pct": 3.5,
+    "F3_median_err_pct": 2.8
+   }
+  }
+ }
+}

@@ -593,4 +593,191 @@ def synth_diphthong_glide(f0=160.0, diphthong_type="a_to_i", sr=44100, dur=1.2, 
     }
 
 
+# ----------------------------------------------------------------------------------------------
+# CMU ARCTIC: read sentences with word, syllable and phone boundaries (for the syllable detector)
+# ----------------------------------------------------------------------------------------------
+# Kominek & Black (2003), Carnegie Mellon University. Free licence (BSD-style). ~1,130 phonetically
+# balanced sentences per speaker, 16 kHz. The boundaries in festival/utts come from automatic forced
+# alignment (festvox's EHMM labeller), not from hand labelling, so they are good to roughly 10-30 ms.
+ARCTIC_URL = "http://www.festvox.org/cmu_arctic/cmu_arctic/packed/cmu_us_{spk}_arctic-0.95-release.tar.bz2"
+ARCTIC_SPEAKERS = {"slt": "female (US)", "clb": "female (US)", "bdl": "male (US)", "rms": "male (US)"}
+ARCTIC_VOWELS = {"aa", "ae", "ah", "ao", "aw", "ax", "axr", "ay", "eh", "er", "ey", "ih", "iy", "ow", "oy",
+                 "uh", "uw"}
+
+
+def arctic_dir():
+    return os.path.join(DATA_ROOT, "arctic")
+
+
+def download_arctic(speakers=tuple(ARCTIC_SPEAKERS), log=print):
+    """Downloads each speaker's release (~95-130 MB) and keeps only wav/, festival/utts/ and the
+    transcript. Extraction never writes outside benchmark_data/arctic/<speaker>/."""
+    import tarfile
+    for spk in speakers:
+        out = os.path.join(arctic_dir(), spk)
+        if os.path.exists(os.path.join(out, "done")):
+            continue
+        tar_path = os.path.join(arctic_dir(), "raw", f"cmu_us_{spk}_arctic-0.95-release.tar.bz2")
+        log(f"ARCTIC {spk}: downloading (if needed) ...")
+        _download(ARCTIC_URL.format(spk=spk), tar_path, timeout=600)
+        log(f"ARCTIC {spk}: extracting ...")
+        with tarfile.open(tar_path, "r|bz2") as tf:
+            for m in tf:
+                if not m.isfile():
+                    continue
+                parts = m.name.split("/")
+                name = parts[-1]
+                if len(parts) >= 2 and parts[-2] == "wav" and name.endswith(".wav"):
+                    sub = "wav"
+                elif len(parts) >= 2 and parts[-2] == "utts" and name.endswith(".utt"):
+                    sub = "utts"
+                elif name == "txt.done.data":
+                    sub = ""
+                else:
+                    continue
+                if not re.fullmatch(r"[A-Za-z0-9_.\-]+", name):
+                    continue
+                dest = os.path.join(out, sub)
+                os.makedirs(dest, exist_ok=True)
+                with tf.extractfile(m) as src, open(os.path.join(dest, name), "wb") as dst:
+                    dst.write(src.read())
+        open(os.path.join(out, "done"), "w").close()
+
+
+def _parse_festival_utt(path):
+    """Festival utterance file -> words with syllables and phones (start/end in seconds).
+    Format: 'Stream_Items' lines 'N id _K ; name X ; end T ; ...', then relations whose lines are
+    'node item up down next prev' (tree links; 'up' is only set on a first child)."""
+    items, rel, cur = {}, {}, None
+    section = None
+    for line in open(path, encoding="latin-1"):
+        line = line.rstrip("\n")
+        if line.startswith("Stream_Items"):
+            section = "items"
+            continue
+        if line.startswith("End_of_Stream_Items"):
+            section = None
+            continue
+        if line.startswith("Relation "):
+            cur = line.split()[1]
+            rel[cur] = {}
+            section = "rel"
+            continue
+        if line.startswith("End_of_Relation"):
+            section = None
+            continue
+        if section == "items":
+            chunks = [c.strip() for c in line.split(" ; ")]
+            head = chunks[0].split()
+            if len(head) < 3:
+                continue
+            feats = {}
+            for c in chunks[1:]:
+                c = c.rstrip(" ;").strip()
+                if " " in c:
+                    k, v = c.split(" ", 1)
+                    feats[k] = v.strip().strip('"')
+            items[int(head[0])] = feats
+        elif section == "rel":
+            nums = line.split()
+            if len(nums) == 6:
+                n, it, up, down, nxt, prv = map(int, nums)
+                rel[cur][n] = (it, up, down, nxt, prv)
+
+    def chain(nodes, first):
+        out, n = [], first
+        while n:
+            out.append(n)
+            n = nodes[n][3]
+        return out
+
+    seg_nodes = rel.get("Segment", {})
+    times, prev_end = {}, 0.0
+    heads = [n for n, v in seg_nodes.items() if v[4] == 0]
+    segments = []
+    if heads:
+        for n in chain(seg_nodes, heads[0]):
+            it = seg_nodes[n][0]
+            end = float(items[it].get("end", prev_end))
+            times[it] = (prev_end, end)
+            segments.append((items[it].get("name", "?"), prev_end, end))
+            prev_end = end
+    ss = rel.get("SylStructure", {})
+    roots = [n for n, v in ss.items() if v[1] == 0 and v[4] == 0]
+    words = []
+    if roots:
+        for wn in chain(ss, roots[0]):
+            w_item = ss[wn][0]
+            sylls = []
+            for sn in chain(ss, ss[wn][2]):
+                phones = []
+                for pn in chain(ss, ss[sn][2]):
+                    it = ss[pn][0]
+                    if it in times:
+                        phones.append((items[it].get("name", "?"), *times[it]))
+                if not phones:
+                    continue
+                vowel = next((p for p in phones if p[0] in ARCTIC_VOWELS), None)
+                sylls.append({"start": phones[0][1], "end": phones[-1][2], "phones": phones, "vowel": vowel,
+                              "stress": int(items[ss[sn][0]].get("stress", "0") or 0)})
+            if sylls:
+                words.append({"word": items[w_item].get("name", "?"), "start": sylls[0]["start"],
+                              "end": sylls[-1]["end"], "syllables": sylls})
+    return {"words": words, "segments": segments}
+
+
+def load_arctic(speakers=tuple(ARCTIC_SPEAKERS), max_per_speaker=None, seed=0):
+    """Items: {speaker, name, path, text, words: [{word, start, end, syllables: [{start, end, stress,
+    vowel: (phone, start, end), phones}]}], segments: [(phone, start, end)]}."""
+    items = []
+    for spk in speakers:
+        root = os.path.join(arctic_dir(), spk)
+        txt = os.path.join(root, "txt.done.data")
+        if not os.path.exists(txt):
+            continue
+        texts = {}
+        for line in open(txt, encoding="latin-1"):
+            m = re.match(r'\(\s*(\S+)\s+"(.*)"\s*\)', line.strip())
+            if m:
+                texts[m.group(1)] = m.group(2)
+        names = sorted(texts)
+        if max_per_speaker and max_per_speaker < len(names):
+            names = sorted(random.Random(seed).sample(names, max_per_speaker))
+        for name in names:
+            wav, utt = os.path.join(root, "wav", name + ".wav"), os.path.join(root, "utts", name + ".utt")
+            if os.path.exists(wav) and os.path.exists(utt):
+                parsed = _parse_festival_utt(utt)
+                items.append({"speaker": spk, "name": name, "path": wav, "text": texts[name], **parsed})
+    return items
+
+
+# ----------------------------------------------------------------------------------------------
+# RAVDESS (already used by main8): 24 actors x 2 sentences x 8 emotions, known text
+# ----------------------------------------------------------------------------------------------
+RAVDESS_DIR = os.path.join(os.path.expanduser("~"), ".cache", "kagglehub", "datasets", "uwrfkaggler",
+                           "ravdess-emotional-speech-audio", "versions", "1")
+RAVDESS_TEXT = {"01": "Kids are talking by the door", "02": "Dogs are sitting by the door"}
+RAVDESS_EMOTION = {"01": "neutral", "02": "calm", "03": "happy", "04": "sad", "05": "angry", "06": "fearful",
+                   "07": "disgust", "08": "surprised"}
+
+
+def load_ravdess(root=RAVDESS_DIR):
+    """Items: {path, actor, female, emotion, intensity, text}. Both sentences have 7 syllables."""
+    items = []
+    if not os.path.isdir(root):
+        return items
+    for actor in sorted(os.listdir(root)):
+        folder = os.path.join(root, actor)
+        if not (actor.startswith("Actor_") and os.path.isdir(folder)):
+            continue
+        for fn in sorted(os.listdir(folder)):
+            parts = fn[:-4].split("-")
+            if fn.endswith(".wav") and len(parts) == 7 and parts[0] == "03" and parts[1] == "01":
+                items.append({"path": os.path.join(folder, fn), "actor": int(parts[6]),
+                              "female": int(parts[6]) % 2 == 0, "emotion": RAVDESS_EMOTION[parts[2]],
+                              "intensity": "strong" if parts[3] == "02" else "normal",
+                              "text": RAVDESS_TEXT[parts[4]]})
+    return items
+
+
 
