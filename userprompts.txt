@@ -124,3 +124,15 @@ therea re numorous issues. for one, check the logs. for two, i think my vowel sp
 does this look right or are a bunch of them all in the wrong places
 
 
+we should be able to see the whole so then people can go back and analyze what happened so that we can also analyze things later and gather informatoin cuz we now have the transcription, hopefully the syllabi boundaries and we know where the boundaries are so we know a lot about the speech signal.
+can the current state of the program save execution data and also load external things like the headless mode from main11, where you can load in an audio file and analyze something?
+can you make the window have memory, so that when you pause it's kinda the same as headless mode? it should be able to have memory
+can we open an offline file and map it through the whisper transcriptions and the graphs so we can have a nice analysis tool?
+also the red line thing for when you're hovering your mouse over a specific particularlyyou should be able to scroll and go back on the graphs instead of it just being erased
+this could be used for may ways
+if we could tell 
+you could also normalize by vocal tract length to analyze other factors such as dialect
+we could create a transcription using if we hit this word then i want to know not only what phones but also the durration of the syllables in the word on average, you could run it on librespeech thousands of speakers overnight using lexicon, so you could like normalzie the lengths and figure out if the proportions start becoming pretty coherent, then you can have this sort of dictionary not only to what poeple say but also to how they pronounce htings
+you could also see the linguistic stress in the words. not using books but rather using real data. you can verify or even create rules based on numerical evidence, and see even potential differences from books with real data. then you could see if your syllables lengths are on target for a new speaker all automatically. it would be great for people with accents looking to change accents or pronounce words better too!
+
+
