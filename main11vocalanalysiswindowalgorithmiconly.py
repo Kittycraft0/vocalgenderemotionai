@@ -122,6 +122,7 @@ DEVICE_INDEX = None
 ENABLE_LOGGING = True
 ENABLE_WHISPER = True      # file mode: transcribe with Whisper and put the spoken word on every log line
 WHISPER_MODEL = "base"     # tiny / base / small / medium / large (bigger = slower but more accurate)
+SILENT_INPUT_LEVEL = 1e-4  # live input quieter than this everywhere = the device is getting no audio at all
 FILE_MODE_REDRAW_SECONDS = 0.1  # file mode redraws the (whole-file) timeline at most this often while processing
 
 
@@ -526,6 +527,10 @@ else:
         calibration_audio = sd.rec(int(SAMPLE_RATE * 2.0), samplerate=SAMPLE_RATE, channels=1, device=DEVICE_INDEX)
         sd.wait() # Freeze the program until the 2 seconds are up
         calibration_audio = calibration_audio.flatten()
+        if np.max(np.abs(calibration_audio)) < SILENT_INPUT_LEVEL:
+            print("\nWARNING: this input is giving complete digital silence (not even room noise).")
+            print("Pick a different device, or check that something is routed into it")
+            print("(e.g. VoiceMeeter Output only carries audio that VoiceMeeter sends to that bus).\n")
     except Exception as e:
         print(f"WARNING: calibration recording failed ({e}). Using a silent noise profile instead.")
         calibration_audio = np.zeros(int(SAMPLE_RATE * 2.0), dtype=np.float32)
@@ -1063,7 +1068,11 @@ def update_dashboard(acoustic_time=None, frame=None, word=None):
                 bitmap[new_cols, formants_y[k]:formants_y[k]+1] = formant_colors[k]
 
     # --- 3. UPDATE TEXT READOUT ---
-    readout_label.setText(format_readout(audio_data))
+    if not INPUT_FILE_PATH and np.max(np.abs(current_audio)) < SILENT_INPUT_LEVEL:
+        # A real mic always picks up some room noise; total silence means the device isn't getting any audio
+        readout_label.setText("NO INPUT SIGNAL: this device is completely silent.\nPick another mic or check its routing.")
+    else:
+        readout_label.setText(format_readout(audio_data))
 
     # --- 4. UPDATE EVERY TIMELINE HISTORY BY THE SAME COLUMNS AS THE SPECTROGRAM (keeps them all in sync) ---
     if actual_new_cols > 0:

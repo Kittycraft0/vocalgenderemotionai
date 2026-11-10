@@ -100,4 +100,9 @@ can we predict when the program will be accurate vs unaccurate to make a more dy
 10/20/2026
 hi can you fix main11 and make it actually good again and check the recent commit history within the past like hour to make sure i didn't just mess something up during merges?
 
+ground truth source table
+performance metrics
+standard definitions how they are measured
+length of analysis window for example to determine if a segment is voiced or not
+
 
