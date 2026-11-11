@@ -135,4 +135,10 @@ you could also normalize by vocal tract length to analyze other factors such as 
 we could create a transcription using if we hit this word then i want to know not only what phones but also the durration of the syllables in the word on average, you could run it on librespeech thousands of speakers overnight using lexicon, so you could like normalzie the lengths and figure out if the proportions start becoming pretty coherent, then you can have this sort of dictionary not only to what poeple say but also to how they pronounce htings
 you could also see the linguistic stress in the words. not using books but rather using real data. you can verify or even create rules based on numerical evidence, and see even potential differences from books with real data. then you could see if your syllables lengths are on target for a new speaker all automatically. it would be great for people with accents looking to change accents or pronounce words better too!
 
+# 2026-11-10 16:22:13.734
 
+# 2026-11-10 16:25:25.183
+read somestuffs.txt from yesterday as well as the new part of userprompts.txt and make an ideas file with things to potentially do as well as figure out what else you can apply/fix and fix things
+
+# 2026-11-11 00:07:40.997
+i love all the new c hanges. does the save mine as target button let you actually save it as a file somehow? there should be an upload button for the viewer so you can upload something if you want as well. can you make it so that there shows somehow like some sort of visual between how your vowel sound lies in accordance to the like vowel chart layout or whatever that unlabeled thing is that like shows the lines from men to women? like i love them and they are useful, it's just very cluttered kinda. i like the current visual as an option but more options would be good. can you also add more of the ideas? you also said that the hand labeled dataset was like 97% accurate on something and mine was only like 45% accurate on that thing. we should get our numbers up! and there are more datasets!

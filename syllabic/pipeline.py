@@ -74,11 +74,13 @@ class Pipeline:
         self.listeners = []                 # callables(event, payload), e.g. the GUI
         self.save_dir = save_dir
         self._wav = None
+        self.wav_path = None                # the session's 16 kHz recording (the window plays older audio from it)
         self._last_autosave = self._last_wav_refresh = time.time()
         if save_dir and save_audio:
             import soundfile as sf
             os.makedirs(save_dir, exist_ok=True)
-            self._wav = sf.SoundFile(os.path.join(save_dir, "audio_16k.wav"), "w", SR, 1, "PCM_16")
+            self.wav_path = os.path.join(save_dir, "audio_16k.wav")
+            self._wav = sf.SoundFile(self.wav_path, "w", SR, 1, "PCM_16")
 
     # ----------------------------------------------------------------------------------------------
     @property

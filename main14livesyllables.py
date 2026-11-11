@@ -5,6 +5,11 @@
   python main14livesyllables.py --target arctic_women_measured
   python main14livesyllables.py --input talk.wav       a recording through the live window (--play to hear it)
   python main14livesyllables.py --input talk.wav --headless      no window: CSVs + summary only
+  python main14livesyllables.py --open talk.wav        review a recording: processed as fast as possible
+                                                       (Whisper on every phrase), then scroll, hover, listen
+  python main14livesyllables.py --open audio_logs/syllables_live_20261110_084650
+                                                       review a saved session with the words it already has
+                                                       (no Whisper needed; ~30x real time)
   python main14livesyllables.py --reprocess audio_logs/syllables_live_20261109_195418
                                                        re-run a saved session (results in <folder>/reprocessed)
   python main14livesyllables.py --make-target voice.wav --name "Voice I want"   build a target
@@ -21,6 +26,8 @@ How it works (details in syllabic/README.md and benchmark/eval_syllables.py):
   * those labelled vowels build up your vowel space (recent tokens count more), next to a target.
 Session files go to audio_logs/syllables_<source>_<date>_<time>/ (audio, syllables.csv, words.csv,
 tokens.csv, summary.json) and are re-saved every 2 minutes, so a crash loses at most that much.
+The window keeps the whole session: drag the timeline back, point at it to see the word, syllable and
+formants at that moment, click a word to hear it (while paused), "Open…" reviews another recording.
 """
 import argparse
 import os
@@ -220,6 +227,102 @@ def reprocess(folder, args):
     print_summary(p)
 
 
+SESSION_FILES = ("audio_16k.wav", "summary.json", "words.csv", "tokens.csv", "syllables.csv")
+
+
+def resolve_open(path):
+    """--open PATH: a recording, or a saved session (its folder or any file in it).
+    Returns (audio file, words.csv to reuse or None, session folder or None)."""
+    path = os.path.abspath(path)
+    if os.path.isdir(path):
+        folder = path
+    elif os.path.basename(path).lower() in SESSION_FILES:
+        folder = os.path.dirname(path)
+    else:
+        return path, None, None
+    session = folder
+    if not os.path.exists(os.path.join(folder, "audio_16k.wav")) and \
+            os.path.exists(os.path.join(os.path.dirname(folder), "audio_16k.wav")):
+        session = os.path.dirname(folder)          # e.g. <session>/reprocessed: the audio is one level up
+    wav = os.path.join(session, "audio_16k.wav")
+    if not os.path.exists(wav):
+        raise SystemExit(f"no audio_16k.wav in {folder}")
+    repair_wav_header(wav)
+    # the reprocessed words (every phrase transcribed) beat the live ones (Whisper may have skipped some)
+    cands = [os.path.join(folder, "words.csv")] if folder != session else \
+        [os.path.join(session, "reprocessed", "words.csv"), os.path.join(session, "words.csv")]
+    return wav, next((c for c in cands if os.path.exists(c)), None), session
+
+
+def run_review(args):
+    """--open: a recording or a saved session in the window, processed as fast as the computer allows.
+    The timeline fills in while you can already scroll, point and listen."""
+    import signal
+    import pyqtgraph as pg
+    from syllabic import pronounce
+    from syllabic.gui import FastFileSource, LiveWindow
+    from syllabic.whisper_words import SavedWords, WhisperWorker
+    pronounce.preload()
+    audio, words_csv, session = resolve_open(args.open)
+    saved = SavedWords.from_csv(words_csv) if words_csv else None
+    whisper = None
+    if saved is None and args.whisper_model != "none":
+        # reviewing: every phrase is transcribed (no skipping to stay live); the file waits for Whisper instead
+        whisper = WhisperWorker(args.whisper_model, max_backlog=10 ** 9, timeout_s=60.0).start()
+        print(f"Whisper '{whisper.model_name}' is loading in its own process.")
+    name = os.path.basename(session) if session else os.path.basename(audio)
+    src = FastFileSource(audio, name, whisper=whisper)
+    if args.no_save or saved is not None:
+        folder = None                                  # a saved session with its words: look only, write nothing
+    elif session:
+        folder = os.path.join(session, "reprocessed")  # a session without words: same place as --reprocess
+    else:
+        folder = session_folder(audio)
+    p = Pipeline(src.sr, make_config(args), whisper=saved if saved is not None else whisper, save_dir=folder,
+                 save_audio=folder is not None and session is None)
+    p.info.update({"source": audio, "mode": "review", "words_from": words_csv,
+                   "whisper_model": "saved words" if saved is not None else args.whisper_model,
+                   "started": datetime.now().isoformat(timespec="seconds")})
+    note = (f"words from {os.path.relpath(words_csv, session)} ({len(saved.words)} words, no Whisper needed)"
+            if saved is not None else None)
+    app = pg.mkQApp("Review")
+    closed = []
+
+    def on_close():
+        if closed:
+            return
+        closed.append(True)
+        if not src.done:
+            print(f"closed at {src.pos / src.sr / 60:.1f} of {src.n / src.sr / 60:.1f} min: what was processed "
+                  "so far is kept")
+        for step in (src.stop, lambda: p.finish(wait=whisper is not None, timeout=10)):
+            try:
+                step()
+            except Exception as e:
+                print(f"while closing: {type(e).__name__}: {e}")
+        if folder:
+            try:
+                p.save()
+                print(f"\nSaved in {folder}")
+            except Exception as e:
+                print(f"saving failed: {type(e).__name__}: {e}")
+        print_summary(p)
+        if whisper:
+            whisper.stop()
+
+    win = LiveWindow(p, src.start(), theme=args.theme, target_key=args.target, title=f"Review  —  {name}",
+                     on_close=on_close, whisper=whisper, review=True, words_note=note,
+                     open_cmd=[sys.executable, os.path.abspath(__file__)])
+    signal.signal(signal.SIGINT, lambda *a: win.close())
+    win.show()
+    print(f"Reviewing {audio}" + (f" with {note}" if note else "") + ". Drag/scroll the timeline, point at it, "
+          "click a word to hear it.")
+    try:
+        app.exec()
+    finally:
+        on_close()
+
+
 def run_gui(args):
     import signal
     import pyqtgraph as pg
@@ -273,7 +376,8 @@ def run_gui(args):
             whisper.stop()
 
     win = LiveWindow(p, src.start(), theme=args.theme, target_key=args.target, history=history,
-                     title=f"Live syllables & vowel space  —  {name}", on_close=on_close, whisper=whisper)
+                     title=f"Live syllables & vowel space  —  {name}", on_close=on_close, whisper=whisper,
+                     open_cmd=[sys.executable, os.path.abspath(__file__)])
     # Ctrl+C in the terminal: close the window normally (saves the session) instead of aborting
     signal.signal(signal.SIGINT, lambda *a: win.close())
     win.show()
@@ -296,6 +400,8 @@ def main():
     ap.add_argument("--input", help="audio file to run instead of the microphone")
     ap.add_argument("--play", action="store_true", help="with --input: play the file while analysing it")
     ap.add_argument("--headless", action="store_true", help="with --input: no window, just files + summary")
+    ap.add_argument("--open", metavar="PATH", help="review a recording, or a saved session folder (or any file "
+                    "in it), in the window: processed as fast as possible, then scroll/hover/listen")
     ap.add_argument("--reprocess", metavar="FOLDER", help="re-run a saved session folder's audio_16k.wav")
     ap.add_argument("--make-target", metavar="WAV", help="build a vowel-space target from a recording")
     ap.add_argument("--name", default=None, help="name for --make-target")
@@ -317,6 +423,9 @@ def main():
     if args.list_targets:
         for key, name in vowelspace.list_targets():
             print(f"  {key:40s} {name}")
+        return
+    if args.open:
+        run_review(args)
         return
     if args.reprocess:
         reprocess(args.reprocess, args)

@@ -178,6 +178,44 @@ def load_tokens(path):
     return out
 
 
+def gender_position(means, men, women, min_n=SETTLED_N, formants=("F1", "F2", "F3")):
+    """Where your vowels sit on the lines from a men's reference to a women's, vowel by vowel.
+
+    Worked in log frequency, because a shorter vocal tract raises the formants by a RATIO (Nearey 1978):
+    for each vowel v, with M, W and U its log-formant vectors (men, women, you) and d = W - M,
+        per_vowel[v] = (U - M) . d / |d|^2          0 = the men's average, 1 = the women's, >1 beyond it
+        position     = sum_v (U - M) . d / sum_v |d|^2   (the least-squares single value for all vowels)
+        off          = RMS over vowels and formants of U - M - per_vowel[v] * d, i.e. how far your vowels
+                       sit to the side of their lines (log units, 0.05 ~ 5%): a pattern of your own
+                       rather than more or less of the men-women difference.
+    Only vowels with at least min_n tokens count. This is a description of formants, not a measure of how
+    a voice is heard: pitch, voice quality and intonation weigh in too (Hillenbrand & Clark 2009)."""
+    num = den = 0.0
+    per, res = {}, []
+    for v, m in means.items():
+        if m.get("n", 0) < min_n or v not in men or v not in women:
+            continue
+        u = np.array([m.get(f, 0.0) for f in formants], dtype=float)
+        a = np.array([men[v].get(f, 0.0) for f in formants], dtype=float)
+        b = np.array([women[v].get(f, 0.0) for f in formants], dtype=float)
+        if min(u.min(), a.min(), b.min()) <= 0:
+            continue
+        u, a, b = np.log(u), np.log(a), np.log(b)
+        d = b - a
+        dd = float(d @ d)
+        if dd < 1e-6:
+            continue
+        lam = float((u - a) @ d) / dd
+        per[v] = lam
+        num += float((u - a) @ d)
+        den += dd
+        res.append(u - a - lam * d)
+    if not per:
+        return {"position": None, "off": None, "n_vowels": 0, "per_vowel": {}}
+    return {"position": num / den, "off": float(np.sqrt(np.mean(np.square(res)))), "n_vowels": len(per),
+            "per_vowel": per}
+
+
 def chart_order():
     """Vowels in order around the edge of the vowel space (for drawing its outline)."""
     return [v for v in ("IY", "IH", "EY", "EH", "AE", "AA", "AO", "OW", "UH", "UW") if v in CHART_VOWELS]

@@ -12,7 +12,6 @@ F2/F3 merge (your /i/ F2 fell from 2247 to 1740 Hz at 4500). Ceiling choices:
              tokens, which scatters them.
   a number   fixed (Praat's advice: ~5000 Hz adult male, ~5500 Hz adult female).
 """
-import warnings
 from collections import deque
 
 import numpy as np
@@ -48,10 +47,19 @@ def _tracks(fm, t, half, n=4):
 
 
 def _median(F):
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")  # "All-NaN slice" when a formant was never found
-        m = np.nanmedian(F, axis=0) if len(F) else np.full(F.shape[1], np.nan)
-    return np.where(np.isfinite(m), m, 0.0)
+    """Per-column median ignoring NaN (0 where a formant was never found). Same result as
+    np.nanmedian(F, axis=0), which on these few-row arrays went through masked arrays and took half
+    of the whole pipeline's time; sorting once is ~20x faster."""
+    F = np.asarray(F, dtype=float)
+    out = np.zeros(F.shape[1])
+    if not len(F):
+        return out
+    s = np.sort(F, axis=0)                     # NaN sorts to the end of each column
+    for i, k in enumerate((~np.isnan(F)).sum(axis=0)):
+        if k:
+            m = 0.5 * (s[(k - 1) // 2, i] + s[k // 2, i])
+            out[i] = m if np.isfinite(m) else 0.0
+    return out
 
 
 def _roughness(ts, F):

@@ -70,6 +70,44 @@ class WhisperWords:
         return r.get("text", "").strip(), words
 
 
+class SavedWords:
+    """Stands in for Whisper when a saved session is opened again: each phrase gets the words Whisper gave
+    for that stretch of audio when the session was recorded, so no model is needed and a session re-runs
+    at ~30x real time. A word goes to the first phrase whose audio contains its middle, so phrases that
+    come out cut slightly differently this time (newer code) still get the right words."""
+
+    def __init__(self, words, source=""):
+        self.words = sorted(words, key=lambda w: w["start"])
+        self.mids = [(w["start"] + w["end"]) / 2 for w in self.words]
+        self.i = 0
+        self.error = None
+        self.model_name = "saved words"
+        self.source = source
+
+    def transcribe(self, audio, t0=0.0, prompt=None, max_tokens=None):
+        import bisect
+        t1 = t0 + len(audio) / SR
+        i = bisect.bisect_left(self.mids, t0, lo=self.i)   # words before this clip belong to no phrase now
+        j = bisect.bisect_right(self.mids, t1, lo=i)
+        self.i = j
+        out = [dict(w) for w in self.words[i:j]]
+        return " ".join(w["word"] for w in out), out
+
+    @classmethod
+    def from_csv(cls, path):
+        """A session's words.csv (live or reprocessed)."""
+        import csv
+        words = []
+        with open(path, newline="", encoding="utf-8") as f:
+            for r in csv.DictReader(f):
+                try:
+                    words.append({"word": r["word"], "start": float(r["start_s"]), "end": float(r["end_s"]),
+                                  "prob": float(r.get("whisper_prob") or 1.0)})
+                except (KeyError, ValueError):
+                    continue
+        return cls(words, source=path)
+
+
 def warm_up(ww):
     """The first real phrase would otherwise take several seconds: CUDA kernels and the numba-compiled
     DTW used for word timing are both built on first use."""
@@ -186,8 +224,19 @@ class WhisperWorker:
                 out.append(m)
         if self._busy and time.time() - self._busy[1] > self.timeout_s:
             out += self._restart()
-        elif self.ready.is_set() and not self.error and not self.proc.is_alive():
-            out += self._restart()
+        elif not self.error and not self.proc.is_alive() and self.proc.exitcode is not None:
+            if self.ready.is_set():
+                out += self._restart()
+            else:
+                # died while loading (a crash, out of memory, a broken install): say so, instead of showing
+                # "loading..." forever while phrases pile up for a process that is gone
+                self.error = f"the Whisper process exited while loading (exit code {self.proc.exitcode})"
+                self.ready.set()
+        if self.error and self._outstanding:
+            # nothing will answer these any more: hand them back as errors so nobody waits for them
+            out += [{"type": "result", "utt": u, "t0": None, "text": "", "words": [], "secs": None,
+                     "error": self.error, "dropped": None} for u in self._outstanding]
+            self._outstanding.clear()
         return out
 
     def _restart(self):

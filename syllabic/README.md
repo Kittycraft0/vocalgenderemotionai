@@ -1,6 +1,7 @@
 # syllabic: live syllables, checked against Whisper, feeding a live vowel space
 
-Run it with `python main14livesyllables.py` (live mic). See the top of
+Run it with `python main14livesyllables.py` (live mic), or `python main14livesyllables.py --open <recording
+or session folder>` to look through a recording or an earlier session. See the top of
 [main14livesyllables.py](../main14livesyllables.py) for file mode, headless mode, `--reprocess` and making
 targets. For running speech, pick the target `arctic_women_measured` or `arctic_men_measured`.
 
@@ -76,6 +77,63 @@ With the new rules the same session at 6 minutes has /eɪ/ at F2 2,116 Hz (was 1
 (was 498), and /i/, /æ/, /ɑ/, /ʊ/, /u/ show as not settled yet. Over the whole session, dropping the
 "da" tokens moved /ɑ/ from F1 595 to 672. On ARCTIC only 104 of 40,144 words (0.26%: am, us, cod,
 doctrine, fine, prayers) can get a different pronunciation, so the measured accuracy below stands.
+
+## Going back, listening, reviewing (2026-11-10)
+
+The window used to show only the last 8 seconds. Now it keeps the whole session:
+
+* **Scroll back.** Drag the timeline or turn the mouse wheel over it. **Live ▶▶** (or End, or dragging back to
+  the right edge) follows the newest audio again. While you are scrolled back, the transcript lists the
+  phrases in view, and clicking a phrase's time jumps there; so does clicking the vocal-tract-length plot,
+  which doubles as an overview of the session.
+* **Point at it.** A dashed line follows the mouse. The row under the timeline gives the time, the word
+  (IPA, syllable count ✓/✗), the syllable's F1-F4 and pitch, and whether it is on the chart (or why not:
+  function word, exercise sound, outlier...). The same syllable is ringed on the vowel chart.
+* **Listen.** Clicking a word plays it; **Play view** plays what the timeline shows (Esc stops). Live, this only
+  works while paused: with VoiceMeeter or speakers the sound would otherwise go back into the microphone
+  and into your own session. Audio older than what is kept in memory is read back from the session's
+  `audio_16k.wav`.
+* **Chart for one stretch.** "timeline view only" averages just the vowels in view (e.g. one reading
+  passage); **Save mine as target** saves what the chart shows, so a later session can be compared with it.
+* **Review a file or an old session.** `--open talk.wav` runs a recording through the same pipeline as fast as
+  the computer allows, with Whisper on every phrase (it waits for Whisper rather than skipping), and saves
+  it as a session. `--open <session folder>` re-runs a saved session with the words it already has
+  (`reprocessed/words.csv` if there is one, else `words.csv`), no Whisper needed: on today's first 400 s it
+  ran at 18x real time with the window drawing and gave the same 270 tokens, word for word and Hz for Hz,
+  as the earlier full `--reprocess`. The **Open…** button starts a review in a new window.
+
+Memory: the level trace costs 8 bytes per 10 ms (~3 MB per hour); words, syllables and tokens were already
+kept for the whole session.
+
+## Men → women position: what it can and can't say (2026-11-10)
+
+From the 11-09 demo: "if you imagine the line from the male template to the female template, you should be
+lying on that line". The chart can now draw, per vowel, the line from a men's average to a women's average
+and place your settled vowels on them (`vowelspace.gender_position`, log F1-F3, so a uniform shift of all
+formants, as a shorter vocal tract gives, moves you straight along the lines). It reports one position
+(0% = men's average, 100% = women's) and how far your vowels sit to the side of the lines.
+
+Checked on speakers the references were not built from (leave-one-out; `python
+benchmark/eval_gender_position.py` re-runs all of this in ~3 min):
+
+| Speakers | Position: median (middle 80%) | Off the lines, median |
+|---|---|---|
+| Hillenbrand men (45), each vs averages without them | 1% (-28% to 19%) | 5% |
+| Hillenbrand women (48) | 93% (60% to 128%) | 6% |
+| Hillenbrand boys (27) / girls (19) vs all adults | 136% / 169% | 7% / 9% |
+| ARCTIC readers measured by this pipeline vs Hillenbrand (other corpus) | slt 102%, clb 45% (women); bdl 3%, rms -64% (men) | 9-17% |
+| ARCTIC vs the other ARCTIC man + woman | slt 63%, clb 50%; bdl 38%, rms -41% | 6-12% |
+| Your sessions 11-05 / 11-09 / 11-10 vs ARCTIC (running speech) | 46% / 45% / 54% | 8-9% |
+
+* With clean, hand-checked formants it separates adults well: 98.9% of 93 on the right side of 50%, still
+  96.7% with only 3 random vowels per speaker.
+* In running speech, single speakers spread widely (one woman at 45-50%), so the number describes formants;
+  it is not a verdict on how a voice is heard. Pitch, voice quality and intonation also carry the cue
+  (Hillenbrand & Clark 2009, Atten. Percept. Psychophys. 71:1150).
+* Per-vowel positions scatter about ±25 points even for typical speakers (SD 0.22-0.27 on Hillenbrand), so
+  read the overall number, not single vowels.
+* "Off the line" for real speakers is 5-12%; yours (8-9%) is in that range. Whether a bigger value sounds
+  odd needs listening tests (see IDEAS.md).
 
 ## Measured accuracy
 
